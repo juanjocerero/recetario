@@ -23,8 +23,6 @@ export const ingredientService = {
 	 * @param data - Datos validados por Zod.
 	 */
 	async create(data: Ingredient) {
-		// Validamos los datos con el esquema antes de la operación de base de datos.
-		IngredientSchema.parse(data);
 		return await prisma.customIngredient.create({
 			data
 		});
@@ -36,8 +34,6 @@ export const ingredientService = {
 	 * @param data - Datos validados por Zod.
 	 */
 	async update(id: string, data: Ingredient) {
-		// Validamos los datos con el esquema antes de la operación de base de datos.
-		IngredientSchema.parse(data);
 		return await prisma.customIngredient.update({
 			where: { id },
 			data
