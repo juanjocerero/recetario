@@ -1,0 +1,81 @@
+// Ruta: src/routes/admin/ingredientes/+page.server.ts
+import { fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+
+// Justificación (load): La función `load` ahora llama al endpoint GET de la API usando `fetch`.
+// Esto asegura que la página y la API están desacopladas. La página consume su propia API,
+// una práctica conocida como "dogfooding", que garantiza que la API es robusta.
+export const load: PageServerLoad = async ({ fetch }) => {
+	const response = await fetch('/api/ingredients');
+	if (!response.ok) {
+		// En un caso real, podrías manejar el error de forma más elegante.
+		return { ingredients: [] };
+	}
+	const ingredients = await response.json();
+	return {
+		ingredients
+	};
+};
+
+// Justificación (actions): Las acciones ahora empaquetan los datos del formulario y los envían
+// al endpoint de la API correspondiente usando `fetch`. La lógica de negocio y la validación
+// residen únicamente en la API, y esta acción solo se encarga de la comunicación.
+export const actions: Actions = {
+	create: async ({ request, fetch }) => {
+		const formData = await request.formData();
+
+		const response = await fetch('/api/ingredients', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(Object.fromEntries(formData))
+		});
+
+		if (!response.ok) {
+			const result = await response.json();
+			return fail(response.status, {
+				data: Object.fromEntries(formData),
+				errors: result.errors
+			});
+		}
+
+		return { success: true, message: 'Ingrediente creado con éxito' };
+	},
+
+	update: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+
+		const response = await fetch(`/api/ingredients/${id}`,
+		{
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(Object.fromEntries(formData))
+		});
+
+		if (!response.ok) {
+			const result = await response.json();
+			return fail(response.status, {
+				data: Object.fromEntries(formData),
+				errors: result.errors,
+				id
+			});
+		}
+
+		return { success: true, message: 'Ingrediente actualizado con éxito' };
+	},
+
+	delete: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+
+		const response = await fetch(`/api/ingredients/${id}`, {
+			method: 'DELETE'
+		});
+
+		if (!response.ok) {
+			return fail(response.status, { message: 'Error al eliminar el ingrediente' });
+		}
+
+		return { success: true, message: 'Ingrediente eliminado con éxito' };
+	}
+};
