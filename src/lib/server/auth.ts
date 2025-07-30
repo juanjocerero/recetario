@@ -19,6 +19,14 @@ export async function comparePasswords(password: string, hash: string) {
 // El token se firma en el servidor con un secreto y se envía al cliente en una cookie
 // HttpOnly, lo que previene el acceso desde JavaScript (ataques XSS).
 
+// Justificación: Se comprueba que la variable de entorno crítica exista al iniciar.
+// Si no, es un error de configuración del servidor y la aplicación no debe arrancar.
+if (!env.SESSION_SECRET) {
+	throw new Error(
+		'La variable de entorno SESSION_SECRET no está configurada. La aplicación no puede iniciarse de forma segura.'
+	);
+}
+
 const secret = new TextEncoder().encode(env.SESSION_SECRET);
 const algorithm = 'HS256'; // Algoritmo de firma
 
