@@ -1,6 +1,6 @@
 // Ruta: src/lib/server/auth.ts
 import { SignJWT, jwtVerify } from 'jose';
-import { hash, compare } from 'bcrypt';
+import { hash, compare } from 'bcryptjs';
 import { env } from '$env/dynamic/private';
 
 // Justificación (bcrypt): Usamos bcrypt para hashear contraseñas. Es un algoritmo

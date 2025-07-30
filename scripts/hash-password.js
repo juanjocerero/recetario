@@ -1,7 +1,7 @@
 // Ruta: scripts/hash-password.js
 // Uso: node scripts/hash-password.js 'tu_contraseña_aqui'
 
-import { hash } from 'bcrypt';
+import { hash } from 'bcryptjs';
 
 const password = process.argv[2];
 

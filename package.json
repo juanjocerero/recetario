@@ -28,7 +28,8 @@
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@tailwindcss/vite": "^4.1.11",
-		"@types/bcrypt": "^6.0.0",
+		"@types/bcryptjs": "^2.4.6",
+		"@types/node": "^24.1.0",
 		"autoprefixer": "^10.4.21",
 		"bits-ui": "^2.8.13",
 		"clsx": "^2.1.1",
@@ -59,7 +60,8 @@
 	"dependencies": {
 		"@prisma/adapter-d1": "^6.13.0",
 		"@prisma/client": "^6.13.0",
-		"bcrypt": "^6.0.0",
-		"jose": "^6.0.12"
+		"bcryptjs": "^3.0.2",
+		"jose": "^6.0.12",
+		"zod": "^4.0.14"
 	}
 }
