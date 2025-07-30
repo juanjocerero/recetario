@@ -13,28 +13,31 @@ datasource db {
 }
 
 model ProductCache {
-  id          String    @id // Código de barras
-  productName String
-  brand       String?
-  imageUrl    String?
-  calories    Float?    // Valor por 100g
-  fat         Float?    // Valor por 100g
-  protein     Float?    // Valor por 100g
-  carbs       Float?    // Valor por 100g
-  // Guardamos el payload completo por si se necesita en el futuro,
-  // pero no lo usamos para las consultas principales.
-  fullPayload Json?
-  updatedAt   DateTime  @updatedAt
+  id                String             @id // Código de barras
+  productName       String
+  brand             String?
+  imageUrl          String?
+  calories          Float?             // Valor por 100g
+  fat               Float?             // Valor por 100g
+  protein           Float?             // Valor por 100g
+  carbs             Float?             // Valor por 100g
+  fullPayload       Json?
+  updatedAt         DateTime           @updatedAt
+  // Justificación: Relación inversa requerida por Prisma.
+  // Un producto puede estar en múltiples ingredientes de recetas.
+  recipeIngredients RecipeIngredient[]
 }
 
 model CustomIngredient {
   id        String   @id @default(cuid())
   name      String   @unique
-  // Columnas normalizadas para consistencia
   calories  Float
   fat       Float
   protein   Float
   carbs     Float
+  // Justificación: Relación inversa requerida por Prisma.
+  // Un ingrediente custom puede estar en múltiples ingredientes de recetas.
+  recipeIngredients RecipeIngredient[]
 }
 
 model Recipe {
