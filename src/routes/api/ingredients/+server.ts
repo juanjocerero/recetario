@@ -3,6 +3,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { ingredientService } from '$lib/server/services/ingredientService';
 import { IngredientSchema } from '$lib/schemas/ingredientSchema';
 import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
 
 // Justificación (GET): Este endpoint expone la lista de ingredientes personalizados.
 // Sigue el patrón REST para obtener colecciones de recursos.
@@ -32,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			// Si la validación de Zod falla, devolvemos un error 400 con los detalles.
-			return json({ errors: error.format() }, { status: 400 });
+			return json(formatZodError(error), { status: 400 });
 		}
 		// Manejo de otros errores, como los de la base de datos.
 		console.error('Error creating ingredient:', error);

@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 import { recipeService } from '$lib/server/services/recipeService';
 import { RecipeSchema } from '$lib/schemas/recipeSchema';
 import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
 
 /**
  * Maneja las peticiones GET para obtener una receta por su ID.
@@ -36,7 +37,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		return json(updatedRecipe);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json({ errors: error.flatten().fieldErrors }, { status: 400 });
+			return json(formatZodError(error), { status: 400 });
 		}
 		console.error(`Error updating recipe ${params.id}:`, error);
 		return json({ message: 'Error interno del servidor' }, { status: 500 });
