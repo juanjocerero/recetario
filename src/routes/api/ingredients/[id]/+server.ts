@@ -20,10 +20,9 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		return json(updatedIngredient);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json({ errors: error.flatten().fieldErrors }, { status: 400 });
+			return json({ errors: error.formErrors.fieldErrors }, { status: 400 });
 		}
-		// Aquí podrías manejar errores específicos de Prisma, como 'RecordNotFound'.
-		console.error(`Error updating ingredient ${id}:`, error);
+		console.error(`Error updating ingredient with id ${params.id}:`, error);
 		return json({ message: 'Error interno del servidor' }, { status: 500 });
 	}
 };

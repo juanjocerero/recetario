@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			// Si la validación de Zod falla, devolvemos un error 400 con los detalles.
-			return json({ errors: error.flatten().fieldErrors }, { status: 400 });
+			return json({ errors: error.format() }, { status: 400 });
 		}
 		// Manejo de otros errores, como los de la base de datos.
 		console.error('Error creating ingredient:', error);
