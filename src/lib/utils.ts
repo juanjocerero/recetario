@@ -1,8 +1,22 @@
-import { clsx, type ClassValue } from "clsx";
+import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { ZodError, ZodIssue } from 'zod';
 
 export function cn(...inputs: ClassValue[]) {
-	return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs));
+}
+
+/**
+ * Normaliza un texto para búsquedas: lo convierte a minúsculas y elimina los acentos.
+ * Ejemplo: "Azúcar Moreno" -> "azucar moreno"
+ * @param text - El texto a normalizar.
+ * @returns El texto normalizado.
+ */
+export function normalizeText(text: string): string {
+	return text
+		.toLowerCase()
+		.normalize('NFD') // Descompone los caracteres acentuados en base + diacrítico
+		.replace(/[\u0300-\u036f]/g, ''); // Elimina los diacríticos
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -3,6 +3,7 @@ import prisma from '$lib/server/prisma';
 // Justificación: Importamos el 'const' IngredientSchema para la validación en tiempo de ejecución
 // y el 'type' Ingredient para las anotaciones de tipo estáticas, cumpliendo con verbatimModuleSyntax.
 import { IngredientSchema, type Ingredient } from '$lib/schemas/ingredientSchema';
+import { normalizeText } from '$lib/utils';
 
 // Justificación: La capa de servicio abstrae la lógica de negocio y el acceso a datos.
 // Esto mantiene los endpoints de la API (controladores) limpios y centrados en manejar
@@ -23,8 +24,14 @@ export const ingredientService = {
 	 * @param data - Datos validados por Zod.
 	 */
 	async create(data: Ingredient) {
+		// Justificación: Se genera el nombre normalizado antes de la inserción
+		// para asegurar que la búsqueda insensible a acentos funcione correctamente.
+		const normalizedName = normalizeText(data.name);
 		return await prisma.customIngredient.create({
-			data
+			data: {
+				...data,
+				normalizedName
+			}
 		});
 	},
 
@@ -34,9 +41,15 @@ export const ingredientService = {
 	 * @param data - Datos validados por Zod.
 	 */
 	async update(id: string, data: Ingredient) {
+		// Justificación: Se actualiza el nombre normalizado junto con el nombre
+		// para mantener la consistencia de los datos para la búsqueda.
+		const normalizedName = normalizeText(data.name);
 		return await prisma.customIngredient.update({
 			where: { id },
-			data
+			data: {
+				...data,
+				normalizedName
+			}
 		});
 	},
 

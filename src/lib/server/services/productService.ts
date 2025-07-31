@@ -2,6 +2,7 @@
 import prisma from '$lib/server/prisma';
 import type { Prisma } from '@prisma/client';
 import ky from 'ky';
+import { normalizeText } from '$lib/utils';
 
 // Definición de tipos para la respuesta de la API de Open Food Facts
 type OpenFoodFactsProduct = {
@@ -60,6 +61,8 @@ export const productService = {
 			const normalizedProduct = {
 				id: productFromApi.code,
 				productName: productFromApi.product_name,
+				// Justificación: Se genera el nombre normalizado para la búsqueda.
+				normalizedProductName: normalizeText(productFromApi.product_name),
 				brand: productFromApi.brands,
 				imageUrl: productFromApi.image_url,
 				calories: productFromApi.nutriments.energy_kcal_100g,
