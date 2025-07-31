@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { ZodError, ZodIssue } from 'zod';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -25,3 +24,32 @@ export type WithoutChild<T> = T extends { child?: any } ? Omit<T, "child"> : T;
 export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, "children"> : T;
 export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
+
+/**
+ * Crea una función "debounced" que retrasa la invocación de `func` hasta que `wait`
+ * milisegundos han pasado desde la última vez que fue invocada.
+ * @param func La función a "debounce".
+ * @param wait El número de milisegundos a esperar.
+ * @returns La nueva función "debounced".
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function debounce<T extends (...args: any[]) => any>(
+	func: T,
+	wait: number
+): (...args: Parameters<T>) => void {
+	let timeout: ReturnType<typeof setTimeout> | null;
+
+	return function (this: ThisParameterType<T>, ...args: Parameters<T>) {
+		// Justificación: Desactivamos esta regla de ESLint porque en una función debounce,
+		// es una práctica común y necesaria capturar el contexto 'this' para usarlo en 'apply'.
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		const context = this;
+		if (timeout) {
+			clearTimeout(timeout);
+		}
+		timeout = setTimeout(() => {
+			timeout = null;
+			func.apply(context, args);
+		}, wait);
+	};
+}
