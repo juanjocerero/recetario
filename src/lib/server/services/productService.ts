@@ -9,7 +9,7 @@ type OpenFoodFactsProduct = {
 	product_name: string;
 	brands?: string;
 	image_url?: string;
-	nutrients: {
+	nutriments: {
 		energy_kcal_100g?: number;
 		fat_100g?: number;
 		proteins_100g?: number;
@@ -62,10 +62,10 @@ export const productService = {
 				productName: productFromApi.product_name,
 				brand: productFromApi.brands,
 				imageUrl: productFromApi.image_url,
-				calories: productFromApi.nutrients.energy_kcal_100g,
-				fat: productFromApi.nutrients.fat_100g,
-				protein: productFromApi.nutrients.proteins_100g,
-				carbs: productFromApi.nutrients.carbohydrates_100g,
+				calories: productFromApi.nutriments.energy_kcal_100g,
+				fat: productFromApi.nutriments.fat_100g,
+				protein: productFromApi.nutriments.proteins_100g,
+				carbs: productFromApi.nutriments.carbohydrates_100g,
 				// Justificación (Prisma.InputJsonValue): Hacemos un type casting a `InputJsonValue`
 				// para asegurar a TypeScript que la estructura del objeto de la API
 				// es compatible con el tipo `Json` que Prisma espera.
