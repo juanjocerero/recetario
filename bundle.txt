@@ -1,7 +1,7 @@
 /* --- Bundle de Código Generado ---
  * Modo: full
- * Ficheros Incluidos: 103
- * Fecha: 2025-08-01T12:45:02.589Z
+ * Ficheros Incluidos: 105
+ * Fecha: 2025-08-01T14:53:18.370Z
  */
 
 // --- Ruta: vitest.config.ts ---
@@ -1084,6 +1084,46 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 </CardContent>
 </Card>
 
+// --- Ruta: src/routes/api/recipes/+server.ts ---
+// Ruta: src/routes/api/recipes/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
+/**
+ * Maneja las peticiones GET para obtener todas las recetas.
+ */
+export const GET: RequestHandler = async () => {
+	try {
+		const recipes = await recipeService.getAll();
+		return json(recipes);
+	} catch (error) {
+		console.error('Error fetching recipes:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones POST para crear una nueva receta.
+ */
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json();
+		// Validamos el cuerpo de la petición con nuestro esquema Zod.
+		const validatedData = RecipeSchema.parse(body);
+		const newRecipe = await recipeService.create(validatedData);
+		return json(newRecipe, { status: 201 }); // 201 Created
+	} catch (error) {
+		if (error instanceof ZodError) {
+			// Si la validación falla, devolvemos un error 400 claro y formateado.
+			return json(formatZodError(error), { status: 400 });
+		}
+		console.error('Error creating recipe:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
 // --- Ruta: src/routes/recetas/[id]/+page.svelte ---
 <!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
 <script lang="ts">
@@ -1211,46 +1251,6 @@ export const load: PageServerLoad = async ({ params }) => {
 	};
 };
 
-// --- Ruta: src/routes/api/recipes/+server.ts ---
-// Ruta: src/routes/api/recipes/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { recipeService } from '$lib/server/services/recipeService';
-import { RecipeSchema } from '$lib/schemas/recipeSchema';
-import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
-/**
- * Maneja las peticiones GET para obtener todas las recetas.
- */
-export const GET: RequestHandler = async () => {
-	try {
-		const recipes = await recipeService.getAll();
-		return json(recipes);
-	} catch (error) {
-		console.error('Error fetching recipes:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-/**
- * Maneja las peticiones POST para crear una nueva receta.
- */
-export const POST: RequestHandler = async ({ request }) => {
-	try {
-		const body = await request.json();
-		// Validamos el cuerpo de la petición con nuestro esquema Zod.
-		const validatedData = RecipeSchema.parse(body);
-		const newRecipe = await recipeService.create(validatedData);
-		return json(newRecipe, { status: 201 }); // 201 Created
-	} catch (error) {
-		if (error instanceof ZodError) {
-			// Si la validación falla, devolvemos un error 400 claro y formateado.
-			return json(formatZodError(error), { status: 400 });
-		}
-		console.error('Error creating recipe:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
 // --- Ruta: src/routes/api/ingredients/+server.ts ---
 // Ruta: src/routes/api/ingredients/+server.ts
 import { json, type RequestHandler } from '@sveltejs/kit';
@@ -1292,12 +1292,51 @@ export const POST: RequestHandler = async ({ request }) => {
 	import { Label } from '$lib/components/ui/label';
 	import * as Table from '$lib/components/ui/table';
 	import type { ActionData, PageData } from './$types';
+	import SyncDialog from '$lib/components/admin/SyncDialog.svelte';
+	import { invalidateAll } from '$app/navigation';
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	// --- Lógica para el diálogo de sincronización ---
+	let isSyncDialogOpen = $state(false);
+	let syncState = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
+	let syncResult = $state<any>(null);
+	// Justificación: Esta función maneja el flujo de la sincronización en el cliente.
+	// Llama al endpoint del backend, gestiona los estados de carga/éxito/error
+	// y actualiza los datos de la página al finalizar para reflejar los cambios.
+	async function handleSync() {
+		syncState = 'loading';
+		// isSyncDialogOpen se controla automáticamente por el Dialog.Trigger
+		try {
+			const response = await fetch('/api/ingredients/sync', {
+				method: 'POST',
+				credentials: 'include' // Justificación: Se incluye para enviar la cookie de sesión.
+			});
+			if (!response.ok) {
+				throw new Error('Falló la petición de sincronización');
+			}
+			syncResult = await response.json();
+			syncState = 'success';
+			// Justificación: invalidamos los datos de la página actual para que SvelteKit
+			// los vuelva a cargar del servidor, mostrando así los ingredientes actualizados.
+			await invalidateAll();
+		} catch (error) {
+			console.error('Error durante la sincronización:', error);
+			syncState = 'error';
+		}
+	}
 </script>
 <div class="container mx-auto py-10">
 	<div class="flex justify-between items-center mb-6">
 		<h1 class="text-2xl font-bold">Gestión de Ingredientes</h1>
 		<div class="flex gap-2">
+			<!-- Botón de Sincronización -->
+			<Dialog.Root bind:open={isSyncDialogOpen}>
+				<Dialog.Trigger class={buttonVariants({ variant: 'outline' })} onclick={handleSync}>
+					Sincronizar con OFF
+				</Dialog.Trigger>
+				{#if isSyncDialogOpen}
+					<SyncDialog state={syncState} result={syncResult} />
+				{/if}
+			</Dialog.Root>
 			<a href="/admin/ingredientes/off" class={buttonVariants({ variant: 'outline' })}>
 				Añadir desde Open Food Facts
 			</a>
@@ -1356,140 +1395,141 @@ export const POST: RequestHandler = async ({ request }) => {
 			</Table.Header>
 			<Table.Body>
 				{#each data.ingredients as ingredient (ingredient.id)}
-				<Table.Row>
-					<Table.Cell class="font-medium">{ingredient.name}</Table.Cell>
-					<Table.Cell>
-						{#if ingredient.source === 'custom'}
-						<span class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
-							Personalizado
-						</span>
-						{:else}
-						<span class="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">
-							Caché de OFF
-						</span>
-						{/if}
-					</Table.Cell>
-					<Table.Cell class="text-right">{ingredient.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
-					<Table.Cell class="text-right">{ingredient.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
-					<Table.Cell class="text-right">{ingredient.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
-					<Table.Cell class="text-right">{ingredient.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
-					<Table.Cell class="text-right">
-						<Dialog.Root>
-							<Button
-							variant="outline"
-							size="sm"
-							disabled={ingredient.source !== 'custom'}
-							onclick={(e) => {
-								if (ingredient.source !== 'custom') e.preventDefault();
-								// Lógica para abrir el diálogo si es necesario
-							}}
-							>
-							Editar
-						</Button>
-						<Dialog.Content class="sm:max-w-[425px]">
-							<Dialog.Header>
-								<Dialog.Title>Editar Ingrediente</Dialog.Title>
-							</Dialog.Header>
-							<form method="POST" action="?/update" use:enhance>
-								<input type="hidden" name="id" value={ingredient.id} />
-								<div class="grid gap-4 py-4">
-									<div class="grid grid-cols-4 items-center gap-4">
-										<Label for="name-edit" class="text-right">Nombre</Label>
-										<Input
-										id="name-edit"
-										name="name"
-										value={ingredient.name}
-										class="col-span-3"
-										/>
-									</div>
-									<div class="grid grid-cols-4 items-center gap-4">
-										<Label for="calories-edit" class="text-right">Calorías</Label>
-										<Input
-										id="calories-edit"
-										name="calories"
-										type="number"
-										step="0.1"
-										value={ingredient.calories}
-										class="col-span-3"
-										/>
-									</div>
-									<div class="grid grid-cols-4 items-center gap-4">
-										<Label for="protein-edit" class="text-right">Proteínas</Label>
-										<Input
-										id="protein-edit"
-										name="protein"
-										type="number"
-										step="0.1"
-										value={ingredient.protein}
-										class="col-span-3"
-										/>
-									</div>
-									<div class="grid grid-cols-4 items-center gap-4">
-										<Label for="fat-edit" class="text-right">Grasas</Label>
-										<Input
-										id="fat-edit"
-										name="fat"
-										type="number"
-										step="0.1"
-										value={ingredient.fat}
-										class="col-span-3"
-										/>
-									</div>
-									<div class="grid grid-cols-4 items-center gap-4">
-										<Label for="carbs-edit" class="text-right">Carbohidratos</Label>
-										<Input
-										id="carbs-edit"
-										name="carbs"
-										type="number"
-										step="0.1"
-										value={ingredient.carbs}
-										class="col-span-3"
-										/>
-									</div>
-								</div>
-								<Dialog.Footer>
-									<Dialog.Close class={buttonVariants()} type="submit"
-									>Guardar Cambios</Dialog.Close
-									>
-								</Dialog.Footer>
-							</form>
-						</Dialog.Content>
-					</Dialog.Root>
-					<Dialog.Root>
-						<Dialog.Trigger
-						class={buttonVariants({ variant: 'destructive', size: 'sm' }) + ' ml-2'}
-						>Eliminar</Dialog.Trigger
-						>
-						<Dialog.Content class="sm:max-w-[425px]">
-							<Dialog.Header>
-								<Dialog.Title>Confirmar Eliminación</Dialog.Title>
-								<Dialog.Description>
-									¿Estás seguro de que quieres eliminar el ingrediente "{ingredient.name}"?
-									Esta acción no se puede deshacer.
-								</Dialog.Description>
-							</Dialog.Header>
-							<form method="POST" action="?/delete" use:enhance>
-								<input type="hidden" name="id" value={ingredient.id} />
-								<input type="hidden" name="source" value={ingredient.source} />
-								<Dialog.Footer>
-									<Dialog.Close class={buttonVariants({ variant: 'outline' })}
-									>Cancelar</Dialog.Close
-									>
-									<Button variant="destructive" type="submit">Eliminar</Button>
-								</Dialog.Footer>
-							</form>
-						</Dialog.Content>
-					</Dialog.Root>
-				</Table.Cell>
-			</Table.Row>
-			{:else}
-			<Table.Row>
-				<Table.Cell colspan={7} class="text-center">No hay ingredientes.</Table.Cell>
-			</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-</div>
+					<Table.Row>
+						<Table.Cell class="font-medium">{ingredient.name}</Table.Cell>
+						<Table.Cell>
+							{#if ingredient.source === 'custom'}
+								<span
+									class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300"
+								>
+									Personalizado
+								</span>
+							{:else}
+								<span
+									class="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300"
+								>
+									Caché de OFF
+								</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">
+							<Dialog.Root>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={ingredient.source !== 'custom'}
+									onclick={(e) => {
+										if (ingredient.source !== 'custom') e.preventDefault();
+										// Lógica para abrir el diálogo si es necesario
+									}}
+								>
+									Editar
+								</Button>
+								<Dialog.Content class="sm:max-w-[425px]">
+									<Dialog.Header>
+										<Dialog.Title>Editar Ingrediente</Dialog.Title>
+									</Dialog.Header>
+									<form method="POST" action="?/update" use:enhance>
+										<input type="hidden" name="id" value={ingredient.id} />
+										<div class="grid gap-4 py-4">
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="name-edit" class="text-right">Nombre</Label>
+												<Input
+													id="name-edit"
+													name="name"
+													value={ingredient.name}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="calories-edit" class="text-right">Calorías</Label>
+												<Input
+													id="calories-edit"
+													name="calories"
+													type="number"
+													step="0.1"
+													value={ingredient.calories}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="protein-edit" class="text-right">Proteínas</Label>
+												<Input
+													id="protein-edit"
+													name="protein"
+													type="number"
+													step="0.1"
+													value={ingredient.protein}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="fat-edit" class="text-right">Grasas</Label>
+												<Input
+													id="fat-edit"
+													name="fat"
+													type="number"
+													step="0.1"
+													value={ingredient.fat}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="carbs-edit" class="text-right">Carbohidratos</Label>
+												<Input
+													id="carbs-edit"
+													name="carbs"
+													type="number"
+													step="0.1"
+													value={ingredient.carbs}
+													class="col-span-3"
+												/>
+											</div>
+										</div>
+										<Dialog.Footer>
+											<Dialog.Close class={buttonVariants()} type="submit">Guardar Cambios</Dialog.Close>
+										</Dialog.Footer>
+									</form>
+								</Dialog.Content>
+							</Dialog.Root>
+							<Dialog.Root>
+								<Dialog.Trigger
+									class={buttonVariants({ variant: 'destructive', size: 'sm' }) + ' ml-2'}
+								>
+									Eliminar
+								</Dialog.Trigger>
+								<Dialog.Content class="sm:max-w-[425px]">
+									<Dialog.Header>
+										<Dialog.Title>Confirmar Eliminación</Dialog.Title>
+										<Dialog.Description>
+											¿Estás seguro de que quieres eliminar el ingrediente "{ingredient.name}"? Esta
+											acción no se puede deshacer.
+										</Dialog.Description>
+									</Dialog.Header>
+									<form method="POST" action="?/delete" use:enhance>
+										<input type="hidden" name="id" value={ingredient.id} />
+										<input type="hidden" name="source" value={ingredient.source} />
+										<Dialog.Footer>
+											<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
+											<Button variant="destructive" type="submit">Eliminar</Button>
+										</Dialog.Footer>
+									</form>
+								</Dialog.Content>
+							</Dialog.Root>
+						</Table.Cell>
+					</Table.Row>
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={7} class="text-center">No hay ingredientes.</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+	</div>
 </div>
 
 // --- Ruta: src/routes/admin/ingredientes/+page.server.ts ---
@@ -2031,15 +2071,94 @@ export const ingredientService = {
 		return await prisma.customIngredient.delete({
 			where: { id }
 		});
+	},
+	/**
+	 * Sincroniza los ingredientes de la base de datos local que provienen de Open Food Facts (OFF).
+	 * Compara los datos locales con los de la API de OFF y actualiza si hay diferencias.
+	 * Incluye un retardo para no sobrecargar la API y maneja errores por ingrediente.
+	 */
+	async syncWithOpenFoodFacts(): Promise<{
+		updatedIngredients: string[];
+		failedIngredients: { id: string; name: string; reason: string }[];
+	}> {
+		const updatedIngredients: string[] = [];
+		const failedIngredients: { id: string; name: string; reason: string }[] = [];
+		const API_DELAY_MS = 300; // Justificación: Retardo para ser respetuosos con la API de OFF.
+		// Justificación: Obtenemos solo los productos cacheados, que son los que provienen de OFF.
+		const productsToSync = await prisma.product.findMany();
+		for (const product of productsToSync) {
+			try {
+				const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${product.id}.json`);
+				// Justificación: Pausa para evitar rate-limiting.
+				await new Promise((resolve) => setTimeout(resolve, API_DELAY_MS));
+				if (!response.ok) {
+					failedIngredients.push({
+						id: product.id,
+						name: product.name,
+						reason: `Error ${response.status}: ${response.statusText}`
+					});
+					continue; // Salta al siguiente ingrediente
+				}
+				const offData = await response.json();
+				if (offData.status !== 1 || !offData.product) {
+					failedIngredients.push({
+						id: product.id,
+						name: product.name,
+						reason: 'Producto no encontrado en Open Food Facts'
+					});
+					continue;
+				}
+				const offProduct = offData.product;
+				// Justificación: Mapeamos los datos de OFF a nuestra estructura de Product.
+				// Usamos el operador de encadenamiento opcional y el de anulación (??)
+				// para manejar de forma segura la posible ausencia de datos en la respuesta de la API.
+				const newProductData = {
+					name: offProduct.product_name || product.name,
+					normalizedName: normalizeText(offProduct.product_name || product.name),
+					brand: offProduct.brands || product.brand,
+					imageUrl: offProduct.image_url || product.imageUrl,
+					calories: offProduct.nutriments?.['energy-kcal_100g'] ?? product.calories,
+					fat: offProduct.nutriments?.fat_100g ?? product.fat,
+					protein: offProduct.nutriments?.proteins_100g ?? product.protein,
+					carbs: offProduct.nutriments?.carbohydrates_100g ?? product.carbs,
+					fullPayload: offProduct
+				};
+				// Justificación: Comparamos los campos relevantes para ver si es necesaria una actualización.
+				// Se comparan los valores primitivos y el payload JSON completo para detectar cualquier cambio.
+				const isDifferent =
+					newProductData.name !== product.name ||
+					newProductData.brand !== product.brand ||
+					newProductData.imageUrl !== product.imageUrl ||
+					newProductData.calories !== product.calories ||
+					newProductData.fat !== product.fat ||
+					newProductData.protein !== product.protein ||
+					newProductData.carbs !== product.carbs;
+				if (isDifferent) {
+					await prisma.product.update({
+						where: { id: product.id },
+						data: newProductData
+					});
+					updatedIngredients.push(product.name);
+				}
+			} catch (error) {
+				failedIngredients.push({
+					id: product.id,
+					name: product.name,
+					reason: error instanceof Error ? error.message : 'Error desconocido'
+				});
+			}
+		}
+		return { updatedIngredients, failedIngredients };
 	}
 };
 
 // --- Ruta: src/lib/server/services/ingredientService.spec.ts ---
 // Ruta: src/lib/server/services/ingredientService.spec.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import prisma from '$lib/server/prisma';
 import { ingredientService } from './ingredientService';
 import type { Ingredient } from '$lib/schemas/ingredientSchema';
+import { normalizeText } from '$lib/utils';
 // Justificación: Mockeamos el módulo de Prisma para aislar el servicio de la base de datos.
 // `vi.mock` reemplaza las exportaciones del módulo con mocks, permitiéndonos controlar
 // el comportamiento de `prisma.customIngredient.create` y otras funciones de Prisma durante el test.
@@ -2051,14 +2170,23 @@ vi.mock('$lib/server/prisma', () => {
 				create: vi.fn(),
 				update: vi.fn(),
 				delete: vi.fn()
+			},
+			product: {
+				findMany: vi.fn(),
+				update: vi.fn()
 			}
 		}
 	};
 });
+// Mockeamos fetch globalmente para interceptar las llamadas a la API de OFF
+global.fetch = vi.fn();
 describe('ingredientService', () => {
 	// Limpiamos los mocks antes de cada test para asegurar que no haya interferencias entre pruebas.
 	beforeEach(() => {
 		vi.clearAllMocks();
+	});
+	afterEach(() => {
+		vi.useRealTimers(); // Restauramos los temporizadores reales después de cada test
 	});
 	it('debería llamar a prisma.customIngredient.create con los datos correctos', async () => {
 		// 1. Arrange (Preparación)
@@ -2090,8 +2218,306 @@ describe('ingredientService', () => {
 		// Verificamos que el resultado de nuestro servicio es el que esperábamos.
 		expect(result).toEqual(expectedResult);
 	});
-	// Aquí se podrían añadir más tests para getAll, update y deleteById...
+	describe('syncWithOpenFoodFacts', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+		it('debería actualizar un producto cuando los datos de OFF son diferentes', async () => {
+			// Arrange
+			const mockProduct = {
+				id: '12345',
+				name: 'Old Name',
+				brand: 'Old Brand',
+				calories: 100,
+				fat: 10,
+				protein: 10,
+				carbs: 10,
+				imageUrl: 'old_url',
+				normalizedName: 'old name',
+				fullPayload: {}
+			};
+			vi.mocked(prisma.product.findMany).mockResolvedValue([mockProduct]);
+			const offApiResponse = {
+				status: 1,
+				product: {
+					product_name: 'New Name',
+					brands: 'New Brand',
+					nutriments: {
+						'energy-kcal_100g': 200,
+						fat_100g: 20,
+						proteins_100g: 20,
+						carbohydrates_100g: 20
+					},
+					image_url: 'new_url'
+				}
+			};
+			vi.mocked(fetch).mockResolvedValue({
+				ok: true,
+				json: async () => offApiResponse
+			} as Response);
+			// Act
+			const promise = ingredientService.syncWithOpenFoodFacts();
+			await vi.runAllTimersAsync();
+			const result = await promise;
+			// Assert
+			expect(prisma.product.update).toHaveBeenCalledTimes(1);
+			expect(prisma.product.update).toHaveBeenCalledWith({
+				where: { id: '12345' },
+				data: {
+					name: 'New Name',
+					normalizedName: 'new name',
+					brand: 'New Brand',
+					imageUrl: 'new_url',
+					calories: 200,
+					fat: 20,
+					protein: 20,
+					carbs: 20,
+					fullPayload: offApiResponse.product
+				}
+			});
+			expect(result.updatedIngredients).toEqual(['Old Name']);
+			expect(result.failedIngredients).toEqual([]);
+		});
+		it('NO debería actualizar un producto si los datos son idénticos', async () => {
+			// Arrange
+			const mockProduct = {
+				id: '12345',
+				name: 'Same Name',
+				brand: 'Same Brand',
+				calories: 100,
+				fat: 10,
+				protein: 10,
+				carbs: 10,
+				imageUrl: 'same_url',
+				normalizedName: 'same name',
+				fullPayload: {}
+			};
+			vi.mocked(prisma.product.findMany).mockResolvedValue([mockProduct]);
+			const offApiResponse = {
+				status: 1,
+				product: {
+					product_name: 'Same Name',
+					brands: 'Same Brand',
+					nutriments: {
+						'energy-kcal_100g': 100,
+						fat_100g: 10,
+						proteins_100g: 10,
+						carbohydrates_100g: 10
+					},
+					image_url: 'same_url'
+				}
+			};
+			vi.mocked(fetch).mockResolvedValue({
+				ok: true,
+				json: async () => offApiResponse
+			} as Response);
+			// Act
+			const promise = ingredientService.syncWithOpenFoodFacts();
+			await vi.runAllTimersAsync();
+			const result = await promise;
+			// Assert
+			expect(prisma.product.update).not.toHaveBeenCalled();
+			expect(result.updatedIngredients).toEqual([]);
+			expect(result.failedIngredients).toEqual([]);
+		});
+		it('debería registrar un fallo si la API de OFF devuelve un error', async () => {
+			// Arrange
+			const mockProduct = { id: '12345', name: 'Failing Product' };
+			vi.mocked(prisma.product.findMany).mockResolvedValue([mockProduct as any]);
+			vi.mocked(fetch).mockResolvedValue({
+				ok: false,
+				status: 500,
+				statusText: 'Internal Server Error'
+			} as Response);
+			// Act
+			const promise = ingredientService.syncWithOpenFoodFacts();
+			await vi.runAllTimersAsync();
+			const result = await promise;
+			// Assert
+			expect(prisma.product.update).not.toHaveBeenCalled();
+			expect(result.updatedIngredients).toEqual([]);
+			expect(result.failedIngredients).toEqual([
+				{ id: '12345', name: 'Failing Product', reason: 'Error 500: Internal Server Error' }
+			]);
+		});
+		it('debería registrar un fallo si el producto no se encuentra en OFF', async () => {
+			// Arrange
+			const mockProduct = { id: '12345', name: 'Not Found Product' };
+			vi.mocked(prisma.product.findMany).mockResolvedValue([mockProduct as any]);
+			vi.mocked(fetch).mockResolvedValue({
+				ok: true,
+				json: async () => ({ status: 0 }) // status: 0 indica no encontrado
+			} as Response);
+			// Act
+			const promise = ingredientService.syncWithOpenFoodFacts();
+			await vi.runAllTimersAsync();
+			const result = await promise;
+			// Assert
+			expect(result.failedIngredients).toEqual([
+				{
+					id: '12345',
+					name: 'Not Found Product',
+					reason: 'Producto no encontrado en Open Food Facts'
+				}
+			]);
+		});
+	});
 });
+
+// --- Ruta: src/lib/components/admin/SyncDialog.svelte ---
+<!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
+<script lang="ts">
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { CircleDashed } from 'lucide-svelte';
+	// Justificación: Este componente ahora solo se encarga de mostrar el *contenido* del diálogo.
+	// El control de apertura/cierre y el disparador se gestionan en la página padre,
+	// siguiendo las convenciones del proyecto y de Svelte 5.
+	type $Props = {
+		state: 'idle' | 'loading' | 'success' | 'error';
+		result: {
+			updatedIngredients: string[];
+			failedIngredients: { id: string; name: string; reason: string }[];
+		} | null;
+	};
+	let { state, result }: $Props = $props();
+</script>
+<Dialog.Content class="sm:max-w-[625px]">
+	{#if state === 'loading'}
+		<div class="flex flex-col items-center justify-center p-8">
+			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
+			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
+			<p class="text-sm text-muted-foreground">
+				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
+			</p>
+		</div>
+	{:else if state === 'success' && result}
+		<Dialog.Header>
+			<Dialog.Title>Sincronización Completada</Dialog.Title>
+			<Dialog.Description>
+				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
+				{#if result.failedIngredients.length > 0}
+					Hubo <strong>{result.failedIngredients.length}</strong> errores.
+				{/if}
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="max-h-[400px] overflow-y-auto">
+			{#if result.updatedIngredients.length > 0}
+				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.updatedIngredients as name}
+							<TableRow>
+								<TableCell>{name}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+			{#if result.failedIngredients.length > 0}
+				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead>Motivo del Error</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.failedIngredients as failure}
+							<TableRow>
+								<TableCell>{failure.name} ({failure.id})</TableCell>
+								<TableCell>{failure.reason}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<!-- Justificación: Se usa Dialog.Close directamente estilizado como un botón,
+			     evitando la complejidad y errores de 'asChild'. -->
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{:else if state === 'error'}
+		<Dialog.Header>
+			<Dialog.Title>Error en la Sincronización</Dialog.Title>
+			<Dialog.Description>
+				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
+				de nuevo más tarde.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer>
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{/if}
+</Dialog.Content>
+
+// --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
+// Ruta: src/routes/api/recipes/[id]/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
+/**
+ * Maneja las peticiones GET para obtener una receta por su ID.
+ */
+export const GET: RequestHandler = async ({ params }) => {
+	try {
+		const recipe = await recipeService.getById(params.id);
+		if (!recipe) {
+			return json({ message: 'Receta no encontrada' }, { status: 404 });
+		}
+		return json(recipe);
+	} catch (error) {
+		console.error(`Error fetching recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones PUT para actualizar una receta.
+ */
+export const PUT: RequestHandler = async ({ request, params }) => {
+	try {
+		const body = await request.json();
+		const validatedData = RecipeSchema.parse(body);
+		const updatedRecipe = await recipeService.update(params.id, validatedData);
+		if (!updatedRecipe) {
+			return json({ message: 'Receta no encontrada para actualizar' }, { status: 404 });
+		}
+		return json(updatedRecipe);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(formatZodError(error), { status: 400 });
+		}
+		console.error(`Error updating recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones DELETE para eliminar una receta.
+ */
+export const DELETE: RequestHandler = async ({ params }) => {
+	try {
+		await recipeService.deleteById(params.id);
+		return new Response(null, { status: 204 }); // 204 No Content
+	} catch (error) {
+		// Podríamos verificar si el error es porque el registro no existe (P2025 en Prisma)
+		console.error(`Error deleting recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
 
 // --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
 <!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
@@ -2421,81 +2847,6 @@ export const load: PageServerLoad = async ({ params }) => {
 	};
 };
 
-// --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
-// Ruta: src/routes/api/recipes/[id]/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { recipeService } from '$lib/server/services/recipeService';
-import { RecipeSchema } from '$lib/schemas/recipeSchema';
-import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
-/**
- * Maneja las peticiones GET para obtener una receta por su ID.
- */
-export const GET: RequestHandler = async ({ params }) => {
-	try {
-		const recipe = await recipeService.getById(params.id);
-		if (!recipe) {
-			return json({ message: 'Receta no encontrada' }, { status: 404 });
-		}
-		return json(recipe);
-	} catch (error) {
-		console.error(`Error fetching recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-/**
- * Maneja las peticiones PUT para actualizar una receta.
- */
-export const PUT: RequestHandler = async ({ request, params }) => {
-	try {
-		const body = await request.json();
-		const validatedData = RecipeSchema.parse(body);
-		const updatedRecipe = await recipeService.update(params.id, validatedData);
-		if (!updatedRecipe) {
-			return json({ message: 'Receta no encontrada para actualizar' }, { status: 404 });
-		}
-		return json(updatedRecipe);
-	} catch (error) {
-		if (error instanceof ZodError) {
-			return json(formatZodError(error), { status: 400 });
-		}
-		console.error(`Error updating recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-/**
- * Maneja las peticiones DELETE para eliminar una receta.
- */
-export const DELETE: RequestHandler = async ({ params }) => {
-	try {
-		await recipeService.deleteById(params.id);
-		return new Response(null, { status: 204 }); // 204 No Content
-	} catch (error) {
-		// Podríamos verificar si el error es porque el registro no existe (P2025 en Prisma)
-		console.error(`Error deleting recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/products/[id]/+server.ts ---
-// Ruta: src/routes/api/products/[id]/+server.ts
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { productService } from '$lib/server/services/productService';
-export const DELETE: RequestHandler = async ({ params }) => {
-	const { id } = params;
-	if (!id) {
-		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
-	}
-	try {
-		await productService.deleteById(id);
-		return new Response(null, { status: 204 }); // No Content
-	} catch (error) {
-		console.error(`Error deleting product ${id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
 // --- Ruta: src/routes/api/ingredients/search/api.spec.ts ---
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from './+server';
@@ -2767,6 +3118,24 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 			'Connection': 'keep-alive'
 		}
 	});
+};
+
+// --- Ruta: src/routes/api/products/[id]/+server.ts ---
+// Ruta: src/routes/api/products/[id]/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { productService } from '$lib/server/services/productService';
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+	if (!id) {
+		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
+	}
+	try {
+		await productService.deleteById(id);
+		return new Response(null, { status: 204 }); // No Content
+	} catch (error) {
+		console.error(`Error deleting product ${id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
 };
 
 // --- Ruta: src/routes/api/ingredients/[id]/+server.ts ---
@@ -4042,6 +4411,35 @@ export {
 		{@render children?.()}
 	</button>
 {/if}
+
+// --- Ruta: src/routes/api/ingredients/sync/+server.ts ---
+// Ruta: src/routes/api/ingredients/sync/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import { verifySessionToken } from '$lib/server/auth';
+/**
+ * @description Endpoint para sincronizar los ingredientes con Open Food Facts
+ * @returns {Response}
+ */
+export const POST: RequestHandler = async ({ cookies }) => {
+	// Justificación: Se protege el endpoint verificando el token de autenticación
+	// del usuario. Esto asegura que solo usuarios logueados puedan iniciar un proceso
+	// que consume recursos como es la sincronización.
+	const token = cookies.get('session'); // CORREGIDO: El nombre de la cookie es 'session'
+	if (!token || !(await verifySessionToken(token))) {
+		return json({ message: 'No autorizado' }, { status: 401 });
+	}
+	try {
+		// Justificación: Se invoca la lógica de negocio desde el servicio correspondiente.
+		// El controlador (este archivo) se mantiene simple, delegando la complejidad
+		// al `ingredientService`, lo que facilita el mantenimiento y las pruebas.
+		const result = await ingredientService.syncWithOpenFoodFacts();
+		return json(result, { status: 200 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'Error desconocido en el servidor';
+		return json({ message: errorMessage }, { status: 500 });
+	}
+};
 
 // --- Ruta: src/routes/api/products/search/[barcode]/+server.ts ---
 // Ruta: src/routes/api/products/search/[barcode]/+server.ts
