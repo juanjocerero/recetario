@@ -53,7 +53,10 @@ describe('ingredientService', () => {
 
 		// Verificamos que la función 'create' de prisma fue llamada con el objeto de datos correcto.
 		expect(prisma.customIngredient.create).toHaveBeenCalledWith({
-			data: newIngredientData
+			data: {
+				...newIngredientData,
+				normalizedName: 'harina de almendras' // Justificación: Añadimos el campo esperado.
+			}
 		});
 
 		// Verificamos que el resultado de nuestro servicio es el que esperábamos.

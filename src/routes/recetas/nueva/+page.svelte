@@ -1,94 +1,101 @@
 <!-- Ruta: src/routes/recetas/nueva/+page.svelte -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Button } from '$lib/components/ui/button';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow
-	} from '$lib/components/ui/table';
-	import { calculateNutritionalInfo, type NutritionalInfo } from '$lib/recipeCalculator';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
 	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
-	import { debounce } from '$lib/utils';
 
-	// --- Estado del Formulario ---
-	let title = '';
-	let description = '';
-	let steps = '';
-	let ingredients: (RecipeIngredient & { name: string })[] = [];
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
 
-	// --- Lógica de Búsqueda de Ingredientes ---
-	let searchTerm = '';
-	let searchResults: { id: string; name: string; type: 'custom' | 'product' }[] = [];
-	let isSearching = false;
-	let showResults = false;
+	let title = $state('');
+	let description = $state('');
+	let steps = $state('');
+	let ingredients = $state<IngredientWithDetails[]>([]);
 
-	const handleSearch = debounce(async () => {
-		if (searchTerm.length < 3) {
+	let searchTerm = $state('');
+	let searchResults = $state<{ id: string; name: string; type: 'custom' | 'product' }[]>([]);
+	let isSearching = $state(false);
+	let showResults = $state(false);
+
+	// Justificación: Se reemplaza `debounce` por `AbortController`.
+	// Esto crea un patrón de búsqueda más robusto y testeable. Cada nueva búsqueda
+	// cancela la anterior, evitando condiciones de carrera y haciendo que la llamada
+	// a la API sea determinista en los tests.
+	let searchController: AbortController | null = null;
+
+	async function handleSearch(event: Event) {
+		if (searchController) {
+			searchController.abort();
+		}
+		searchController = new AbortController();
+		const signal = searchController.signal;
+
+		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
+
+		if (currentSearchTerm.length < 3) {
 			searchResults = [];
 			showResults = false;
 			return;
 		}
+
 		isSearching = true;
 		try {
-			const response = await fetch(`/api/ingredients/search?q=${searchTerm}`);
+			const response = await fetch(`/api/ingredients/search?q=${currentSearchTerm}`, { signal });
 			if (response.ok) {
 				searchResults = await response.json();
 				showResults = true;
 			}
 		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				return;
+			}
 			console.error('Error searching ingredients:', error);
 		} finally {
 			isSearching = false;
 		}
-	}, 300);
+	}
 
-	function addIngredient(result: { id: string; name: string; type: 'custom' | 'product' }) {
-		// Evitar duplicados
-		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) {
-			return;
+	async function addIngredient(result: { id: string; name: string; type: 'custom' | 'product' }) {
+		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
+
+		try {
+			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			if (!response.ok) throw new Error('Failed to fetch ingredient details');
+			const details: CalculableIngredient = await response.json();
+
+			ingredients.push({
+				...result,
+				quantity: 100,
+				calories: details.calories,
+				protein: details.protein,
+				fat: details.fat,
+				carbs: details.carbs
+			});
+		} catch (error) {
+			console.error('Error adding ingredient:', error);
+		} finally {
+			searchTerm = '';
+			searchResults = [];
+			showResults = false;
 		}
-		ingredients = [...ingredients, { ...result, quantity: 100 }];
-		searchTerm = '';
-		searchResults = [];
-		showResults = false;
 	}
 
 	function removeIngredient(index: number) {
-		ingredients = ingredients.filter((_, i) => i !== index);
+		ingredients.splice(index, 1);
 	}
 
-	// --- Cálculo Nutricional en Tiempo Real ---
-	// Justificación: Usamos una declaración reactiva `$` de Svelte.
-	// Esto recalcula automáticamente la información nutricional cada vez que la lista
-	// de `ingredients` cambia, manteniendo la UI siempre sincronizada sin código manual.
-	$: nutritionalInfo = calculateNutritionalInfo(
-		ingredients.map((ing) => ({
-			quantity: ing.quantity,
-			// Aquí necesitaríamos los datos nutricionales completos,
-			// por ahora el cálculo se hará con lo que tengamos.
-			// Para una versión completa, al añadir un ingrediente, deberíamos fetchear sus detalles.
-			// Por simplicidad del paso 6.3, lo omitimos. El cálculo funcionará si los datos existen.
-			calories: 0,
-			protein: 0,
-			fat: 0,
-			carbs: 0
-		}))
-	);
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
 
-	// --- Envío del Formulario ---
-	let isSubmitting = false;
-	let errors: Record<string, string> = {};
+	let isSubmitting = $state(false);
+	let errors = $state<Record<string, any>>({});
 
 	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault(); // Justificación: Manejo explícito para la nueva sintaxis de Svelte.
+		event.preventDefault();
 		isSubmitting = true;
 		errors = {};
 
@@ -130,13 +137,12 @@
 		<CardTitle>Crear Nueva Receta</CardTitle>
 	</CardHeader>
 	<CardContent>
-		<form on:submit={handleSubmit} class="space-y-6">
-			<!-- Campos de la Receta -->
+		<form onsubmit={handleSubmit} class="space-y-6">
 			<div class="space-y-2">
 				<Label for="title">Título</Label>
 				<Input id="title" bind:value={title} required />
 				{#if errors.title}
-					<p class="text-sm text-red-500">{errors.title}</p>
+					<p class="text-sm text-red-500">{errors.title._errors[0]}</p>
 				{/if}
 			</div>
 			<div class="space-y-2">
@@ -147,11 +153,10 @@
 				<Label for="steps">Pasos</Label>
 				<Textarea id="steps" bind:value={steps} rows={8} required />
 				{#if errors.steps}
-					<p class="text-sm text-red-500">{errors.steps}</p>
+					<p class="text-sm text-red-500">{errors.steps._errors[0]}</p>
 				{/if}
 			</div>
 
-			<!-- Buscador de Ingredientes -->
 			<div class="space-y-2 relative">
 				<Label for="ingredient-search">Añadir Ingrediente</Label>
 				<Input
@@ -172,8 +177,8 @@
 									<button
 										type="button"
 										class="w-full text-left px-4 py-2 cursor-pointer hover:bg-gray-100"
-										on:click={() => addIngredient(result)}
-										on:mousedown={(e) => e.preventDefault()}
+										onclick={() => addIngredient(result)}
+										onmousedown={(e) => e.preventDefault()}
 									>
 										{result.name}
 										<span class="text-xs text-gray-500">({result.type})</span>
@@ -185,7 +190,6 @@
 				{/if}
 			</div>
 
-			<!-- Lista de Ingredientes Añadidos -->
 			<div class="space-y-2">
 				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
 				<Table>
@@ -209,7 +213,12 @@
 									/>
 								</TableCell>
 								<TableCell class="text-right">
-									<Button type="button" variant="destructive" size="sm" onclick={() => removeIngredient(i)}>
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onclick={() => removeIngredient(i)}
+									>
 										Quitar
 									</Button>
 								</TableCell>
@@ -226,7 +235,6 @@
 				</Table>
 			</div>
 
-			<!-- Información Nutricional -->
 			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
 				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
 				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -247,13 +255,8 @@
 						<p class="text-sm text-gray-600">Carbohidratos</p>
 					</div>
 				</div>
-				<p class="text-xs text-gray-500 mt-2">
-					*El cálculo nutricional es una aproximación y solo tiene en cuenta los ingredientes con
-					datos completos.
-				</p>
 			</div>
 
-			<!-- Acciones -->
 			<div class="flex justify-end">
 				<Button type="submit" disabled={isSubmitting}>
 					{isSubmitting ? 'Guardando...' : 'Guardar Receta'}

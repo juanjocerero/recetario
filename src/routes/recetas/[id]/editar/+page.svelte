@@ -1,90 +1,117 @@
 <!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Button } from '$lib/components/ui/button';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow
-	} from '$lib/components/ui/table';
-	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
 	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
-	import { debounce } from '$lib/utils';
-	import type { PageData } from './$types';
+	import type { PageData, ActionData } from './$types';
 
-	export let data: PageData;
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 	const { recipe } = data;
 
-	// --- Estado del Formulario (inicializado con datos de `load`) ---
-	let title = recipe.title;
-	let description = recipe.description || '';
-	let steps = recipe.steps;
-	let ingredients: (RecipeIngredient & { name: string })[] = recipe.ingredients.map((ing) => ({
-		id: ing.productCache?.id || ing.customIngredient?.id || '',
-		name: ing.productCache?.productName || ing.customIngredient?.name || 'Ingrediente desconocido',
-		type: ing.productCache ? 'product' : 'custom',
-		quantity: ing.quantity
-	}));
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
 
-	// --- Lógica de Búsqueda (idéntica a la de creación) ---
-	let searchTerm = '';
-	let searchResults: { id: string; name: string; type: 'custom' | 'product' }[] = [];
-	let isSearching = false;
-	let showResults = false;
+	let title = $state(recipe.title);
+	let description = $state(recipe.description || '');
+	let steps = $state(recipe.steps);
+	let ingredients = $state<IngredientWithDetails[]>(
+		recipe.ingredients.map((ing: PageData['recipe']['ingredients'][number]) => ({
+			id: ing.productCache?.id || ing.customIngredient?.id || '',
+			name: ing.productCache?.productName || ing.customIngredient?.name || 'Ingrediente desconocido',
+			type: ing.productCache ? 'product' : 'custom',
+			quantity: ing.quantity,
+			calories: ing.productCache?.calories || ing.customIngredient?.calories || 0,
+			protein: ing.productCache?.protein || ing.customIngredient?.protein || 0,
+			fat: ing.productCache?.fat || ing.customIngredient?.fat || 0,
+			carbs: ing.productCache?.carbs || ing.customIngredient?.carbs || 0
+		}))
+	);
 
-	const handleSearch = debounce(async () => {
-		if (searchTerm.length < 3) {
+	let searchTerm = $state('');
+	let searchResults = $state<{ id: string; name: string; type: 'custom' | 'product' }[]>([]);
+	let isSearching = $state(false);
+	let showResults = $state(false);
+
+	// Justificación: Se reemplaza `debounce` por `AbortController`.
+	// Esto crea un patrón de búsqueda más robusto y testeable. Cada nueva búsqueda
+	// cancela la anterior, evitando condiciones de carrera y haciendo que la llamada
+	// a la API sea determinista en los tests.
+	let searchController: AbortController | null = null;
+
+	async function handleSearch(event: Event) {
+		if (searchController) {
+			searchController.abort();
+		}
+		searchController = new AbortController();
+		const signal = searchController.signal;
+
+		// Justificación: Se lee el valor directamente del evento del DOM.
+		// Esto evita la condición de carrera donde el estado reactivo `searchTerm`
+		// podría no estar actualizado cuando se ejecuta el manejador.
+		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
+
+		if (currentSearchTerm.length < 3) {
 			searchResults = [];
 			showResults = false;
 			return;
 		}
+
 		isSearching = true;
 		try {
-			const response = await fetch(`/api/ingredients/search?q=${searchTerm}`);
+			const response = await fetch(`/api/ingredients/search?q=${currentSearchTerm}`, { signal });
 			if (response.ok) {
 				searchResults = await response.json();
 				showResults = true;
 			}
 		} catch (error) {
+			// El AbortError es esperado cuando se cancela una petición, no es un error real.
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				return;
+			}
 			console.error('Error searching ingredients:', error);
 		} finally {
 			isSearching = false;
 		}
-	}, 300);
+	}
 
-	function addIngredient(result: { id: string; name: string; type: 'custom' | 'product' }) {
+	async function addIngredient(result: { id: string; name: string; type: 'custom' | 'product' }) {
 		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
-		ingredients = [...ingredients, { ...result, quantity: 100 }];
-		searchTerm = '';
-		searchResults = [];
-		showResults = false;
+
+		try {
+			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			if (!response.ok) throw new Error('Failed to fetch ingredient details');
+			const details: CalculableIngredient = await response.json();
+
+			ingredients.push({
+				...result,
+				quantity: 100,
+				calories: details.calories,
+				protein: details.protein,
+				fat: details.fat,
+				carbs: details.carbs
+			});
+		} catch (error) {
+			console.error('Error adding ingredient:', error);
+		} finally {
+			searchTerm = '';
+			searchResults = [];
+			showResults = false;
+		}
 	}
 
 	function removeIngredient(index: number) {
-		ingredients = ingredients.filter((_, i) => i !== index);
+		ingredients.splice(index, 1);
 	}
 
-	// --- Cálculo Nutricional (idéntico) ---
-	$: nutritionalInfo = calculateNutritionalInfo(
-		ingredients.map((ing) => ({
-			quantity: ing.quantity,
-			calories: 0,
-			protein: 0,
-			fat: 0,
-			carbs: 0
-		}))
-	);
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
 
-	// --- Envío del Formulario (modificado para actualizar) ---
-	let isSubmitting = false;
-	let errors: Record<string, any> = {};
+	let isSubmitting = $state(false);
+	let errors = $state<Record<string, any>>({});
 
 	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -100,7 +127,7 @@
 
 		try {
 			const response = await fetch(`/api/recipes/${recipe.id}`, {
-				method: 'PUT', // Justificación: Usamos PUT para actualizar un recurso existente.
+				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
@@ -129,8 +156,7 @@
 		<CardTitle>Editar Receta</CardTitle>
 	</CardHeader>
 	<CardContent>
-		<form on:submit={handleSubmit} class="space-y-6">
-			<!-- El resto del formulario es visualmente idéntico al de creación -->
+		<form onsubmit={handleSubmit} class="space-y-6">
 			<div class="space-y-2">
 				<Label for="title">Título</Label>
 				<Input id="title" bind:value={title} required />
@@ -170,8 +196,8 @@
 									<button
 										type="button"
 										class="w-full text-left px-4 py-2 cursor-pointer hover:bg-gray-100"
-										on:click={() => addIngredient(result)}
-										on:mousedown={(e) => e.preventDefault()}
+										onclick={() => addIngredient(result)}
+										onmousedown={(e) => e.preventDefault()}
 									>
 										{result.name}
 										<span class="text-xs text-gray-500">({result.type})</span>
@@ -248,9 +274,6 @@
 						<p class="text-sm text-gray-600">Carbohidratos</p>
 					</div>
 				</div>
-				<p class="text-xs text-gray-500 mt-2">
-					*El cálculo nutricional es una aproximación.
-				</p>
 			</div>
 
 			<div class="flex justify-end">

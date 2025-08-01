@@ -127,6 +127,7 @@ describe('productService', () => {
 			data: {
 				id: productFromApi.code,
 				productName: productFromApi.product_name,
+				normalizedProductName: 'producto de api', // Justificación: Añadimos el campo esperado.
 				brand: productFromApi.brands,
 				imageUrl: productFromApi.image_url,
 				calories: productFromApi.nutriments.energy_kcal_100g,

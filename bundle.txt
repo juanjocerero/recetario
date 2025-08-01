@@ -1,0 +1,3702 @@
+/* --- Bundle de Código Generado ---
+ * Modo: full
+ * Ficheros Incluidos: 93
+ * Fecha: 2025-08-01T01:09:49.818Z
+ */
+
+// --- Ruta: vitest.config.ts ---
+import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import path from 'path';
+export default defineConfig({
+	plugins: [svelte()],
+	resolve: {
+		alias: {
+			$lib: path.resolve(__dirname, './src/lib')
+		}
+	},
+	test: {
+		environment: 'jsdom',
+		globals: true,
+		include: ['src/**/*.{test,spec}.{js,ts}'],
+		exclude: ['e2e/**']
+	}
+});
+
+// --- Ruta: vite.config.ts ---
+import tailwindcss from '@tailwindcss/vite';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+export default defineConfig({
+	plugins: [tailwindcss(), sveltekit()]
+});
+
+// --- Ruta: tsconfig.json ---
+{
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler"
+	}
+	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
+	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
+	//
+	// If you want to overwrite includes/excludes, make sure to copy over the relevant includes/excludes
+	// from the referenced tsconfig.json - TypeScript does not merge them in
+}
+
+// --- Ruta: tailwind.config.ts ---
+// Ruta: tailwind.config.ts
+import type { Config } from 'tailwindcss';
+export default {
+	content: ['./src/**/*.{html,js,svelte,ts}'],
+	theme: {
+		extend: {}
+	},
+	plugins: []
+} satisfies Config;
+
+// --- Ruta: svelte.config.js ---
+import adapter from '@sveltejs/adapter-cloudflare';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+	// Consult https://svelte.dev/docs/kit/integrations
+	// for more information about preprocessors
+	preprocess: vitePreprocess(),
+	kit: {
+		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
+		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
+		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
+		adapter: adapter()
+	}
+};
+export default config;
+
+// --- Ruta: package.json ---
+{
+	"name": "recetario",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"format": "prettier --write .",
+		"lint": "prettier --check . && eslint .",
+		"test:unit": "vitest",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@eslint/compat": "^1.2.5",
+		"@eslint/js": "^9.18.0",
+		"@internationalized/date": "^3.8.2",
+		"@lucide/svelte": "^0.515.0",
+		"@sveltejs/adapter-auto": "^6.0.0",
+		"@sveltejs/adapter-cloudflare": "^4.4.0",
+		"@sveltejs/kit": "^2.22.0",
+		"@sveltejs/vite-plugin-svelte": "^6.0.0",
+		"@tailwindcss/vite": "^4.1.11",
+		"@types/bcryptjs": "^2.4.6",
+		"@types/node": "^24.1.0",
+		"autoprefixer": "^10.4.21",
+		"bits-ui": "^2.8.13",
+		"clsx": "^2.1.1",
+		"eslint": "^9.18.0",
+		"eslint-config-prettier": "^10.0.1",
+		"eslint-plugin-svelte": "^3.0.0",
+		"glob": "^11.0.3",
+		"globals": "^16.0.0",
+		"ignore": "^7.0.5",
+		"jsdom": "^26.1.0",
+		"postcss": "^8.5.6",
+		"prettier": "^3.4.2",
+		"prettier-plugin-svelte": "^3.3.3",
+		"prettier-plugin-tailwindcss": "^0.6.5",
+		"prisma": "^6.13.0",
+		"shadcn-svelte": "^1.0.6",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"tailwind-merge": "^3.3.1",
+		"tailwind-variants": "^1.0.0",
+		"tailwindcss": "^4.1.11",
+		"tailwindcss-animate": "^1.0.7",
+		"tw-animate-css": "^1.3.6",
+		"typescript": "^5.0.0",
+		"typescript-eslint": "^8.20.0",
+		"vite": "^7.0.4",
+		"vitest": "^3.2.3"
+	},
+	"optionalDependencies": {
+		"@cloudflare/workerd-darwin-64": "^1.20250726.0",
+		"@cloudflare/workerd-linux-64": "^1.20250726.0",
+		"@cloudflare/workerd-win32-64": "^1.20250726.0"
+	},
+	"overrides": {
+		"esbuild": "^0.20.2"
+	},
+	"dependencies": {
+		"@prisma/adapter-d1": "^6.13.0",
+		"@prisma/client": "^6.13.0",
+		"bcryptjs": "^3.0.2",
+		"jose": "^6.0.12",
+		"ky": "^1.8.2",
+		"zod": "^4.0.14"
+	}
+}
+
+// --- Ruta: eslint.config.js ---
+import prettier from 'eslint-config-prettier';
+import { includeIgnoreFile } from '@eslint/compat';
+import js from '@eslint/js';
+import svelte from 'eslint-plugin-svelte';
+import globals from 'globals';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript-eslint';
+import svelteConfig from './svelte.config.js';
+const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
+export default ts.config(
+	includeIgnoreFile(gitignorePath),
+	js.configs.recommended,
+	...ts.configs.recommended,
+	...svelte.configs.recommended,
+	prettier,
+	...svelte.configs.prettier,
+	{
+		languageOptions: {
+			globals: { ...globals.browser, ...globals.node }
+		},
+		rules: {
+			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
+			// see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
+			'no-undef': 'off'
+		}
+	},
+	{
+		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
+		languageOptions: {
+			parserOptions: {
+				projectService: true,
+				extraFileExtensions: ['.svelte'],
+				parser: ts.parser,
+				svelteConfig
+			}
+		}
+	}
+);
+
+// --- Ruta: components.json ---
+{
+	"$schema": "https://shadcn-svelte.com/schema.json",
+	"tailwind": {
+		"css": "src/app.css",
+		"baseColor": "slate"
+	},
+	"aliases": {
+		"components": "$lib/components",
+		"utils": "$lib/utils",
+		"ui": "$lib/components/ui",
+		"hooks": "$lib/hooks",
+		"lib": "$lib"
+	},
+	"typescript": true,
+	"registry": "https://shadcn-svelte.com/registry"
+}
+
+// --- Ruta: README.md ---
+# sv
+Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+## Creating a project
+If you're seeing this, you've probably already done this step. Congrats!
+```sh
+# create a new project in the current directory
+npx sv create
+# create a new project in my-app
+npx sv create my-app
+```
+## Developing
+Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+```sh
+npm run dev
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
+```
+## Building
+To create a production version of your app:
+```sh
+npm run build
+```
+You can preview the production build with `npm run preview`.
+> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+// --- Ruta: .prettierrc ---
+{
+	"useTabs": true,
+	"singleQuote": true,
+	"trailingComma": "none",
+	"printWidth": 100,
+	"plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
+	"overrides": [
+		{
+			"files": "*.svelte",
+			"options": {
+				"parser": "svelte"
+			}
+		}
+	],
+	"tailwindStylesheet": "./src/app.css"
+}
+
+// --- Ruta: .prettierignore ---
+# Package Managers
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+# Miscellaneous
+/static/
+
+// --- Ruta: .npmrc ---
+engine-strict=true
+
+// --- Ruta: .gitignore ---
+test-results
+node_modules
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+# OS
+.DS_Store
+Thumbs.db
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*package-lock.json
+# Resultados de tests
+playwright-report
+
+// --- Ruta: .env.example ---
+# Este fichero sirve como ejemplo y documentación de las variables de entorno necesarias.
+# No copies los valores de aquí directamente a producción.
+# Clave secreta para firmar los tokens de sesión (JWT).
+# Debe ser una cadena larga, aleatoria y segura.
+# Puedes generar una con: openssl rand -base64 32
+SESSION_SECRET=""
+# Contraseña del administrador hasheada con bcrypt.
+# Se genera una sola vez y se guarda aquí.
+# Puedes generar el hash con un script auxiliar.
+ADMIN_PASSWORD_HASH=""
+
+// --- Ruta: static/favicon.svg ---
+<svg xmlns="http://www.w3.org/2000/svg" width="107" height="128" viewBox="0 0 107 128"><title>svelte-logo</title><path d="M94.157 22.819c-10.4-14.885-30.94-19.297-45.792-9.835L22.282 29.608A29.92 29.92 0 0 0 8.764 49.65a31.5 31.5 0 0 0 3.108 20.231 30 30 0 0 0-4.477 11.183 31.9 31.9 0 0 0 5.448 24.116c10.402 14.887 30.942 19.297 45.791 9.835l26.083-16.624A29.92 29.92 0 0 0 98.235 78.35a31.53 31.53 0 0 0-3.105-20.232 30 30 0 0 0 4.474-11.182 31.88 31.88 0 0 0-5.447-24.116" style="fill:#ff3e00"/><path d="M45.817 106.582a20.72 20.72 0 0 1-22.237-8.243 19.17 19.17 0 0 1-3.277-14.503 18 18 0 0 1 .624-2.435l.49-1.498 1.337.981a33.6 33.6 0 0 0 10.203 5.098l.97.294-.09.968a5.85 5.85 0 0 0 1.052 3.878 6.24 6.24 0 0 0 6.695 2.485 5.8 5.8 0 0 0 1.603-.704L69.27 76.28a5.43 5.43 0 0 0 2.45-3.631 5.8 5.8 0 0 0-.987-4.371 6.24 6.24 0 0 0-6.698-2.487 5.7 5.7 0 0 0-1.6.704l-9.953 6.345a19 19 0 0 1-5.296 2.326 20.72 20.72 0 0 1-22.237-8.243 19.17 19.17 0 0 1-3.277-14.502 17.99 17.99 0 0 1 8.13-12.052l26.081-16.623a19 19 0 0 1 5.3-2.329 20.72 20.72 0 0 1 22.237 8.243 19.17 19.17 0 0 1 3.277 14.503 18 18 0 0 1-.624 2.435l-.49 1.498-1.337-.98a33.6 33.6 0 0 0-10.203-5.1l-.97-.294.09-.968a5.86 5.86 0 0 0-1.052-3.878 6.24 6.24 0 0 0-6.696-2.485 5.8 5.8 0 0 0-1.602.704L37.73 51.72a5.42 5.42 0 0 0-2.449 3.63 5.79 5.79 0 0 0 .986 4.372 6.24 6.24 0 0 0 6.698 2.486 5.8 5.8 0 0 0 1.602-.704l9.952-6.342a19 19 0 0 1 5.295-2.328 20.72 20.72 0 0 1 22.237 8.242 19.17 19.17 0 0 1 3.277 14.503 18 18 0 0 1-8.13 12.053l-26.081 16.622a19 19 0 0 1-5.3 2.328" style="fill:#fff"/></svg>
+
+// --- Ruta: src/demo.spec.ts ---
+import { describe, it, expect } from 'vitest';
+describe('sum test', () => {
+	it('adds 1 + 2 to equal 3', () => {
+		expect(1 + 2).toBe(3);
+	});
+});
+
+// --- Ruta: src/app.html ---
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
+
+// --- Ruta: src/app.d.ts ---
+// See https://svelte.dev/docs/kit/types#app.d.ts
+// for information about these interfaces
+declare global {
+	namespace App {
+		// interface Error {}
+		// interface Locals {}
+		// interface PageData {}
+		// interface PageState {}
+		// interface Platform {}
+	}
+}
+export {};
+
+// --- Ruta: src/app.css ---
+@import "tailwindcss";
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+// --- Ruta: scripts/hash-password.js ---
+// Ruta: scripts/hash-password.js
+// Uso: node scripts/hash-password.js 'tu_contraseña_aqui'
+import { hash } from 'bcryptjs';
+const password = process.argv[2];
+if (!password) {
+	console.error('Por favor, proporciona una contraseña como argumento.');
+	process.exit(1);
+}
+const SALT_ROUNDS = 10;
+hash(password, SALT_ROUNDS).then((hash) => {
+	console.log('Contraseña:', password);
+	console.log('Hash:', hash);
+	console.log('\nCopia este hash en tu fichero .env como ADMIN_PASSWORD_HASH');
+});
+
+// --- Ruta: scripts/create-bundle.js ---
+// Ruta: scripts/create-bundle.js
+// Justificación: Este script automatiza la creación de un "bundle" de texto plano
+// de toda la base de código. Es una herramienta de análisis útil que permite
+// ver todo el proyecto en un solo fichero, con opciones para limpiar el código
+// eliminando imports y comentarios, facilitando su estudio o procesamiento.
+import { promises as fs } from 'fs';
+import path from 'path';
+import { glob } from 'glob';
+import ignore from 'ignore';
+const ROOT_DIR = process.cwd();
+const GITIGNORE_PATH = path.join(ROOT_DIR, '.gitignore');
+const OUTPUT_FILE = path.join(ROOT_DIR, 'bundle.txt');
+// Justificación: Exclusiones de seguridad para asegurar que nunca se incluyan
+// directorios sensibles o el propio fichero de salida en el bundle.
+const HARDCODED_EXCLUSIONS = ['node_modules/**', '.git/**', 'bundle.txt'];
+// Justificación: Campo personalizable para añadir ficheros o patrones glob
+// que se deseen excluir del bundle, como ficheros de lock o configuración.
+const CUSTOM_EXCLUSIONS = ['package-lock.json', '**/__pycache__/**'];
+/**
+ * Procesa el contenido de un fichero de código según el modo especificado.
+ * @param {string} content - El contenido del fichero.
+ * @param {'full' | 'no-imports' | 'no-comments'} mode - El modo de procesamiento.
+ * @returns {string} El contenido procesado.
+ */
+function processContent(content, mode) {
+	let processedContent = content;
+	if (mode === 'no-imports' || mode === 'no-comments') {
+		// Justificación: Expresión regular para eliminar líneas de import.
+		// Es multilínea (m) para que `^` coincida con el inicio de cada línea.
+		processedContent = processedContent.replace(/^import.*?;?$/gm, '');
+	}
+	if (mode === 'no-comments') {
+		// Justificación: Expresiones regulares para eliminar comentarios de una línea y de bloque.
+		processedContent = processedContent.replace(/\/\/.*/g, ''); // Comentarios de una línea
+		processedContent = processedContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Comentarios de bloque
+	}
+	// Eliminar líneas vacías múltiples para un resultado más limpio.
+	return processedContent.replace(/^\s*[\r\n]/gm, '').trim();
+}
+async function createBundle() {
+	console.log('Iniciando la creación del bundle de código...');
+	// --- 1. Parsear argumentos de la línea de comandos ---
+	const args = process.argv.slice(2);
+	const modeArg = args.find((arg) => arg.startsWith('--mode='));
+	const mode = modeArg ? modeArg.split('=')[1] : 'full';
+	if (!['full', 'no-imports', 'no-comments'].includes(mode)) {
+		console.error(
+			`Modo inválido: "${mode}". Los modos válidos son: full, no-imports, no-comments.`
+		);
+		process.exit(1);
+	}
+	console.log(`Modo seleccionado: ${mode}`);
+	try {
+		// --- 2. Leer .gitignore y preparar el filtro ---
+		const gitignoreContent = await fs.readFile(GITIGNORE_PATH, 'utf-8');
+		const ig = ignore()
+			.add(gitignoreContent)
+			.add(HARDCODED_EXCLUSIONS.join('\n'))
+			.add(CUSTOM_EXCLUSIONS.join('\n'));
+		// --- 3. Encontrar todos los ficheros y filtrarlos ---
+		const allFiles = await glob('**/*', { nodir: true, dot: true, cwd: ROOT_DIR });
+		const filteredFiles = allFiles.filter((file) => !ig.ignores(file));
+		console.log(`Se encontraron ${filteredFiles.length} ficheros para incluir en el bundle.`);
+		// --- 4. Procesar cada fichero y construir el bundle ---
+		let bundleContent = `/* --- Bundle de Código Generado ---
+ * Modo: ${mode}
+ * Ficheros Incluidos: ${filteredFiles.length}
+ * Fecha: ${new Date().toISOString()}
+ */\n\n`;
+		for (const file of filteredFiles) {
+			const filePath = path.join(ROOT_DIR, file);
+			try {
+				const content = await fs.readFile(filePath, 'utf-8');
+				const processed = processContent(content, mode);
+				if (processed) {
+					bundleContent += `// --- Ruta: ${file} ---\n`;
+					bundleContent += processed;
+					bundleContent += '\n\n';
+				}
+			} catch (error) {
+				// Ignorar errores de lectura (ej. ficheros binarios)
+				if (error.code !== 'ENOENT') {
+					console.warn(`- Omitiendo fichero (no es texto plano): ${file}`);
+				}
+			}
+		}
+		// --- 5. Escribir el fichero final ---
+		await fs.writeFile(OUTPUT_FILE, bundleContent);
+		console.log(`\n¡Éxito! El bundle ha sido creado en: ${OUTPUT_FILE}`);
+	} catch (error) {
+		console.error('\nOcurrió un error durante la creación del bundle:', error);
+		process.exit(1);
+	}
+}
+createBundle();
+
+// --- Ruta: scripts/backfill-normalized-names.js ---
+// Ruta: scripts/backfill-normalized-names.js
+// Justificación: Versión de depuración del script.
+// Se añade logging detallado para imprimir los valores que se están comparando.
+// Esto es para diagnosticar por qué el script no está actualizando los registros
+// cuando se espera que lo haga.
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+function normalizeText(text) {
+	if (!text) return '';
+	return text
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '');
+}
+async function backfillCustomIngredients() {
+	console.log('\n--- Iniciando backfill para CustomIngredient ---');
+	const ingredients = await prisma.customIngredient.findMany();
+	if (ingredients.length === 0) {
+		console.log('No hay ingredientes personalizados para procesar.');
+		return;
+	}
+	console.log(`Se encontraron ${ingredients.length} ingredientes personalizados. Analizando...`);
+	let updatedCount = 0;
+	for (const ingredient of ingredients) {
+		const calculatedNormalizedName = normalizeText(ingredient.name);
+		console.log(`\n> Procesando: "${ingredient.name}" (ID: ${ingredient.id})`);
+		console.log(`  - DB normalizedName:     '${ingredient.normalizedName}'`);
+		console.log(`  - Calculado normalizedName: '${calculatedNormalizedName}'`);
+		console.log(`  - ¿Son diferentes?:      ${ingredient.normalizedName !== calculatedNormalizedName}`);
+		if (ingredient.normalizedName !== calculatedNormalizedName) {
+			await prisma.customIngredient.update({
+				where: { id: ingredient.id },
+				data: { normalizedName: calculatedNormalizedName }
+			});
+			console.log(`  - ¡ACTUALIZADO!`);
+			updatedCount++;
+		}
+	}
+	console.log(`\nTotal de ingredientes personalizados actualizados: ${updatedCount}`);
+}
+async function backfillProductCache() {
+	console.log('\n--- Iniciando backfill para ProductCache ---');
+	const products = await prisma.productCache.findMany();
+	if (products.length === 0) {
+		console.log('No hay productos en caché para procesar.');
+		return;
+	}
+	console.log(`Se encontraron ${products.length} productos en caché. Analizando...`);
+	let updatedCount = 0;
+	for (const product of products) {
+		const calculatedNormalizedName = normalizeText(product.productName);
+        console.log(`\n> Procesando: "${product.productName}" (ID: ${product.id})`);
+		console.log(`  - DB normalizedProductName:     '${product.normalizedProductName}'`);
+		console.log(`  - Calculado normalizedName: '${calculatedNormalizedName}'`);
+		console.log(`  - ¿Son diferentes?:      ${product.normalizedProductName !== calculatedNormalizedName}`);
+		if (product.normalizedProductName !== calculatedNormalizedName) {
+			await prisma.productCache.update({
+				where: { id: product.id },
+				data: { normalizedProductName: calculatedNormalizedName }
+			});
+			console.log(`  - ¡ACTUALIZADO!`);
+			updatedCount++;
+		}
+	}
+	console.log(`\nTotal de productos en caché actualizados: ${updatedCount}`);
+}
+async function main() {
+	console.log('Iniciando proceso de backfill para todos los modelos normalizados (MODO DEBUG).');
+	try {
+		await backfillCustomIngredients();
+		await backfillProductCache();
+		console.log('\nProceso de backfill completado con éxito.');
+	} catch (error) {
+		console.error('Ocurrió un error durante el proceso de backfill:', error);
+		process.exit(1);
+	} finally {
+		await prisma.$disconnect();
+	}
+}
+main();
+
+// --- Ruta: prisma/schema.prisma ---
+// Ruta: prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  // Justificación: Se configura para SQLite para el desarrollo local,
+  // como se especifica en el plan (M1.3, M2.2).
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+model ProductCache {
+  id                     String             @id // Código de barras
+  productName            String
+  normalizedProductName  String             @default("") // Para búsqueda case/accent-insensitive
+  brand                  String?
+  imageUrl               String?
+  calories               Float?             // Valor por 100g
+  fat                    Float?             // Valor por 100g
+  protein                Float?             // Valor por 100g
+  carbs                  Float?             // Valor por 100g
+  fullPayload            Json?
+  updatedAt              DateTime           @updatedAt
+  // Justificación: Relación inversa requerida por Prisma.
+  // Un producto puede estar en múltiples ingredientes de recetas.
+  recipeIngredients      RecipeIngredient[]
+}
+model CustomIngredient {
+  id                String             @id @default(cuid())
+  name              String             @unique
+  normalizedName    String             @default("") // Para búsqueda case/accent-insensitive
+  calories          Float
+  fat               Float
+  protein           Float
+  carbs             Float
+  // Justificación: Relación inversa requerida por Prisma.
+  // Un ingrediente custom puede estar en múltiples ingredientes de recetas.
+  recipeIngredients RecipeIngredient[]
+}
+model Recipe {
+  id          String             @id @default(cuid())
+  title       String
+  description String?
+  steps       String
+  ingredients RecipeIngredient[]
+}
+model RecipeIngredient {
+  id                 String            @id @default(cuid())
+  recipe             Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId           String
+  // Se relaciona directamente con un ProductCache o un CustomIngredient
+  productCache       ProductCache?     @relation(fields: [productCacheId], references: [id])
+  productCacheId     String?
+  customIngredient   CustomIngredient? @relation(fields: [customIngredientId], references: [id])
+  customIngredientId String?
+  quantity           Float             // En gramos
+}
+
+// --- Ruta: prisma/dev.db ---
+SQLite format 3   @     �                                                             � .zp$ W��
+Q
+�W
+6�dWOO                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              �x�t--�tablenew_ProductCachenew_ProductCacheCREATE TABLE "ProductCache" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "productName" TEXT NOT NULL,
+    "normalizedProductName" TEXT NOT NULL DEFAULT '',
+    "brand" TEXT,
+    "imageUrl" TEXT,
+    "calories" REAL,
+    "fat" REAL,
+    "protein" REAL,
+    "carbs" REAL,
+    "fullPayload" JSONB,
+    "updatedAt" DATETIME NOT NULL
+)?S- 7K% indexsqlite_autoindex_ProductCache_1ProductCache�?-�'indexCustomIngredient_name_keyCustomIngredientCREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name")?S- indexsqlite_autoindex_CustomIngredient_1CustomIngredient�6	--�tableRecipeIngredientRecipeIngredient
+CREATE TABLE "RecipeIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "recipeId" TEXT NOT NULL,
+    "productCacheId" TEXT,
+    "customIngredientId" TEXT,
+    "quantity" REAL NOT NULL,
+    CONSTRAINT "RecipeIngredient_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_productCacheId_fkey" FOREIGN KEY ("productCacheId") REFERENCES "ProductCache" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_customIngredientId_fkey" FOREIGN KEY ("customIngredientId") REFERENCES "CustomIngredient" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+)?
+S- indexsqlite_autoindex_RecipeIngredient_1RecipeIngredient�#�!tableRecipeRecipeCREATE TABLE "Recipe" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "steps" TEXT NOT NULL
+)+? indexsqlite_autoindex_Recipe_1Recipe	� --�+     �+--�	tableCustomIngredientCustomIngredientCREATE TABLE "CustomIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "normalizedName" TEXT NOT NULL DEFAULT '',
+    "calories" REAL NOT NULL,
+    "fat" REAL NOT NULL,
+    "protein" REAL NOT NULL,
+    "carbs" REAL NOT NULL
+)�l%%�tableProductCacheProductCacheCREATE TABLE "ProductCache" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "productName" TEXT NOT NULL,
+    "normalizedProductName" TEXT NOT NULL DEFAULT '',
+    "brand" TEXT,
+    "imageUrl" TEXT,
+    "calories" REAL,
+    "fat" REAL,
+    "protein" REAL,
+    "carbs" REAL,
+    "fullPayload" JSONB,
+    "updatedAt" DATETIME NOT NULL
+)he�Z11�_table_prisma_migrations_prisma_migrationsCREATE TABLE "_prisma_migrations" (
+    "id"                    TEXT PRIMARY KEY NOT NULL,
+    "checksum"              TEXT NOT NULL,
+    "finished_at"           DATETIME,
+    "migration_name"        TEXT NOT NULL,
+    "logs"                  TEXT,
+    "rolled_back_at"        DATETIME,
+    "started_at"            DATETIME NOT NULL DEFAULT current_timestamp,
+    "applied_steps_count"   INTEGER UNSIGNED NOT NULL DEFAULT 0
+)CW1 indexsqlite_autoindex__prisma_migrations_1_prisma_migrations          � p�                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    �
+U�S  	415eb059-e236-4e6a-b10a-88f7d953555b83de8a61c4d746391234ad877f0ed8ad4aff9dfd7ced732f6dd2beaafc11dc6d�a��20250731184218_add_normalized_names�a����
+U�3  	9c7e203a-4177-409a-8970-5ebf01e08461013ee46b8bb3d8de608daffe3bcb833395b0b21a7efc072a7df5de9a71c9c99c�\�C�20250730185406_init�\�C�
+   � ��                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   (U415eb059-e236-4e6a-b10a-88f7d953555b'U	9c7e203a-4177-409a-8970-5ebf01e08461                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+n ` ��`����x                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        Karagarga
+   
+Tofu T;Tofu Test 1754009819837%OTofu Test 1754004001695 (Editado)
+TelitaCarrizo	Arroz;Tofu Test 1754002947557	Pollo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 � �zP!�#�%�'�                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }?S�cmds42ip00018iybnvbs9dk8nPollo con Arroz E2E - 17540096527331. Cocer el arroz.
+2. Freír el pollo.
+3. Mezclar y servir.}
+?S�cmds409y20011iybn738crmwbPollo con Arroz E2E - 17540095637871. Cocer el arroz.
+2. Freír el pollo.
+3. Mezclar y servir.}	?S�cmds3wxa8000siybnagcanwi1Pollo con Arroz E2E - 17540094078611. Cocer el arroz.
+2. Freír el pollo.
+3. Mezclar y servir.}?S�cmds3pzsr000liybnht4qmynpPollo con Arroz E2E - 17540090773181. Cocer el arroz.
+2. Freír el pollo.
+3. Mezclar y servir.}?S�cmds3j4cn000ciybn98zcldu1Pollo con Arroz E2E - 17540087536621. Cocer el arroz.
+2. Freír el pollo.
+3. Mezclar y servir.}?S�cmds3ij2j0006iybn9j5slyw8Pollo con Arroz E2E - 17540087311141. Cocer el arroz.
+2. Freír el pollo.
+3. Mezclar y servir.}?S�cmds287rt000kiyg1kqlhfg45Pollo con Arroz E2E - 17540065744291. Cocer el arroz.
+2. Freír el pollo.
+3. Mezclar y servir.-?cmds1ocnh0004iyg1g9lpaqi3PericaKakoasdas(?cmds1fv0v0000iy2sy31r0pvrsdaafsafsd;?1cmds0nxa6000eiy99p787v3ugkochinkisss1. asd
+3232. asdasG?1/cmds0m3v30009iy998sg69qnqPerico con palotesparica1. Comer
+2. Comer
+   � ����kM/���                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ?cmds42ip00018iybnvbs9dk8n?cmds409y20011iybn738crmwb
+?cmds3wxa8000siybnagcanwi1	?cmds3pzsr000liybnht4qmynp?cmds3j4cn000ciybn98zcldu1?cmds3ij2j0006iybn9j5slyw8?cmds287rt000kiyg1kqlhfg45?cmds1ocnh0004iyg1g9lpaqi3?cmds1fv0v0000iy2sy31r0pvr?cmds0nxa6000eiy99p787v3ug?	cmds0m3v30009iy998sg69qnq   � �X�Z�[�\�]
+�
+^
+		�	_	
+�                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 S?? ?cmds42ip1001ciybnu7hrtldpcmds42ip00018iybnvbs9dk8ncmds06jdk0004iy993y0drwv4 �S?? ?cmds42ip1001aiybn44nov387cmds42ip00018iybnvbs9dk8ncmds02k8k0002iy998azti7ch �S?? ?cmds409y40015iybnpno6ow6dcmds409y20011iybn738crmwbcmds06jdk0004iy993y0drwv4 �S?? ?cmds409y30013iybnllsfpux3cmds409y20011iybn738crmwbcmds02k8k0002iy998azti7ch �S?? ?cmds3wxaa000wiybnvv1asuzmcmds3wxa8000siybnagcanwi1cmds06jdk0004iy993y0drwv4 �S?? ?cmds3wxaa000uiybn4wtumi0lcmds3wxa8000siybnagcanwi1cmds02k8k0002iy998azti7ch �S?? ?cmds3pzst000piybnpcaqjb0bcmds3pzsr000liybnht4qmynpcmds06jdk0004iy993y0drwv4 �S?? ?cmds3pzss000niybnt8nwx0zjcmds3pzsr000liybnht4qmynpcmds02k8k0002iy998azti7ch �S?? ?cmds3j4co000giybnfp8vhpxmcmds3j4cn000ciybn98zcldu1cmds06jdk0004iy993y0drwv4 �S?? ?cmds3j4co000eiybnjaly74picmds3j4cn000ciybn98zcldu1cmds02k8k0002iy998azti7ch �S?? ?cmds3ij2k000aiybnhq6gxvjycmds3ij2j0006iybn9j5slyw8cmds06jdk0004iy993y0drwv4 �S?? ?cmds3ij2k0008iybnmfqm8eqpcmds3ij2j0006iybn9j5slyw8cmds02k8k0002iy998azti7ch �S
+?? ?cmds287rv000oiyg1uha1uzvxcmds287rt000kiyg1kqlhfg45cmds06jdk0004iy993y0drwv4 �S	?? ?cmds287ru000miyg127rnomb8cmds287rt000kiyg1kqlhfg45cmds02k8k0002iy998azti7ch �S?? ?cmds1ohup000eiyg1jb1w4skocmds1ocnh0004iyg1g9lpaqi3cmds06jdk0004iy993y0drwv4,S?? ?cmds1ohup000ciyg1ivtjjpzocmds1ocnh0004iyg1g9lpaqi3cmds02k8k0002iy998azti7ch �S?? ?cmds1ni2a0003iyg11dxniwrucmds1fv0v0000iy2sy31r0pvrcmds06jdk0004iy993y0drwv4 �S?? ?cmds1ni2a0001iyg1q5cl78gacmds1fv0v0000iy2sy31r0pvrcmds02k8k0002iy998azti7ch�S?? ?cmds0onqm000oiy99liw26dszcmds0nxa6000eiy99p787v3ugcmds06jdk0004iy993y0drwv4,R?? ?cmds0onql000miy99hcs6ycgecmds0nxa6000eiy99p787v3ugcmds02k8k0002iy998azti7chdR?? ?cmds0m3v5000diy99r6ujb7imcmds0m3v30009iy998sg69qnqcmds06jdk0004iy993y0drwv4dR?? ?cmds0m3v4000biy990pttipsrcmds0m3v30009iy998sg69qnqcmds02k8k0002iy998azti7ch2
+   m ����kM/����{]?!����m                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ?cmds42ip1001ciybnu7hrtldp?cmds42ip1001aiybn44nov387?cmds409y40015iybnpno6ow6d?cmds409y30013iybnllsfpux3?cmds3wxaa000wiybnvv1asuzm?cmds3wxaa000uiybn4wtumi0l?cmds3pzst000piybnpcaqjb0b?cmds3pzss000niybnt8nwx0zj?cmds3j4co000giybnfp8vhpxm?cmds3j4co000eiybnjaly74pi?cmds3ij2k000aiybnhq6gxvjy?cmds3ij2k0008iybnmfqm8eqp?cmds287rv000oiyg1uha1uzvx
+?cmds287ru000miyg127rnomb8	?cmds1ohup000eiyg1jb1w4sko?cmds1ohup000ciyg1ivtjjpzo?cmds1ni2a0003iyg11dxniwru?cmds1ni2a0001iyg1q5cl78ga?cmds0onqm000oiy99liw26dsz?cmds0onql000miy99hcs6ycge?cmds0m3v5000diy99r6ujb7im?	cmds0m3v4000biy990pttipsr
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     %OTofu Test 1753924914644 (Editado)%OTofu Test 1753924604092 $O	Tofu Test 1753980857036 (Editado)� w �k+w�X��                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               4?cmds0fjbd0007iy99dij6zaj9Carrizocarrizooa8
+?cmds1qo6x000giyg1zyrnh7nnKaragargakaragarga,� OOcmds43zs60[?;;cmds45vjs001eiybn21gbrwmjTofu Test 1754009819837tofu test 1754009819837 �	@      o?OOcmds0p5s4000piy99f9rxsg5lTofu Test 1754004001695 (Editado)tofu test 1754004001695 (editado) �	@      .?			cmds0kgge0008iy99x87gnwntTelitatelita   2			cmds0fjbd0007iy99dij6zaj9Carrizocarrizo>?cmds06jdk0004iy993y0drwv4Arrozarroz �?�333333@������ [?;;cmds02kfk0003iy99yfebwq5jTofu Test 1754002947557tofu test 1754002947557 �	@      6?cmds02k8k0002iy998azti7chPollopollo �@������
+    ���M�k/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ?cmds1qo6x000giyg1zyrnh7nn
+?cmds45vjs001eiybn21gbrwmj?cmds0fjbd0007iy99dij6zaj9?cmds0p5s4000piy99f9rxsg5l?cmds0kgge0008iy99x87gnwnt?cmds06jdk0004iy993y0drwv4?cmds02kfk0003iy99yfebwq5j?	cmds02k8k0002iy998azti7ch
+
+// --- Ruta: src/routes/+page.svelte ---
+<h1>Welcome to SvelteKit</h1>
+<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+
+// --- Ruta: src/routes/+layout.svelte ---
+<script>
+	import '../app.css';
+	let { children } = $props();
+</script>
+{@render children()}
+
+// --- Ruta: src/lib/utils.ts ---
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+/**
+ * Normaliza un texto para búsquedas: lo convierte a minúsculas y elimina los acentos.
+ * Ejemplo: "Azúcar Moreno" -> "azucar moreno"
+ * @param text - El texto a normalizar.
+ * @returns El texto normalizado.
+ */
+export function normalizeText(text: string): string {
+	return text
+		.toLowerCase()
+		.normalize('NFD') // Descompone los caracteres acentuados en base + diacrítico
+		.replace(/[\u0300-\u036f]/g, ''); // Elimina los diacríticos
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChild<T> = T extends { child?: any } ? Omit<T, "child"> : T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, "children"> : T;
+export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
+export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
+
+// --- Ruta: src/lib/recipeCalculator.ts ---
+// Ruta: src/lib/recipeCalculator.ts
+// Justificación: Aislar la lógica de cálculo en funciones puras hace que el código
+// sea más predecible, fácil de testear y reutilizable. Este módulo no tiene
+// dependencias externas (como Prisma o APIs), solo recibe datos y devuelve un resultado.
+// Definimos un tipo para los ingredientes que usará la calculadora.
+// Esto nos desacopla de los modelos de Prisma.
+export type CalculableIngredient = {
+	quantity: number; // en gramos
+	calories?: number | null; // por 100g
+	protein?: number | null;
+	fat?: number | null;
+	carbs?: number | null;
+};
+export type NutritionalInfo = {
+	totalCalories: number;
+	totalProtein: number;
+	totalFat: number;
+	totalCarbs: number;
+};
+/**
+ * Calcula la información nutricional total para una lista de ingredientes.
+ * @param ingredients - Un array de ingredientes con su cantidad y valores nutricionales por 100g.
+ * @returns Un objeto con los totales de calorías, proteínas, grasas y carbohidratos.
+ */
+export function calculateNutritionalInfo(ingredients: CalculableIngredient[]): NutritionalInfo {
+	const totals: NutritionalInfo = {
+		totalCalories: 0,
+		totalProtein: 0,
+		totalFat: 0,
+		totalCarbs: 0
+	};
+	for (const ingredient of ingredients) {
+		const factor = ingredient.quantity / 100;
+		totals.totalCalories += (ingredient.calories || 0) * factor;
+		totals.totalProtein += (ingredient.protein || 0) * factor;
+		totals.totalFat += (ingredient.fat || 0) * factor;
+		totals.totalCarbs += (ingredient.carbs || 0) * factor;
+	}
+	// Redondeamos a 2 decimales para una mejor presentación
+	return {
+		totalCalories: Math.round(totals.totalCalories * 100) / 100,
+		totalProtein: Math.round(totals.totalProtein * 100) / 100,
+		totalFat: Math.round(totals.totalFat * 100) / 100,
+		totalCarbs: Math.round(totals.totalCarbs * 100) / 100
+	};
+}
+
+// --- Ruta: src/lib/recipeCalculator.spec.ts ---
+// Ruta: src/lib/recipeCalculator.spec.ts
+import { describe, it, expect } from 'vitest';
+import { calculateNutritionalInfo, type CalculableIngredient } from './recipeCalculator';
+// Justificación: Se testea la función `calculateNutritionalInfo` de forma aislada (test unitario).
+// Al ser una función pura, podemos pasarle datos de entrada controlados y verificar
+// que la salida sea predecible y correcta, garantizando la fiabilidad del cálculo.
+describe('calculateNutritionalInfo', () => {
+	it('should calculate the total nutritional info for a list of ingredients correctly', () => {
+		const ingredients: CalculableIngredient[] = [
+			{ quantity: 200, calories: 100, protein: 10, fat: 5, carbs: 20 }, // Pollo
+			{ quantity: 150, calories: 50, protein: 2, fat: 1, carbs: 10 } // Arroz
+		];
+		const result = calculateNutritionalInfo(ingredients);
+		// 200g de Pollo: 200 cal, 20p, 10g, 40c
+		// 150g de Arroz: 75 cal, 3p, 1.5g, 15c
+		// Total: 275 cal, 23p, 11.5g, 55c
+		expect(result.totalCalories).toBe(275);
+		expect(result.totalProtein).toBe(23);
+		expect(result.totalFat).toBe(11.5);
+		expect(result.totalCarbs).toBe(55);
+	});
+	it('should return all zeros if the ingredient list is empty', () => {
+		const ingredients: CalculableIngredient[] = [];
+		const result = calculateNutritionalInfo(ingredients);
+		expect(result.totalCalories).toBe(0);
+		expect(result.totalProtein).toBe(0);
+		expect(result.totalFat).toBe(0);
+		expect(result.totalCarbs).toBe(0);
+	});
+	it('should handle ingredients with null or missing nutritional values gracefully', () => {
+		const ingredients: CalculableIngredient[] = [
+			{ quantity: 100, calories: 300, protein: 20, fat: 10, carbs: 5 },
+			{ quantity: 50, calories: null, protein: 5, fat: undefined, carbs: 25 } // Ingrediente con datos incompletos
+		];
+		const result = calculateNutritionalInfo(ingredients);
+		// 100g de Ing1: 300 cal, 20p, 10g, 5c
+		// 50g de Ing2: 0 cal, 2.5p, 0g, 12.5c
+		// Total: 300 cal, 22.5p, 10g, 17.5c
+		expect(result.totalCalories).toBe(300);
+		expect(result.totalProtein).toBe(22.5);
+		expect(result.totalFat).toBe(10);
+		expect(result.totalCarbs).toBe(17.5);
+	});
+	it('should handle rounding correctly to two decimal places', () => {
+		const ingredients: CalculableIngredient[] = [
+			{ quantity: 33, calories: 123, protein: 11.11, fat: 5.55, carbs: 22.22 }
+		];
+		const result = calculateNutritionalInfo(ingredients);
+		// 33g de Ing1: 40.59 cal, 3.6663p, 1.8315g, 7.3326c
+		// Redondeado: 40.59 cal, 3.67p, 1.83g, 7.33c
+		expect(result.totalCalories).toBe(40.59);
+		expect(result.totalProtein).toBe(3.67);
+		expect(result.totalFat).toBe(1.83);
+		expect(result.totalCarbs).toBe(7.33);
+	});
+});
+
+// --- Ruta: src/lib/index.ts ---
+// place files you want to import through the `$lib` alias in this folder.
+
+// --- Ruta: prisma/migrations/migration_lock.toml ---
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "sqlite"
+
+// --- Ruta: src/routes/login/+page.svelte ---
+<!-- Ruta: src/routes/login/+page.svelte -->
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import type { ActionData } from './$types';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	export let form: ActionData;
+	let loading = false;
+</script>
+<div class="flex min-h-screen items-center justify-center bg-muted/40">
+	<Card.Root class="w-full max-w-sm">
+		<Card.Header class="space-y-1 text-center">
+			<Card.Title class="text-2xl font-bold">Admin Login</Card.Title>
+			<Card.Description>Introduce tus credenciales para acceder al panel</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<!-- Justificación (form action y enhance): Se usa un <form> estándar con un `action`
+			que apunta a la acción por defecto de esta misma página (`?/default`).
+			`use:enhance` intercepta el envío, lo hace vía fetch, y maneja el resultado
+			(actualizar `form`, redirigir, etc.) de forma automática y robusta. -->
+			<form
+				method="POST"
+				action="?/login"
+				use:enhance={() => {
+					loading = true;
+					return async ({ update }) => {
+						await update();
+						loading = false;
+					};
+				}}
+				class="space-y-4"
+			>
+				<div class="space-y-2">
+					<Label for="user">Usuario</Label>
+					<Input id="user" name="user" type="text" placeholder="admin" required />
+				</div>
+				<div class="space-y-2">
+					<Label for="password">Contraseña</Label>
+					<Input id="password" name="password" type="password" required />
+				</div>
+				{#if form?.message}
+					<p class="text-sm font-medium text-destructive">{form.message}</p>
+				{/if}
+				<Button type="submit" class="w-full" disabled={loading}>
+					{loading ? 'Entrando...' : 'Entrar'}
+				</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
+</div>
+
+// --- Ruta: src/routes/login/+page.server.ts ---
+// Ruta: src/routes/login/+page.server.ts
+import { type Actions, fail, redirect } from '@sveltejs/kit';
+import { comparePasswords, createSessionToken } from '$lib/server/auth';
+import { env } from '$env/dynamic/private';
+// Justificación: Se define una 'action' de SvelteKit en lugar de un endpoint de API.
+// Esto integra el manejo del formulario directamente con el ciclo de vida de la página,
+// lo que es más robusto y la forma idiomática de manejar envíos de formularios en SvelteKit.
+export const actions: Actions = {
+	login: async ({ request, cookies }) => {
+		const data = await request.formData();
+		const user = data.get('user');
+		const password = data.get('password');
+		// 1. Validación de entrada
+		if (!user || !password || typeof user !== 'string' || typeof password !== 'string') {
+			return fail(400, { message: 'Usuario y contraseña son requeridos' });
+		}
+		// 2. Verificación de credenciales
+		if (!env.ADMIN_PASSWORD_HASH) {
+			console.error('La variable de entorno ADMIN_PASSWORD_HASH no está configurada.');
+			return fail(500, { message: 'Error de configuración en el servidor' });
+		}
+		const isAdminUser = user === 'admin';
+		const isPasswordValid = await comparePasswords(password, env.ADMIN_PASSWORD_HASH);
+		if (!isAdminUser || !isPasswordValid) {
+			return fail(401, { message: 'Credenciales inválidas' });
+		}
+		// 3. Creación del token y establecimiento de la cookie
+		const token = await createSessionToken({ sub: 'admin' });
+		cookies.set('session', token, {
+			path: '/',
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 60 * 60 * 24 // 1 día
+		});
+		// 4. Redirección
+		// Justificación (redirect): En lugar de devolver un JSON, una 'action' exitosa
+		// puede lanzar una redirección. SvelteKit la gestionará correctamente,
+		// tanto en el lado del servidor como en el cliente (si se usa `enhance`).
+		throw redirect(303, '/admin/ingredientes');
+	}
+};
+
+// --- Ruta: src/lib/server/zodErrors.ts ---
+// Ruta: src/lib/server/zodErrors.ts
+import type { ZodError } from 'zod';
+/**
+ * Transforma un error de Zod en un objeto más simple,
+ * mapeando los mensajes de error a cada campo que falló la validación.
+ * @param error - El error de Zod.
+ * @returns Un objeto donde cada clave es un campo y el valor es el primer mensaje de error para ese campo.
+ */
+export function formatZodError(error: ZodError) {
+	const fieldErrors: Record<string, string | undefined> = {};
+	for (const issue of error.issues) {
+		if (issue.path.length > 0) {
+			const field = issue.path.join('.');
+			if (!fieldErrors[field]) {
+				fieldErrors[field] = issue.message;
+			}
+		}
+	}
+	return {
+		message: 'Validation failed',
+		errors: fieldErrors
+	};
+}
+
+// --- Ruta: src/lib/server/prisma.ts ---
+// Ruta: src/lib/server/prisma.ts
+import { PrismaClient } from '@prisma/client';
+// Justificación: Se sigue el patrón singleton recomendado por Prisma
+// para evitar crear múltiples conexiones a la base de datos en entornos
+// serverless o durante el hot-reloading en desarrollo.
+// La importación desde '@prisma/client' funciona porque `npx prisma generate`
+// redirige este alias a la implementación generada en `node_modules/.prisma/client`.
+const prisma = new PrismaClient();
+export default prisma;
+
+// --- Ruta: src/lib/server/auth.ts ---
+// Ruta: src/lib/server/auth.ts
+import { SignJWT, jwtVerify } from 'jose';
+import { hash, compare } from 'bcryptjs';
+import { env } from '$env/dynamic/private';
+// Justificación (bcrypt): Usamos bcrypt para hashear contraseñas. Es un algoritmo
+// adaptativo y lento por diseño, lo que lo hace resistente a ataques de fuerza bruta.
+const SALT_ROUNDS = 10; // Número de rondas de salting. 10 es un buen equilibrio.
+export async function hashPassword(password: string) {
+	return await hash(password, SALT_ROUNDS);
+}
+export async function comparePasswords(password: string, hash: string) {
+	return await compare(password, hash);
+}
+// Justificación (JWT en Cookie): Usamos JSON Web Tokens (JWT) para gestionar sesiones.
+// El token se firma en el servidor con un secreto y se envía al cliente en una cookie
+// HttpOnly, lo que previene el acceso desde JavaScript (ataques XSS).
+// Justificación: Se comprueba que la variable de entorno crítica exista al iniciar.
+// Si no, es un error de configuración del servidor y la aplicación no debe arrancar.
+if (!env.SESSION_SECRET) {
+	throw new Error(
+		'La variable de entorno SESSION_SECRET no está configurada. La aplicación no puede iniciarse de forma segura.'
+	);
+}
+const secret = new TextEncoder().encode(env.SESSION_SECRET);
+const algorithm = 'HS256'; // Algoritmo de firma
+export async function createSessionToken(payload: { sub: string; [key: string]: unknown }) {
+	return await new SignJWT(payload)
+		.setProtectedHeader({ alg: algorithm })
+		.setExpirationTime('24h') // El token expira en 24 horas
+		.setIssuedAt()
+		.setSubject(payload.sub)
+		.sign(secret);
+}
+export async function verifySessionToken(token: string) {
+	try {
+		const { payload } = await jwtVerify(token, secret, {
+			algorithms: [algorithm]
+		});
+		return payload;
+	} catch (error) {
+		return null; // El token es inválido o ha expirado
+	}
+}
+
+// --- Ruta: src/lib/schemas/recipeSchema.ts ---
+// Ruta: src/lib/schemas/recipeSchema.ts
+import { z } from 'zod';
+// Justificación: Este es el esquema para un único ingrediente DENTRO de una receta.
+// Es el Data Transfer Object (DTO) que esperamos del frontend.
+const RecipeIngredientSchema = z.object({
+	id: z.string(), // ID del ProductCache o CustomIngredient
+	type: z.enum(['product', 'custom']), // Para saber a qué tabla enlazar
+	quantity: z.coerce.number().positive({ message: 'La cantidad debe ser mayor que cero.' })
+});
+// Justificación: Esquema principal para la creación y actualización de recetas.
+// Valida la estructura completa del objeto que se enviará a la API.
+export const RecipeSchema = z.object({
+	title: z.string().min(1, { message: 'El título no puede estar vacío.' }),
+	description: z.string().optional(),
+	steps: z.string().min(1, { message: 'Debe haber al menos un paso.' }),
+	ingredients: z
+		.array(RecipeIngredientSchema)
+		.min(1, { message: 'La receta debe tener al menos un ingrediente.' })
+});
+// Exportamos los tipos inferidos para usarlos en el código sin tener que
+// depender directamente de Zod, mejorando el desacoplamiento.
+export type RecipeIngredient = z.infer<typeof RecipeIngredientSchema>;
+export type RecipeData = z.infer<typeof RecipeSchema>;
+
+// --- Ruta: src/lib/schemas/ingredientSchema.ts ---
+// Ruta: src/lib/schemas/ingredientSchema.ts
+import { z } from 'zod';
+// Justificación: Se exporta como 'const' para que sea un valor en tiempo de ejecución.
+// Esto permite que otros módulos lo importen para usarlo en funciones como 'z.infer'
+// y para la validación de datos. 'verbatimModuleSyntax' en tsconfig.json lo requiere.
+export const IngredientSchema = z.object({
+	name: z.string().min(1, { message: 'El nombre no puede estar vacío.' }),
+	// Usamos z.coerce.number() para convertir la entrada (que puede ser string) a número.
+	calories: z.coerce.number().min(0, { message: 'Las calorías no pueden ser negativas.' }),
+	fat: z.coerce.number().min(0, { message: 'La grasa no puede ser negativa.' }),
+	protein: z.coerce.number().min(0, { message: 'La proteína no puede ser negativa.' }),
+	carbs: z.coerce.number().min(0, { message: 'Los carbohidratos no pueden ser negativos.' })
+});
+// Exportamos también el tipo inferido para usarlo en el frontend o donde se necesite
+// la forma de los datos sin importar el validador.
+export type Ingredient = z.infer<typeof IngredientSchema>;
+
+// --- Ruta: prisma/migrations/20250731184218_add_normalized_names/migration.sql ---
+-- RedefineTables
+PRAGMA defer_foreign_keys=ON;
+PRAGMA foreign_keys=OFF;
+CREATE TABLE "new_CustomIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "normalizedName" TEXT NOT NULL DEFAULT '',
+    "calories" REAL NOT NULL,
+    "fat" REAL NOT NULL,
+    "protein" REAL NOT NULL,
+    "carbs" REAL NOT NULL
+);
+INSERT INTO "new_CustomIngredient" ("calories", "carbs", "fat", "id", "name", "protein") SELECT "calories", "carbs", "fat", "id", "name", "protein" FROM "CustomIngredient";
+DROP TABLE "CustomIngredient";
+ALTER TABLE "new_CustomIngredient" RENAME TO "CustomIngredient";
+CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
+CREATE TABLE "new_ProductCache" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "productName" TEXT NOT NULL,
+    "normalizedProductName" TEXT NOT NULL DEFAULT '',
+    "brand" TEXT,
+    "imageUrl" TEXT,
+    "calories" REAL,
+    "fat" REAL,
+    "protein" REAL,
+    "carbs" REAL,
+    "fullPayload" JSONB,
+    "updatedAt" DATETIME NOT NULL
+);
+INSERT INTO "new_ProductCache" ("brand", "calories", "carbs", "fat", "fullPayload", "id", "imageUrl", "productName", "protein", "updatedAt") SELECT "brand", "calories", "carbs", "fat", "fullPayload", "id", "imageUrl", "productName", "protein", "updatedAt" FROM "ProductCache";
+DROP TABLE "ProductCache";
+ALTER TABLE "new_ProductCache" RENAME TO "ProductCache";
+PRAGMA foreign_keys=ON;
+PRAGMA defer_foreign_keys=OFF;
+
+// --- Ruta: prisma/migrations/20250730185406_init/migration.sql ---
+-- CreateTable
+CREATE TABLE "ProductCache" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "productName" TEXT NOT NULL,
+    "brand" TEXT,
+    "imageUrl" TEXT,
+    "calories" REAL,
+    "fat" REAL,
+    "protein" REAL,
+    "carbs" REAL,
+    "fullPayload" JSONB,
+    "updatedAt" DATETIME NOT NULL
+);
+-- CreateTable
+CREATE TABLE "CustomIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "calories" REAL NOT NULL,
+    "fat" REAL NOT NULL,
+    "protein" REAL NOT NULL,
+    "carbs" REAL NOT NULL
+);
+-- CreateTable
+CREATE TABLE "Recipe" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "steps" TEXT NOT NULL
+);
+-- CreateTable
+CREATE TABLE "RecipeIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "recipeId" TEXT NOT NULL,
+    "productCacheId" TEXT,
+    "customIngredientId" TEXT,
+    "quantity" REAL NOT NULL,
+    CONSTRAINT "RecipeIngredient_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_productCacheId_fkey" FOREIGN KEY ("productCacheId") REFERENCES "ProductCache" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_customIngredientId_fkey" FOREIGN KEY ("customIngredientId") REFERENCES "CustomIngredient" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+-- CreateIndex
+CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
+
+// --- Ruta: src/routes/recetas/nueva/+page.svelte ---
+<!-- Ruta: src/routes/recetas/nueva/+page.svelte -->
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	let title = $state('');
+	let description = $state('');
+	let steps = $state('');
+	let ingredients = $state<IngredientWithDetails[]>([]);
+	let searchTerm = $state('');
+	let searchResults = $state<{ id: string; name: string; type: 'custom' | 'product' }[]>([]);
+	let isSearching = $state(false);
+	let showResults = $state(false);
+	// Justificación: Se reemplaza `debounce` por `AbortController`.
+	// Esto crea un patrón de búsqueda más robusto y testeable. Cada nueva búsqueda
+	// cancela la anterior, evitando condiciones de carrera y haciendo que la llamada
+	// a la API sea determinista en los tests.
+	let searchController: AbortController | null = null;
+	async function handleSearch(event: Event) {
+		if (searchController) {
+			searchController.abort();
+		}
+		searchController = new AbortController();
+		const signal = searchController.signal;
+		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
+		if (currentSearchTerm.length < 3) {
+			searchResults = [];
+			showResults = false;
+			return;
+		}
+		isSearching = true;
+		try {
+			const response = await fetch(`/api/ingredients/search?q=${currentSearchTerm}`, { signal });
+			if (response.ok) {
+				searchResults = await response.json();
+				showResults = true;
+			}
+		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				return;
+			}
+			console.error('Error searching ingredients:', error);
+		} finally {
+			isSearching = false;
+		}
+	}
+	async function addIngredient(result: { id: string; name: string; type: 'custom' | 'product' }) {
+		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
+		try {
+			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			if (!response.ok) throw new Error('Failed to fetch ingredient details');
+			const details: CalculableIngredient = await response.json();
+			ingredients.push({
+				...result,
+				quantity: 100,
+				calories: details.calories,
+				protein: details.protein,
+				fat: details.fat,
+				carbs: details.carbs
+			});
+		} catch (error) {
+			console.error('Error adding ingredient:', error);
+		} finally {
+			searchTerm = '';
+			searchResults = [];
+			showResults = false;
+		}
+	}
+	function removeIngredient(index: number) {
+		ingredients.splice(index, 1);
+	}
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
+	let isSubmitting = $state(false);
+	let errors = $state<Record<string, any>>({});
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		isSubmitting = true;
+		errors = {};
+		const payload = {
+			title,
+			description,
+			steps,
+			ingredients: ingredients.map(({ id, quantity, type }) => ({ id, quantity, type }))
+		};
+		try {
+			const response = await fetch('/api/recipes', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (response.ok) {
+				const newRecipe = await response.json();
+				await goto(`/recetas/${newRecipe.id}`);
+			} else {
+				const errorData = await response.json();
+				if (response.status === 400) {
+					errors = errorData.errors;
+				} else {
+					errors.general = errorData.message || 'Ocurrió un error en el servidor.';
+				}
+			}
+		} catch (err) {
+			errors.general = 'No se pudo conectar con el servidor.';
+		} finally {
+			isSubmitting = false;
+		}
+	}
+</script>
+<Card class="max-w-4xl mx-auto my-8">
+	<CardHeader>
+		<CardTitle>Crear Nueva Receta</CardTitle>
+	</CardHeader>
+	<CardContent>
+		<form onsubmit={handleSubmit} class="space-y-6">
+			<div class="space-y-2">
+				<Label for="title">Título</Label>
+				<Input id="title" bind:value={title} required />
+				{#if errors.title}
+					<p class="text-sm text-red-500">{errors.title._errors[0]}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="description">Descripción (Opcional)</Label>
+				<Textarea id="description" bind:value={description} />
+			</div>
+			<div class="space-y-2">
+				<Label for="steps">Pasos</Label>
+				<Textarea id="steps" bind:value={steps} rows={8} required />
+				{#if errors.steps}
+					<p class="text-sm text-red-500">{errors.steps._errors[0]}</p>
+				{/if}
+			</div>
+			<div class="space-y-2 relative">
+				<Label for="ingredient-search">Añadir Ingrediente</Label>
+				<Input
+					id="ingredient-search"
+					bind:value={searchTerm}
+					oninput={handleSearch}
+					onfocus={() => (showResults = true)}
+					placeholder="Buscar por nombre (ej. Pollo, Harina...)"
+				/>
+				{#if isSearching}
+					<p class="text-sm text-gray-500">Buscando...</p>
+				{/if}
+				{#if showResults && searchResults.length > 0}
+					<div class="absolute z-10 w-full bg-white border rounded-md shadow-lg mt-1">
+						<ul>
+							{#each searchResults as result (result.id + result.type)}
+								<li>
+									<button
+										type="button"
+										class="w-full text-left px-4 py-2 cursor-pointer hover:bg-gray-100"
+										onclick={() => addIngredient(result)}
+										onmousedown={(e) => e.preventDefault()}
+									>
+										{result.name}
+										<span class="text-xs text-gray-500">({result.type})</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
+							<TableHead class="w-[100px] text-right">Acciones</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each ingredients as ingredient, i}
+							<TableRow>
+								<TableCell>{ingredient.name}</TableCell>
+								<TableCell>
+									<Input
+										type="number"
+										bind:value={ingredient.quantity}
+										min="1"
+										class="w-full"
+									/>
+								</TableCell>
+								<TableCell class="text-right">
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onclick={() => removeIngredient(i)}
+									>
+										Quitar
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+						{#if ingredients.length === 0}
+							<TableRow>
+								<TableCell colspan={3} class="text-center text-gray-500">
+									Añade ingredientes usando el buscador.
+								</TableCell>
+							</TableRow>
+						{/if}
+					</TableBody>
+				</Table>
+			</div>
+			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</div>
+			</div>
+			<div class="flex justify-end">
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? 'Guardando...' : 'Guardar Receta'}
+				</Button>
+			</div>
+			{#if errors.general}
+				<p class="text-sm text-red-500 text-right">{errors.general}</p>
+			{/if}
+		</form>
+	</CardContent>
+</Card>
+
+// --- Ruta: src/routes/recetas/[id]/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
+<script lang="ts">
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Table,
+		TableBody,
+		TableCell,
+		TableHead,
+		TableHeader,
+		TableRow
+	} from '$lib/components/ui/table';
+	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
+	import type { PageData } from './$types';
+	export let data: PageData;
+	const { recipe } = data;
+	// Justificación: Calculamos la información nutricional a partir de los datos cargados.
+	// La lógica de cálculo está aislada en `recipeCalculator`, haciendo este componente
+	// puramente presentacional.
+	const nutritionalInfo = calculateNutritionalInfo(
+		recipe.ingredients.map((ing) => ({
+			quantity: ing.quantity,
+			calories:
+				ing.productCache?.calories || ing.customIngredient?.calories || 0,
+			protein:
+				ing.productCache?.protein || ing.customIngredient?.protein || 0,
+			fat: ing.productCache?.fat || ing.customIngredient?.fat || 0,
+			carbs: ing.productCache?.carbs || ing.customIngredient?.carbs || 0
+		}))
+	);
+</script>
+<div class="max-w-4xl mx-auto my-8 space-y-8">
+	<!-- Encabezado de la Receta -->
+	<header class="space-y-2">
+		<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
+		{#if recipe.description}
+			<p class="text-lg text-gray-600">{recipe.description}</p>
+		{/if}
+	</header>
+	<!-- Información Nutricional -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Información Nutricional</CardTitle>
+			<CardDescription>Valores totales para la receta completa.</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+				<div>
+					<p class="font-bold text-2xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+					<p class="text-sm text-gray-600">Calorías (kcal)</p>
+				</div>
+				<div>
+					<p class="font-bold text-2xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+					<p class="text-sm text-gray-600">Proteínas</p>
+				</div>
+				<div>
+					<p class="font-bold text-2xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+					<p class="text-sm text-gray-600">Grasas</p>
+				</div>
+				<div>
+					<p class="font-bold text-2xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+					<p class="text-sm text-gray-600">Carbohidratos</p>
+				</div>
+			</div>
+		</CardContent>
+	</Card>
+	<!-- Ingredientes -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Ingredientes</CardTitle>
+		</CardHeader>
+		<CardContent>
+			<Table>
+				<TableHeader>
+					<TableRow>
+						<TableHead>Nombre</TableHead>
+						<TableHead class="w-[150px] text-right">Cantidad</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{#each recipe.ingredients as ingredient}
+						<TableRow>
+							<TableCell>
+								{ingredient.productCache?.productName || ingredient.customIngredient?.name}
+							</TableCell>
+							<TableCell class="text-right">{ingredient.quantity} g</TableCell>
+						</TableRow>
+					{/each}
+				</TableBody>
+			</Table>
+		</CardContent>
+	</Card>
+	<!-- Pasos -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Preparación</CardTitle>
+		</CardHeader>
+		<CardContent>
+			<div class="prose max-w-none whitespace-pre-wrap">
+				{recipe.steps}
+			</div>
+		</CardContent>
+	</Card>
+</div>
+
+// --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/+page.server.ts
+import { error } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { PageServerLoad } from './$types';
+// Justificación: La función `load` del servidor es ideal para cargar los datos
+// de una receta específica antes de que la página se renderice.
+// Esto asegura que los datos estén disponibles inmediatamente y mejora el SEO.
+export const load: PageServerLoad = async ({ params }) => {
+	const recipe = await recipeService.getById(params.id);
+	if (!recipe) {
+		throw error(404, 'Receta no encontrada');
+	}
+	return {
+		recipe
+	};
+};
+
+// --- Ruta: src/routes/api/recipes/+server.ts ---
+// Ruta: src/routes/api/recipes/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
+/**
+ * Maneja las peticiones GET para obtener todas las recetas.
+ */
+export const GET: RequestHandler = async () => {
+	try {
+		const recipes = await recipeService.getAll();
+		return json(recipes);
+	} catch (error) {
+		console.error('Error fetching recipes:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones POST para crear una nueva receta.
+ */
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json();
+		// Validamos el cuerpo de la petición con nuestro esquema Zod.
+		const validatedData = RecipeSchema.parse(body);
+		const newRecipe = await recipeService.create(validatedData);
+		return json(newRecipe, { status: 201 }); // 201 Created
+	} catch (error) {
+		if (error instanceof ZodError) {
+			// Si la validación falla, devolvemos un error 400 claro y formateado.
+			return json(formatZodError(error), { status: 400 });
+		}
+		console.error('Error creating recipe:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/+server.ts ---
+// Ruta: src/routes/api/ingredients/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import { IngredientSchema } from '$lib/schemas/ingredientSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
+export const GET: RequestHandler = async () => {
+	try {
+		const ingredients = await ingredientService.getAll();
+		return json(ingredients);
+	} catch (error) {
+		console.error('Error fetching ingredients:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json();
+		const validatedData = IngredientSchema.parse(body);
+		const newIngredient = await ingredientService.create(validatedData);
+		return json(newIngredient, { status: 201 });
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(formatZodError(error), { status: 400 });
+		}
+		console.error('Error creating ingredient:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/admin/ingredientes/+page.svelte ---
+<!-- Ruta: src/routes/admin/ingredientes/+page.svelte -->
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Table from '$lib/components/ui/table';
+	import type { ActionData, PageData } from './$types';
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+</script>
+<div class="container mx-auto py-10">
+	<div class="flex justify-between items-center mb-6">
+		<h1 class="text-2xl font-bold">Gestión de Ingredientes Personalizados</h1>
+		<Dialog.Root>
+			<Dialog.Trigger class={buttonVariants()}>Añadir Ingrediente</Dialog.Trigger>
+			<Dialog.Content class="sm:max-w-[425px]">
+				<Dialog.Header>
+					<Dialog.Title>Añadir Nuevo Ingrediente</Dialog.Title>
+					<Dialog.Description>
+						Completa los detalles del ingrediente personalizado. Todos los valores son por 100g.
+					</Dialog.Description>
+				</Dialog.Header>
+				<form method="POST" action="?/create" use:enhance>
+					<div class="grid gap-4 py-4">
+						<div class="grid grid-cols-4 items-center gap-4">
+							<Label for="name" class="text-right">Nombre</Label>
+							<Input id="name" name="name" class="col-span-3" />
+						</div>
+						<div class="grid grid-cols-4 items-center gap-4">
+							<Label for="calories" class="text-right">Calorías</Label>
+							<Input id="calories" name="calories" type="number" step="0.1" class="col-span-3" />
+						</div>
+						<div class="grid grid-cols-4 items-center gap-4">
+							<Label for="protein" class="text-right">Proteínas</Label>
+							<Input id="protein" name="protein" type="number" step="0.1" class="col-span-3" />
+						</div>
+						<div class="grid grid-cols-4 items-center gap-4">
+							<Label for="fat" class="text-right">Grasas</Label>
+							<Input id="fat" name="fat" type="number" step="0.1" class="col-span-3" />
+						</div>
+						<div class="grid grid-cols-4 items-center gap-4">
+							<Label for="carbs" class="text-right">Carbohidratos</Label>
+							<Input id="carbs" name="carbs" type="number" step="0.1" class="col-span-3" />
+						</div>
+					</div>
+					<Dialog.Footer>
+						<Dialog.Close class={buttonVariants()} type="submit">Guardar Ingrediente</Dialog.Close>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+	</div>
+	<div class="rounded-md border">
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Nombre</Table.Head>
+					<Table.Head class="text-right">Calorías (por 100g)</Table.Head>
+					<Table.Head class="text-right">Proteínas (g)</Table.Head>
+					<Table.Head class="text-right">Grasas (g)</Table.Head>
+					<Table.Head class="text-right">Carbs (g)</Table.Head>
+					<Table.Head class="text-right">Acciones</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each data.ingredients as ingredient (ingredient.id)}
+					<Table.Row>
+						<Table.Cell class="font-medium">{ingredient.name}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.calories}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.protein}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.fat}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.carbs}</Table.Cell>
+						<Table.Cell class="text-right">
+							<Dialog.Root>
+								<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}
+									>Editar</Dialog.Trigger
+								>
+								<Dialog.Content class="sm:max-w-[425px]">
+									<Dialog.Header>
+										<Dialog.Title>Editar Ingrediente</Dialog.Title>
+									</Dialog.Header>
+									<form method="POST" action="?/update" use:enhance>
+										<input type="hidden" name="id" value={ingredient.id} />
+										<div class="grid gap-4 py-4">
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="name-edit" class="text-right">Nombre</Label>
+												<Input
+													id="name-edit"
+													name="name"
+													value={ingredient.name}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="calories-edit" class="text-right">Calorías</Label>
+												<Input
+													id="calories-edit"
+													name="calories"
+													type="number"
+													step="0.1"
+													value={ingredient.calories}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="protein-edit" class="text-right">Proteínas</Label>
+												<Input
+													id="protein-edit"
+													name="protein"
+													type="number"
+													step="0.1"
+													value={ingredient.protein}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="fat-edit" class="text-right">Grasas</Label>
+												<Input
+													id="fat-edit"
+													name="fat"
+													type="number"
+													step="0.1"
+													value={ingredient.fat}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="carbs-edit" class="text-right">Carbohidratos</Label>
+												<Input
+													id="carbs-edit"
+													name="carbs"
+													type="number"
+													step="0.1"
+													value={ingredient.carbs}
+													class="col-span-3"
+												/>
+											</div>
+										</div>
+										<Dialog.Footer>
+											<Dialog.Close class={buttonVariants()} type="submit"
+												>Guardar Cambios</Dialog.Close
+											>
+										</Dialog.Footer>
+									</form>
+								</Dialog.Content>
+							</Dialog.Root>
+							<Dialog.Root>
+								<Dialog.Trigger
+									class={buttonVariants({ variant: 'destructive', size: 'sm' }) + ' ml-2'}
+									>Eliminar</Dialog.Trigger
+								>
+								<Dialog.Content class="sm:max-w-[425px]">
+									<Dialog.Header>
+										<Dialog.Title>Confirmar Eliminación</Dialog.Title>
+										<Dialog.Description>
+											¿Estás seguro de que quieres eliminar el ingrediente "{ingredient.name}"?
+											Esta acción no se puede deshacer.
+										</Dialog.Description>
+									</Dialog.Header>
+									<form method="POST" action="?/delete" use:enhance>
+										<input type="hidden" name="id" value={ingredient.id} />
+										<Dialog.Footer>
+											<Dialog.Close class={buttonVariants({ variant: 'outline' })}
+												>Cancelar</Dialog.Close
+											>
+											<Button variant="destructive" type="submit">Eliminar</Button>
+										</Dialog.Footer>
+									</form>
+								</Dialog.Content>
+							</Dialog.Root>
+						</Table.Cell>
+					</Table.Row>
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={6} class="text-center">No hay ingredientes personalizados.</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+	</div>
+</div>
+
+// --- Ruta: src/routes/admin/ingredientes/+page.server.ts ---
+// Ruta: src/routes/admin/ingredientes/+page.server.ts
+import { fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+// Justificación (load): La función `load` ahora llama al endpoint GET de la API usando `fetch`.
+// Esto asegura que la página y la API están desacopladas. La página consume su propia API,
+// una práctica conocida como "dogfooding", que garantiza que la API es robusta.
+export const load: PageServerLoad = async ({ fetch }) => {
+	const response = await fetch('/api/ingredients');
+	if (!response.ok) {
+		// En un caso real, podrías manejar el error de forma más elegante.
+		return { ingredients: [] };
+	}
+	const ingredients = await response.json();
+	return {
+		ingredients
+	};
+};
+// Justificación (actions): Las acciones ahora empaquetan los datos del formulario y los envían
+// al endpoint de la API correspondiente usando `fetch`. La lógica de negocio y la validación
+// residen únicamente en la API, y esta acción solo se encarga de la comunicación.
+export const actions: Actions = {
+	create: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const response = await fetch('/api/ingredients', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(Object.fromEntries(formData))
+		});
+		if (!response.ok) {
+			const result = await response.json();
+			return fail(response.status, {
+				data: Object.fromEntries(formData),
+				errors: result.errors
+			});
+		}
+		return { success: true, message: 'Ingrediente creado con éxito' };
+	},
+	update: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+		const response = await fetch(`/api/ingredients/${id}`,
+		{
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(Object.fromEntries(formData))
+		});
+		if (!response.ok) {
+			const result = await response.json();
+			return fail(response.status, {
+				data: Object.fromEntries(formData),
+				errors: result.errors,
+				id
+			});
+		}
+		return { success: true, message: 'Ingrediente actualizado con éxito' };
+	},
+	delete: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+		const response = await fetch(`/api/ingredients/${id}`, {
+			method: 'DELETE'
+		});
+		if (!response.ok) {
+			return fail(response.status, { message: 'Error al eliminar el ingrediente' });
+		}
+		return { success: true, message: 'Ingrediente eliminado con éxito' };
+	}
+};
+
+// --- Ruta: src/lib/server/services/recipeService.ts ---
+// Ruta: src/lib/server/services/recipeService.ts
+import prisma from '$lib/server/prisma';
+import type { RecipeData } from '$lib/schemas/recipeSchema';
+// Justificación: La capa de servicio para recetas abstrae toda la lógica de negocio
+// y el acceso a la base de datos (Prisma) para las operaciones CRUD.
+// Esto mantiene los endpoints de la API limpios y centrados en su rol de controlador.
+const recipeInclude = {
+	ingredients: {
+		include: {
+			productCache: true,
+			customIngredient: true
+		}
+	}
+};
+export const recipeService = {
+	/**
+	 * Obtiene todas las recetas con sus ingredientes.
+	 */
+	async getAll() {
+		return await prisma.recipe.findMany({
+			include: recipeInclude,
+			orderBy: { title: 'asc' }
+		});
+	},
+	/**
+	 * Obtiene una receta por su ID, incluyendo todos sus ingredientes.
+	 * @param id - El ID de la receta.
+	 */
+	async getById(id: string) {
+		return await prisma.recipe.findUnique({
+			where: { id },
+			include: recipeInclude
+		});
+	},
+	/**
+	 * Crea una nueva receta y sus ingredientes asociados en una transacción.
+	 * @param data - Datos de la receta validados por Zod.
+	 */
+	async create(data: RecipeData) {
+		const { title, description, steps, ingredients } = data;
+		// Justificación (transacción): Se usa $transaction para asegurar la atomicidad.
+		// O se crea la receta Y todos sus ingredientes, o no se crea nada.
+		// Esto previene que queden datos huérfanos si una de las operaciones falla.
+		return await prisma.$transaction(async (tx) => {
+			const newRecipe = await tx.recipe.create({
+				data: { title, description, steps }
+			});
+			for (const ingredient of ingredients) {
+				await tx.recipeIngredient.create({
+					data: {
+						recipeId: newRecipe.id,
+						quantity: ingredient.quantity,
+						productCacheId: ingredient.type === 'product' ? ingredient.id : null,
+						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
+					}
+				});
+			}
+			// Devolvemos la receta completa con sus ingredientes recién creados.
+			return await tx.recipe.findUnique({
+				where: { id: newRecipe.id },
+				include: recipeInclude
+			});
+		});
+	},
+	/**
+	 * Actualiza una receta existente y sus ingredientes en una transacción.
+	 * @param id - El ID de la receta a actualizar.
+	 * @param data - Datos de la receta validados por Zod.
+	 */
+	async update(id: string, data: RecipeData) {
+		const { title, description, steps, ingredients } = data;
+		return await prisma.$transaction(async (tx) => {
+			// 1. Actualizar los datos básicos de la receta.
+			await tx.recipe.update({
+				where: { id },
+				data: { title, description, steps }
+			});
+			// 2. Eliminar todos los ingredientes antiguos. Es la forma más simple y robusta
+			// de manejar actualizaciones, eliminaciones y adiciones de ingredientes.
+			await tx.recipeIngredient.deleteMany({
+				where: { recipeId: id }
+			});
+			// 3. Crear los nuevos ingredientes asociados a la receta.
+			for (const ingredient of ingredients) {
+				await tx.recipeIngredient.create({
+					data: {
+						recipeId: id,
+						quantity: ingredient.quantity,
+						productCacheId: ingredient.type === 'product' ? ingredient.id : null,
+						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
+					}
+				});
+			}
+			// Devolvemos la receta actualizada completa.
+			return await tx.recipe.findUnique({
+				where: { id },
+				include: recipeInclude
+			});
+		});
+	},
+	/**
+	 * Elimina una receta. La cascada se encarga de los ingredientes.
+	 * @param id - El ID de la receta a eliminar.
+	 */
+	async deleteById(id: string) {
+		return await prisma.recipe.delete({
+			where: { id }
+		});
+	}
+};
+
+// --- Ruta: src/lib/server/services/productService.ts ---
+// Ruta: src/lib/server/services/productService.ts
+import prisma from '$lib/server/prisma';
+import type { Prisma } from '@prisma/client';
+import ky from 'ky';
+import { normalizeText } from '$lib/utils';
+// Definición de tipos para la respuesta de la API de Open Food Facts
+type OpenFoodFactsProduct = {
+	code: string;
+	product_name: string;
+	brands?: string;
+	image_url?: string;
+	nutriments: {
+		energy_kcal_100g?: number;
+		fat_100g?: number;
+		proteins_100g?: number;
+		carbohydrates_100g?: number;
+	};
+};
+type OpenFoodFactsResponse = {
+	status: number;
+	product?: OpenFoodFactsProduct;
+};
+// Justificación: La capa de servicio abstrae la lógica de negocio y el acceso a datos.
+// Para este servicio, se coordinará la consulta a la caché local (Prisma) y
+// la llamada a la API externa (Open Food Facts) si es necesario.
+export const productService = {
+	/**
+	 * Busca un producto por su código de barras.
+	 * Primero intenta encontrarlo en la caché local (ProductCache).
+	 * Si no lo encuentra, lo busca en la API de Open Food Facts,
+	 * lo guarda en la caché y luego lo devuelve.
+	 * @param barcode - El código de barras del producto a buscar.
+	 */
+	async findByBarcode(barcode: string) {
+		const cachedProduct = await prisma.productCache.findUnique({
+			where: { id: barcode }
+		});
+		if (cachedProduct) {
+			console.log(`[Cache] HIT for barcode: ${barcode}`);
+			return cachedProduct;
+		}
+		console.log(`[Cache] MISS for barcode: ${barcode}. Fetching from OFF.`);
+		const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
+		try {
+			const response = await ky.get(url).json<OpenFoodFactsResponse>();
+			if (response.status === 0 || !response.product) {
+				return null; // Producto no encontrado en OFF
+			}
+			const productFromApi = response.product;
+			// 1. Normalizar datos de la API a nuestro esquema
+			const normalizedProduct = {
+				id: productFromApi.code,
+				productName: productFromApi.product_name,
+				// Justificación: Se genera el nombre normalizado para la búsqueda.
+				normalizedProductName: normalizeText(productFromApi.product_name),
+				brand: productFromApi.brands,
+				imageUrl: productFromApi.image_url,
+				calories: productFromApi.nutriments.energy_kcal_100g,
+				fat: productFromApi.nutriments.fat_100g,
+				protein: productFromApi.nutriments.proteins_100g,
+				carbs: productFromApi.nutriments.carbohydrates_100g,
+				// Justificación (Prisma.InputJsonValue): Hacemos un type casting a `InputJsonValue`
+				// para asegurar a TypeScript que la estructura del objeto de la API
+				// es compatible con el tipo `Json` que Prisma espera.
+				fullPayload: productFromApi as Prisma.InputJsonValue
+			};
+			// 2. Guardar en caché para futuras peticiones
+			console.log(`[Cache] WRITING product: ${normalizedProduct.productName}`);
+			const newCachedProduct = await prisma.productCache.create({
+				data: normalizedProduct
+			});
+			// 3. Devolver el producto recién cacheado
+			return newCachedProduct;
+		} catch (error) {
+			console.error(`[OFF] Error fetching product ${barcode}:`, error);
+			return null;
+		}
+	}
+};
+
+// --- Ruta: src/lib/server/services/productService.spec.ts ---
+// Ruta: src/lib/server/services/productService.spec.ts
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import prisma from '$lib/server/prisma';
+import ky from 'ky';
+import { productService } from './productService';
+import type { Prisma, ProductCache } from '@prisma/client';
+// Justificación: Mockeamos los módulos externos para aislar nuestro servicio.
+vi.mock('$lib/server/prisma', () => ({
+	default: {
+		productCache: {
+			findUnique: vi.fn(),
+			create: vi.fn()
+		}
+	}
+}));
+vi.mock('ky', () => ({
+	default: {
+		get: vi.fn()
+	}
+}));
+const mockedPrisma = prisma;
+const mockedKy = ky;
+// Definimos los tipos aquí para que el test sea autocontenido.
+type OpenFoodFactsProduct = {
+	code: string;
+	product_name: string;
+	brands?: string;
+	image_url?: string;
+	nutriments: {
+		energy_kcal_100g?: number;
+		fat_100g?: number;
+		proteins_100g?: number;
+		carbohydrates_100g?: number;
+	};
+};
+type OpenFoodFactsResponse = {
+	status: number;
+	product?: OpenFoodFactsProduct;
+};
+describe('productService', () => {
+	beforeEach(() => {
+		vi.resetAllMocks();
+	});
+	const barcode = '123456789';
+	const cachedProduct: ProductCache = {
+		id: barcode,
+		productName: 'Producto en Caché',
+		brand: 'Marca Caché',
+		imageUrl: 'http://cache.com/img.png',
+		calories: 100,
+		fat: 10,
+		protein: 5,
+		carbs: 20,
+		fullPayload: {} as Prisma.JsonObject,
+		updatedAt: new Date()
+	};
+	const productFromApi: OpenFoodFactsProduct = {
+		code: barcode,
+		product_name: 'Producto de API',
+		brands: 'Marca API',
+		image_url: 'http://api.com/img.png',
+		nutriments: {
+			energy_kcal_100g: 200,
+			fat_100g: 20,
+			proteins_100g: 10,
+			carbohydrates_100g: 40
+		}
+	};
+	const apiProductResponse: OpenFoodFactsResponse = {
+		status: 1,
+		product: productFromApi
+	};
+	it('debería devolver un producto de la caché si existe (Cache Hit)', async () => {
+		// Arrange: Hacemos un type cast a Mock para acceder a los métodos de mock de Vitest.
+		(mockedPrisma.productCache.findUnique as Mock).mockResolvedValue(cachedProduct);
+		// Act
+		const result = await productService.findByBarcode(barcode);
+		// Assert
+		expect(result).toEqual(cachedProduct);
+		expect(mockedPrisma.productCache.findUnique).toHaveBeenCalledTimes(1);
+		expect(mockedKy.get).not.toHaveBeenCalled();
+	});
+	it('debería obtener el producto de la API y guardarlo en caché si no existe (Cache Miss)', async () => {
+		// Arrange
+		(mockedPrisma.productCache.findUnique as Mock).mockResolvedValue(null);
+		// Justificación: Se elimina el `as any`. La estructura del objeto es suficiente.
+		(mockedKy.get as Mock).mockReturnValue({
+			json: vi.fn().mockResolvedValue(apiProductResponse)
+		});
+		const createdProduct: ProductCache = {
+			id: barcode,
+			productName: 'Producto de API',
+			brand: 'Marca API',
+			imageUrl: 'http://api.com/img.png',
+			calories: 200,
+			fat: 20,
+			protein: 10,
+			carbs: 40,
+			fullPayload: productFromApi as Prisma.JsonObject,
+			updatedAt: new Date()
+		};
+		(mockedPrisma.productCache.create as Mock).mockResolvedValue(createdProduct);
+		// Act
+		await productService.findByBarcode(barcode);
+		// Assert
+		expect(mockedPrisma.productCache.findUnique).toHaveBeenCalledTimes(1);
+		expect(mockedKy.get).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.productCache.create).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.productCache.create).toHaveBeenCalledWith({
+			data: {
+				id: productFromApi.code,
+				productName: productFromApi.product_name,
+				normalizedProductName: 'producto de api', // Justificación: Añadimos el campo esperado.
+				brand: productFromApi.brands,
+				imageUrl: productFromApi.image_url,
+				calories: productFromApi.nutriments.energy_kcal_100g,
+				fat: productFromApi.nutriments.fat_100g,
+				protein: productFromApi.nutriments.proteins_100g,
+				carbs: productFromApi.nutriments.carbohydrates_100g,
+				fullPayload: productFromApi as Prisma.JsonObject
+			}
+		});
+	});
+});
+
+// --- Ruta: src/lib/server/services/ingredientService.ts ---
+// Ruta: src/lib/server/services/ingredientService.ts
+import prisma from '$lib/server/prisma';
+// Justificación: Importamos el 'const' IngredientSchema para la validación en tiempo de ejecución
+// y el 'type' Ingredient para las anotaciones de tipo estáticas, cumpliendo con verbatimModuleSyntax.
+import { IngredientSchema, type Ingredient } from '$lib/schemas/ingredientSchema';
+import { normalizeText } from '$lib/utils';
+// Justificación: La capa de servicio abstrae la lógica de negocio y el acceso a datos.
+// Esto mantiene los endpoints de la API (controladores) limpios y centrados en manejar
+// la petición y la respuesta, mientras que la lógica real reside aquí.
+export const ingredientService = {
+	/**
+	 * Obtiene todos los ingredientes personalizados.
+	 */
+	async getAll() {
+		return await prisma.customIngredient.findMany({
+			orderBy: { name: 'asc' }
+		});
+	},
+	/**
+	 * Crea un nuevo ingrediente personalizado.
+	 * @param data - Datos validados por Zod.
+	 */
+	async create(data: Ingredient) {
+		// Justificación: Se genera el nombre normalizado antes de la inserción
+		// para asegurar que la búsqueda insensible a acentos funcione correctamente.
+		const normalizedName = normalizeText(data.name);
+		return await prisma.customIngredient.create({
+			data: {
+				...data,
+				normalizedName
+			}
+		});
+	},
+	/**
+	 * Actualiza un ingrediente personalizado existente.
+	 * @param id - El ID del ingrediente a actualizar.
+	 * @param data - Datos validados por Zod.
+	 */
+	async update(id: string, data: Ingredient) {
+		// Justificación: Se actualiza el nombre normalizado junto con el nombre
+		// para mantener la consistencia de los datos para la búsqueda.
+		const normalizedName = normalizeText(data.name);
+		return await prisma.customIngredient.update({
+			where: { id },
+			data: {
+				...data,
+				normalizedName
+			}
+		});
+	},
+	/**
+	 * Elimina un ingrediente personalizado.
+	 * @param id - El ID del ingrediente a eliminar.
+	 */
+	async deleteById(id: string) {
+		return await prisma.customIngredient.delete({
+			where: { id }
+		});
+	}
+};
+
+// --- Ruta: src/lib/server/services/ingredientService.spec.ts ---
+// Ruta: src/lib/server/services/ingredientService.spec.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import prisma from '$lib/server/prisma';
+import { ingredientService } from './ingredientService';
+import type { Ingredient } from '$lib/schemas/ingredientSchema';
+// Justificación: Mockeamos el módulo de Prisma para aislar el servicio de la base de datos.
+// `vi.mock` reemplaza las exportaciones del módulo con mocks, permitiéndonos controlar
+// el comportamiento de `prisma.customIngredient.create` y otras funciones de Prisma durante el test.
+vi.mock('$lib/server/prisma', () => {
+	return {
+		default: {
+			customIngredient: {
+				findMany: vi.fn(),
+				create: vi.fn(),
+				update: vi.fn(),
+				delete: vi.fn()
+			}
+		}
+	};
+});
+describe('ingredientService', () => {
+	// Limpiamos los mocks antes de cada test para asegurar que no haya interferencias entre pruebas.
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+	it('debería llamar a prisma.customIngredient.create con los datos correctos', async () => {
+		// 1. Arrange (Preparación)
+		const newIngredientData: Ingredient = {
+			name: 'Harina de Almendras',
+			calories: 579,
+			protein: 21.1,
+			fat: 49.9,
+			carbs: 21.6
+		};
+		const expectedResult = {
+			id: 'clxmjm8om0000v9a1b2c3d4e5',
+			...newIngredientData
+		};
+		// Configuramos el mock para que devuelva un valor específico cuando se llame.
+		vi.mocked(prisma.customIngredient.create).mockResolvedValue(expectedResult);
+		// 2. Act (Actuación)
+		const result = await ingredientService.create(newIngredientData);
+		// 3. Assert (Verificación)
+		// Verificamos que la función 'create' de prisma fue llamada exactamente una vez.
+		expect(prisma.customIngredient.create).toHaveBeenCalledTimes(1);
+		// Verificamos que la función 'create' de prisma fue llamada con el objeto de datos correcto.
+		expect(prisma.customIngredient.create).toHaveBeenCalledWith({
+			data: {
+				...newIngredientData,
+				normalizedName: 'harina de almendras' // Justificación: Añadimos el campo esperado.
+			}
+		});
+		// Verificamos que el resultado de nuestro servicio es el que esperábamos.
+		expect(result).toEqual(expectedResult);
+	});
+	// Aquí se podrían añadir más tests para getAll, update y deleteById...
+});
+
+// --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
+// Ruta: src/routes/api/recipes/[id]/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
+/**
+ * Maneja las peticiones GET para obtener una receta por su ID.
+ */
+export const GET: RequestHandler = async ({ params }) => {
+	try {
+		const recipe = await recipeService.getById(params.id);
+		if (!recipe) {
+			return json({ message: 'Receta no encontrada' }, { status: 404 });
+		}
+		return json(recipe);
+	} catch (error) {
+		console.error(`Error fetching recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones PUT para actualizar una receta.
+ */
+export const PUT: RequestHandler = async ({ request, params }) => {
+	try {
+		const body = await request.json();
+		const validatedData = RecipeSchema.parse(body);
+		const updatedRecipe = await recipeService.update(params.id, validatedData);
+		if (!updatedRecipe) {
+			return json({ message: 'Receta no encontrada para actualizar' }, { status: 404 });
+		}
+		return json(updatedRecipe);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(formatZodError(error), { status: 400 });
+		}
+		console.error(`Error updating recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones DELETE para eliminar una receta.
+ */
+export const DELETE: RequestHandler = async ({ params }) => {
+	try {
+		await recipeService.deleteById(params.id);
+		return new Response(null, { status: 204 }); // 204 No Content
+	} catch (error) {
+		// Podríamos verificar si el error es porque el registro no existe (P2025 en Prisma)
+		console.error(`Error deleting recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/search/+server.ts ---
+// Ruta: src/routes/api/ingredients/search/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import prisma from '$lib/server/prisma';
+import { normalizeText } from '$lib/utils';
+// Justificación: Este endpoint es crucial para la UX del formulario de recetas.
+// Permite una búsqueda de texto (usando 'contains' case-insensitive)
+// contra los ingredientes personalizados y los productos en caché,
+// devolviendo una lista unificada que el frontend puede mostrar como sugerencias.
+export const GET: RequestHandler = async ({ url }) => {
+	const query = url.searchParams.get('q');
+	// Justificación (Validación): Se requiere un query y que tenga una longitud mínima
+	// para evitar búsquedas vacías o excesivamente amplias que sobrecarguen la base de datos.
+	if (!query || query.length < 3) {
+		return json(
+			{ message: 'Se requiere un término de búsqueda de al menos 3 caracteres.' },
+			{ status: 400 }
+		);
+	}
+	// Justificación: Normalizamos el término de búsqueda del usuario de la misma forma
+	// que normalizamos los datos en la DB. Esto es clave para que la búsqueda
+	// insensible a acentos funcione correctamente.
+	const normalizedQuery = normalizeText(query);
+	try {
+		// Justificación (Búsqueda paralela): Ejecutamos ambas búsquedas en paralelo
+		// con Promise.all para minimizar la latencia de la respuesta.
+		const [customIngredients, cachedProducts] = await Promise.all([
+			prisma.customIngredient.findMany({
+				where: {
+					normalizedName: {
+						contains: normalizedQuery
+					}
+				},
+				take: 20, // Limitar el número de resultados por rendimiento
+				select: { id: true, name: true }
+			}),
+			prisma.productCache.findMany({
+				where: {
+					normalizedProductName: {
+						contains: normalizedQuery
+					}
+				},
+				take: 20,
+				select: { id: true, productName: true }
+			})
+		]);
+		// Justificación (Formato Unificado): Mapeamos los resultados de ambas tablas
+		// a un formato consistente. El campo 'type' es esencial para que el frontend
+		// sepa cómo manejar cada ingrediente al añadirlo a la receta.
+		const formattedCustom = customIngredients.map((ing) => ({
+			id: ing.id,
+			name: ing.name,
+			type: 'custom' as const
+		}));
+		const formattedProducts = cachedProducts.map((prod) => ({
+			id: prod.id,
+			name: prod.productName,
+			type: 'product' as const
+		}));
+		const results = [...formattedCustom, ...formattedProducts];
+		return json(results);
+	} catch (error) {
+		console.error('Error searching ingredients:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
+	import type { PageData, ActionData } from './$types';
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	const { recipe } = data;
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	let title = $state(recipe.title);
+	let description = $state(recipe.description || '');
+	let steps = $state(recipe.steps);
+	let ingredients = $state<IngredientWithDetails[]>(
+		recipe.ingredients.map((ing: PageData['recipe']['ingredients'][number]) => ({
+			id: ing.productCache?.id || ing.customIngredient?.id || '',
+			name: ing.productCache?.productName || ing.customIngredient?.name || 'Ingrediente desconocido',
+			type: ing.productCache ? 'product' : 'custom',
+			quantity: ing.quantity,
+			calories: ing.productCache?.calories || ing.customIngredient?.calories || 0,
+			protein: ing.productCache?.protein || ing.customIngredient?.protein || 0,
+			fat: ing.productCache?.fat || ing.customIngredient?.fat || 0,
+			carbs: ing.productCache?.carbs || ing.customIngredient?.carbs || 0
+		}))
+	);
+	let searchTerm = $state('');
+	let searchResults = $state<{ id: string; name: string; type: 'custom' | 'product' }[]>([]);
+	let isSearching = $state(false);
+	let showResults = $state(false);
+	// Justificación: Se reemplaza `debounce` por `AbortController`.
+	// Esto crea un patrón de búsqueda más robusto y testeable. Cada nueva búsqueda
+	// cancela la anterior, evitando condiciones de carrera y haciendo que la llamada
+	// a la API sea determinista en los tests.
+	let searchController: AbortController | null = null;
+	async function handleSearch(event: Event) {
+		if (searchController) {
+			searchController.abort();
+		}
+		searchController = new AbortController();
+		const signal = searchController.signal;
+		// Justificación: Se lee el valor directamente del evento del DOM.
+		// Esto evita la condición de carrera donde el estado reactivo `searchTerm`
+		// podría no estar actualizado cuando se ejecuta el manejador.
+		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
+		if (currentSearchTerm.length < 3) {
+			searchResults = [];
+			showResults = false;
+			return;
+		}
+		isSearching = true;
+		try {
+			const response = await fetch(`/api/ingredients/search?q=${currentSearchTerm}`, { signal });
+			if (response.ok) {
+				searchResults = await response.json();
+				showResults = true;
+			}
+		} catch (error) {
+			// El AbortError es esperado cuando se cancela una petición, no es un error real.
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				return;
+			}
+			console.error('Error searching ingredients:', error);
+		} finally {
+			isSearching = false;
+		}
+	}
+	async function addIngredient(result: { id: string; name: string; type: 'custom' | 'product' }) {
+		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
+		try {
+			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			if (!response.ok) throw new Error('Failed to fetch ingredient details');
+			const details: CalculableIngredient = await response.json();
+			ingredients.push({
+				...result,
+				quantity: 100,
+				calories: details.calories,
+				protein: details.protein,
+				fat: details.fat,
+				carbs: details.carbs
+			});
+		} catch (error) {
+			console.error('Error adding ingredient:', error);
+		} finally {
+			searchTerm = '';
+			searchResults = [];
+			showResults = false;
+		}
+	}
+	function removeIngredient(index: number) {
+		ingredients.splice(index, 1);
+	}
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
+	let isSubmitting = $state(false);
+	let errors = $state<Record<string, any>>({});
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		isSubmitting = true;
+		errors = {};
+		const payload = {
+			title,
+			description,
+			steps,
+			ingredients: ingredients.map(({ id, quantity, type }) => ({ id, quantity, type }))
+		};
+		try {
+			const response = await fetch(`/api/recipes/${recipe.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (response.ok) {
+				const updatedRecipe = await response.json();
+				await goto(`/recetas/${updatedRecipe.id}`);
+			} else {
+				const errorData = await response.json();
+				if (response.status === 400) {
+					errors = errorData.errors;
+				} else {
+					errors.general = errorData.message || 'Ocurrió un error en el servidor.';
+				}
+			}
+		} catch (err) {
+			errors.general = 'No se pudo conectar con el servidor.';
+		} finally {
+			isSubmitting = false;
+		}
+	}
+</script>
+<Card class="max-w-4xl mx-auto my-8">
+	<CardHeader>
+		<CardTitle>Editar Receta</CardTitle>
+	</CardHeader>
+	<CardContent>
+		<form onsubmit={handleSubmit} class="space-y-6">
+			<div class="space-y-2">
+				<Label for="title">Título</Label>
+				<Input id="title" bind:value={title} required />
+				{#if errors.title}
+					<p class="text-sm text-red-500">{errors.title._errors[0]}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="description">Descripción (Opcional)</Label>
+				<Textarea id="description" bind:value={description} />
+			</div>
+			<div class="space-y-2">
+				<Label for="steps">Pasos</Label>
+				<Textarea id="steps" bind:value={steps} rows={8} required />
+				{#if errors.steps}
+					<p class="text-sm text-red-500">{errors.steps._errors[0]}</p>
+				{/if}
+			</div>
+			<div class="space-y-2 relative">
+				<Label for="ingredient-search">Añadir Ingrediente</Label>
+				<Input
+					id="ingredient-search"
+					bind:value={searchTerm}
+					oninput={handleSearch}
+					onfocus={() => (showResults = true)}
+					placeholder="Buscar por nombre (ej. Pollo, Harina...)"
+				/>
+				{#if isSearching}
+					<p class="text-sm text-gray-500">Buscando...</p>
+				{/if}
+				{#if showResults && searchResults.length > 0}
+					<div class="absolute z-10 w-full bg-white border rounded-md shadow-lg mt-1">
+						<ul>
+							{#each searchResults as result (result.id + result.type)}
+								<li>
+									<button
+										type="button"
+										class="w-full text-left px-4 py-2 cursor-pointer hover:bg-gray-100"
+										onclick={() => addIngredient(result)}
+										onmousedown={(e) => e.preventDefault()}
+									>
+										{result.name}
+										<span class="text-xs text-gray-500">({result.type})</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
+							<TableHead class="w-[100px] text-right">Acciones</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each ingredients as ingredient, i}
+							<TableRow>
+								<TableCell>{ingredient.name}</TableCell>
+								<TableCell>
+									<Input
+										type="number"
+										bind:value={ingredient.quantity}
+										min="1"
+										class="w-full"
+									/>
+								</TableCell>
+								<TableCell class="text-right">
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onclick={() => removeIngredient(i)}
+									>
+										Quitar
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+						{#if ingredients.length === 0}
+							<TableRow>
+								<TableCell colspan={3} class="text-center text-gray-500">
+									Añade ingredientes usando el buscador.
+								</TableCell>
+							</TableRow>
+						{/if}
+					</TableBody>
+				</Table>
+			</div>
+			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</div>
+			</div>
+			<div class="flex justify-end">
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? 'Actualizando...' : 'Actualizar Receta'}
+				</Button>
+			</div>
+			{#if errors.general}
+				<p class="text-sm text-red-500 text-right">{errors.general}</p>
+			{/if}
+		</form>
+	</CardContent>
+</Card>
+
+// --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/editar/+page.server.ts
+import { error } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { PageServerLoad } from './$types';
+// Justificación: La función `load` se ejecuta en el servidor antes de renderizar la página.
+// Es el lugar idóneo para cargar los datos necesarios para la edición de una receta.
+// Si la receta no se encuentra, lanzamos un error 404 para que SvelteKit muestre la página de error.
+export const load: PageServerLoad = async ({ params }) => {
+	const recipe = await recipeService.getById(params.id);
+	if (!recipe) {
+		throw error(404, 'Receta no encontrada');
+	}
+	// Justificación: Devolvemos un objeto `recipe` que contiene todos los datos necesarios.
+	// SvelteKit se encarga de serializarlo y pasarlo como prop `data` a la página Svelte.
+	// Esto asegura que el frontend tenga toda la información para pre-rellenar el formulario.
+	return {
+		recipe
+	};
+};
+
+// --- Ruta: src/routes/api/ingredients/[id]/+server.ts ---
+// Ruta: src/routes/api/ingredients/[id]/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import { IngredientSchema } from '$lib/schemas/ingredientSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
+// Justificación (PUT): Endpoint para la actualización de un recurso específico.
+// Valida tanto el ID de la ruta como los datos del cuerpo antes de actuar.
+export const PUT: RequestHandler = async ({ request, params }) => {
+	const { id } = params;
+	if (!id) {
+		return json({ message: 'ID de ingrediente es requerido' }, { status: 400 });
+	}
+	try {
+		const body = await request.json();
+		const validatedData = IngredientSchema.parse(body);
+		const updatedIngredient = await ingredientService.update(id, validatedData);
+		return json(updatedIngredient);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(formatZodError(error), { status: 400 });
+		}
+		console.error(`Error updating ingredient with id ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+// Justificación (DELETE): Endpoint para la eliminación de un recurso específico.
+// Solo requiere el ID del recurso, haciendo la operación simple y clara.
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+	if (!id) {
+		return json({ message: 'ID de ingrediente es requerido' }, { status: 400 });
+	}
+	try {
+		await ingredientService.deleteById(id);
+		return new Response(null, { status: 204 }); // 204 No Content
+	} catch (error) {
+		// Aquí también se podrían manejar errores de 'RecordNotFound'.
+		console.error(`Error deleting ingredient ${id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/lib/components/ui/textarea/textarea.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
+	import type { HTMLTextareaAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		value = $bindable(),
+		class: className,
+		...restProps
+	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
+</script>
+<textarea
+	bind:this={ref}
+	data-slot="textarea"
+	class={cn(
+		"border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 field-sizing-content shadow-xs flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+		className
+	)}
+	bind:value
+	{...restProps}
+></textarea>
+
+// --- Ruta: src/lib/components/ui/textarea/index.ts ---
+import Root from "./textarea.svelte";
+export {
+	Root,
+	//
+	Root as Textarea,
+};
+
+// --- Ruta: src/lib/components/ui/table/table.svelte ---
+<script lang="ts">
+	import type { HTMLTableAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLTableAttributes> = $props();
+</script>
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+	<table
+		bind:this={ref}
+		data-slot="table"
+		class={cn("w-full caption-bottom text-sm", className)}
+		{...restProps}
+	>
+		{@render children?.()}
+	</table>
+</div>
+
+// --- Ruta: src/lib/components/ui/table/table-row.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableRowElement>> = $props();
+</script>
+<tr
+	bind:this={ref}
+	data-slot="table-row"
+	class={cn(
+		"hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</tr>
+
+// --- Ruta: src/lib/components/ui/table/table-header.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
+</script>
+<thead
+	bind:this={ref}
+	data-slot="table-header"
+	class={cn("[&_tr]:border-b", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</thead>
+
+// --- Ruta: src/lib/components/ui/table/table-head.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLThAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLThAttributes> = $props();
+</script>
+<th
+	bind:this={ref}
+	data-slot="table-head"
+	class={cn(
+		"text-foreground h-10 whitespace-nowrap bg-clip-padding px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</th>
+
+// --- Ruta: src/lib/components/ui/table/table-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
+</script>
+<tfoot
+	bind:this={ref}
+	data-slot="table-footer"
+	class={cn("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</tfoot>
+
+// --- Ruta: src/lib/components/ui/table/table-cell.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLTdAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLTdAttributes> = $props();
+</script>
+<td
+	bind:this={ref}
+	data-slot="table-cell"
+	class={cn(
+		"whitespace-nowrap bg-clip-padding p-2 align-middle [&:has([role=checkbox])]:pr-0",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</td>
+
+// --- Ruta: src/lib/components/ui/table/table-caption.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLElement>> = $props();
+</script>
+<caption
+	bind:this={ref}
+	data-slot="table-caption"
+	class={cn("text-muted-foreground mt-4 text-sm", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</caption>
+
+// --- Ruta: src/lib/components/ui/table/table-body.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
+</script>
+<tbody
+	bind:this={ref}
+	data-slot="table-body"
+	class={cn("[&_tr:last-child]:border-0", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</tbody>
+
+// --- Ruta: src/lib/components/ui/table/index.ts ---
+import Root from "./table.svelte";
+import Body from "./table-body.svelte";
+import Caption from "./table-caption.svelte";
+import Cell from "./table-cell.svelte";
+import Footer from "./table-footer.svelte";
+import Head from "./table-head.svelte";
+import Header from "./table-header.svelte";
+import Row from "./table-row.svelte";
+export {
+	Root,
+	Body,
+	Caption,
+	Cell,
+	Footer,
+	Head,
+	Header,
+	Row,
+	//
+	Root as Table,
+	Body as TableBody,
+	Caption as TableCaption,
+	Cell as TableCell,
+	Footer as TableFooter,
+	Head as TableHead,
+	Header as TableHeader,
+	Row as TableRow,
+};
+
+// --- Ruta: src/lib/components/ui/label/label.svelte ---
+<script lang="ts">
+	import { Label as LabelPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: LabelPrimitive.RootProps = $props();
+</script>
+<LabelPrimitive.Root
+	bind:ref
+	data-slot="label"
+	class={cn(
+		"flex select-none items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/label/index.ts ---
+import Root from "./label.svelte";
+export {
+	Root,
+	//
+	Root as Label,
+};
+
+// --- Ruta: src/lib/components/ui/input/input.svelte ---
+<script lang="ts">
+	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	type InputType = Exclude<HTMLInputTypeAttribute, "file">;
+	type Props = WithElementRef<
+		Omit<HTMLInputAttributes, "type"> &
+			({ type: "file"; files?: FileList } | { type?: InputType; files?: undefined })
+	>;
+	let {
+		ref = $bindable(null),
+		value = $bindable(),
+		type,
+		files = $bindable(),
+		class: className,
+		...restProps
+	}: Props = $props();
+</script>
+{#if type === "file"}
+	<input
+		bind:this={ref}
+		data-slot="input"
+		class={cn(
+			"selection:bg-primary dark:bg-input/30 selection:text-primary-foreground border-input ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 pt-1.5 text-sm font-medium outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+			className
+		)}
+		type="file"
+		bind:files
+		bind:value
+		{...restProps}
+	/>
+{:else}
+	<input
+		bind:this={ref}
+		data-slot="input"
+		class={cn(
+			"border-input bg-background selection:bg-primary dark:bg-input/30 selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+			className
+		)}
+		{type}
+		bind:value
+		{...restProps}
+	/>
+{/if}
+
+// --- Ruta: src/lib/components/ui/input/index.ts ---
+import Root from "./input.svelte";
+export {
+	Root,
+	//
+	Root as Input,
+};
+
+// --- Ruta: src/lib/components/ui/dialog/index.ts ---
+import { Dialog as DialogPrimitive } from "bits-ui";
+import Title from "./dialog-title.svelte";
+import Footer from "./dialog-footer.svelte";
+import Header from "./dialog-header.svelte";
+import Overlay from "./dialog-overlay.svelte";
+import Content from "./dialog-content.svelte";
+import Description from "./dialog-description.svelte";
+import Trigger from "./dialog-trigger.svelte";
+import Close from "./dialog-close.svelte";
+const Root = DialogPrimitive.Root;
+const Portal = DialogPrimitive.Portal;
+export {
+	Root,
+	Title,
+	Portal,
+	Footer,
+	Header,
+	Trigger,
+	Overlay,
+	Content,
+	Description,
+	Close,
+	//
+	Root as Dialog,
+	Title as DialogTitle,
+	Portal as DialogPortal,
+	Footer as DialogFooter,
+	Header as DialogHeader,
+	Trigger as DialogTrigger,
+	Overlay as DialogOverlay,
+	Content as DialogContent,
+	Description as DialogDescription,
+	Close as DialogClose,
+};
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-trigger.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	let { ref = $bindable(null), ...restProps }: DialogPrimitive.TriggerProps = $props();
+</script>
+<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {...restProps} />
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-title.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.TitleProps = $props();
+</script>
+<DialogPrimitive.Title
+	bind:ref
+	data-slot="dialog-title"
+	class={cn("text-lg font-semibold leading-none", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-overlay.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.OverlayProps = $props();
+</script>
+<DialogPrimitive.Overlay
+	bind:ref
+	data-slot="dialog-overlay"
+	class={cn(
+		"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-header.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="dialog-header"
+	class={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="dialog-footer"
+	class={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-description.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.DescriptionProps = $props();
+</script>
+<DialogPrimitive.Description
+	bind:ref
+	data-slot="dialog-description"
+	class={cn("text-muted-foreground text-sm", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-content.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import XIcon from "@lucide/svelte/icons/x";
+	import type { Snippet } from "svelte";
+	import * as Dialog from "./index.js";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		portalProps,
+		children,
+		showCloseButton = true,
+		...restProps
+	}: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
+		portalProps?: DialogPrimitive.PortalProps;
+		children: Snippet;
+		showCloseButton?: boolean;
+	} = $props();
+</script>
+<Dialog.Portal {...portalProps}>
+	<Dialog.Overlay />
+	<DialogPrimitive.Content
+		bind:ref
+		data-slot="dialog-content"
+		class={cn(
+			"bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+			className
+		)}
+		{...restProps}
+	>
+		{@render children?.()}
+		{#if showCloseButton}
+			<DialogPrimitive.Close
+				class="ring-offset-background focus:ring-ring rounded-xs focus:outline-hidden absolute right-4 top-4 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+			>
+				<XIcon />
+				<span class="sr-only">Close</span>
+			</DialogPrimitive.Close>
+		{/if}
+	</DialogPrimitive.Content>
+</Dialog.Portal>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-close.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	let { ref = $bindable(null), ...restProps }: DialogPrimitive.CloseProps = $props();
+</script>
+<DialogPrimitive.Close bind:ref data-slot="dialog-close" {...restProps} />
+
+// --- Ruta: src/lib/components/ui/card/index.ts ---
+import Root from "./card.svelte";
+import Content from "./card-content.svelte";
+import Description from "./card-description.svelte";
+import Footer from "./card-footer.svelte";
+import Header from "./card-header.svelte";
+import Title from "./card-title.svelte";
+import Action from "./card-action.svelte";
+export {
+	Root,
+	Content,
+	Description,
+	Footer,
+	Header,
+	Title,
+	Action,
+	//
+	Root as Card,
+	Content as CardContent,
+	Description as CardDescription,
+	Footer as CardFooter,
+	Header as CardHeader,
+	Title as CardTitle,
+	Action as CardAction,
+};
+
+// --- Ruta: src/lib/components/ui/card/card.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card"
+	class={cn(
+		"bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-title.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-title"
+	class={cn("font-semibold leading-none", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-header.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-header"
+	class={cn(
+		"@container/card-header has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-footer"
+	class={cn("[.border-t]:pt-6 flex items-center px-6", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-description.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLParagraphElement>> = $props();
+</script>
+<p
+	bind:this={ref}
+	data-slot="card-description"
+	class={cn("text-muted-foreground text-sm", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</p>
+
+// --- Ruta: src/lib/components/ui/card/card-content.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div bind:this={ref} data-slot="card-content" class={cn("px-6", className)} {...restProps}>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-action.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-action"
+	class={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/button/index.ts ---
+import Root, {
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant,
+	buttonVariants,
+} from "./button.svelte";
+export {
+	Root,
+	type ButtonProps as Props,
+	//
+	Root as Button,
+	buttonVariants,
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant,
+};
+
+// --- Ruta: src/lib/components/ui/button/button.svelte ---
+<script lang="ts" module>
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
+	import { type VariantProps, tv } from "tailwind-variants";
+	export const buttonVariants = tv({
+		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		variants: {
+			variant: {
+				default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+				destructive:
+					"bg-destructive shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white",
+				outline:
+					"bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border",
+				secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+				ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+				link: "text-primary underline-offset-4 hover:underline",
+			},
+			size: {
+				default: "h-9 px-4 py-2 has-[>svg]:px-3",
+				sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
+				lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+				icon: "size-9",
+			},
+		},
+		defaultVariants: {
+			variant: "default",
+			size: "default",
+		},
+	});
+	export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
+	export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
+	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
+		WithElementRef<HTMLAnchorAttributes> & {
+			variant?: ButtonVariant;
+			size?: ButtonSize;
+		};
+</script>
+<script lang="ts">
+	let {
+		class: className,
+		variant = "default",
+		size = "default",
+		ref = $bindable(null),
+		href = undefined,
+		type = "button",
+		disabled,
+		children,
+		...restProps
+	}: ButtonProps = $props();
+</script>
+{#if href}
+	<a
+		bind:this={ref}
+		data-slot="button"
+		class={cn(buttonVariants({ variant, size }), className)}
+		href={disabled ? undefined : href}
+		aria-disabled={disabled}
+		role={disabled ? "link" : undefined}
+		tabindex={disabled ? -1 : undefined}
+		{...restProps}
+	>
+		{@render children?.()}
+	</a>
+{:else}
+	<button
+		bind:this={ref}
+		data-slot="button"
+		class={cn(buttonVariants({ variant, size }), className)}
+		{type}
+		{disabled}
+		{...restProps}
+	>
+		{@render children?.()}
+	</button>
+{/if}
+
+// --- Ruta: src/routes/api/products/search/[barcode]/+server.ts ---
+// Ruta: src/routes/api/products/search/[barcode]/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { productService } from '$lib/server/services/productService';
+// Justificación: Expone el `productService` a través de una API RESTful.
+// El endpoint recibe el código de barras como un parámetro de la ruta (`params.barcode`),
+// lo que es una práctica estándar para identificar un recurso específico.
+// Se importa `RequestHandler` desde `./$types` para obtener el tipado correcto de `params`.
+export const GET: RequestHandler = async ({ params }) => {
+	const { barcode } = params;
+	if (!barcode) {
+		return json({ message: 'El código de barras es requerido' }, { status: 400 });
+	}
+	try {
+		const product = await productService.findByBarcode(barcode);
+		if (!product) {
+			// Si el producto no se encuentra ni en la caché ni en la API de OFF,
+			// devolvemos un 404 Not Found, que es el código de estado HTTP correcto.
+			return json({ message: 'Producto no encontrado' }, { status: 404 });
+		}
+		// Devolvemos el producto encontrado (ya sea de la caché o de la API).
+		return json(product);
+	} catch (error) {
+		console.error(`Error searching for barcode ${barcode}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/details/[id]/+server.ts ---
+// Ruta: src/routes/api/ingredients/details/[id]/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import prisma from '$lib/server/prisma';
+// Justificación: Este endpoint centraliza la obtención de datos nutricionales
+// para cualquier tipo de ingrediente. El frontend lo necesita para poder
+// calcular la información nutricional en tiempo real al crear/editar una receta.
+export const GET: RequestHandler = async ({ params, url }) => {
+	const { id } = params;
+	const type = url.searchParams.get('type');
+	if (!type || (type !== 'custom' && type !== 'product')) {
+		return json({ message: "El parámetro 'type' es requerido ('custom' o 'product')." }, { status: 400 });
+	}
+	try {
+		let ingredientData = null;
+		if (type === 'custom') {
+			ingredientData = await prisma.customIngredient.findUnique({
+				where: { id }
+			});
+		} else {
+			// Para productos, el 'id' es el código de barras.
+			ingredientData = await prisma.productCache.findUnique({
+				where: { id }
+			});
+		}
+		if (!ingredientData) {
+			return json({ message: 'Ingrediente no encontrado.' }, { status: 404 });
+		}
+		// Justificación: Devolvemos un objeto con una estructura consistente,
+		// independientemente de la tabla de origen, para que el frontend
+		// pueda procesarlo de forma sencilla.
+		const response = {
+			calories: ingredientData.calories,
+			protein: ingredientData.protein,
+			fat: ingredientData.fat,
+			carbs: ingredientData.carbs
+		};
+		return json(response);
+	} catch (error) {
+		console.error(`Error fetching ingredient details for id ${id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
