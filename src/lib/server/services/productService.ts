@@ -91,5 +91,15 @@ export const productService = {
 			console.error(`[OFF] Error fetching product ${barcode}:`, error);
 			return null;
 		}
+	},
+
+	/**
+	 * Elimina un producto de la caché por su ID (código de barras).
+	 * @param barcode - El ID del producto a eliminar.
+	 */
+	async deleteById(barcode: string) {
+		return await prisma.product.delete({
+			where: { id: barcode }
+		});
 	}
 };

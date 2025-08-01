@@ -67,8 +67,13 @@ export const actions: Actions = {
 	delete: async ({ request, fetch }) => {
 		const formData = await request.formData();
 		const id = formData.get('id') as string;
+		const source = formData.get('source') as string;
 
-		const response = await fetch(`/api/ingredients/${id}`, {
+		// Justificación: La lógica para determinar qué endpoint llamar ahora reside aquí,
+		// basándose en el 'source' del ingrediente.
+		const apiPath = source === 'custom' ? `/api/ingredients/${id}` : `/api/products/${id}`;
+
+		const response = await fetch(apiPath, {
 			method: 'DELETE'
 		});
 

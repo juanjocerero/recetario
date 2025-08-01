@@ -12,23 +12,31 @@
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
 	import type { PageData } from './$types';
 
-	export let data: PageData;
+	const { data } = $props<PageData>();
 	const { recipe } = data;
 
-	// Justificación: Calculamos la información nutricional a partir de los datos cargados.
-	// La lógica de cálculo está aislada en `recipeCalculator`, haciendo este componente
-	// puramente presentacional.
-	const nutritionalInfo = calculateNutritionalInfo(
-		recipe.ingredients.map((ing) => ({
-			quantity: ing.quantity,
-			calories:
-				ing.productCache?.calories || ing.customIngredient?.calories || 0,
-			protein:
-				ing.productCache?.protein || ing.customIngredient?.protein || 0,
-			fat: ing.productCache?.fat || ing.customIngredient?.fat || 0,
-			carbs: ing.productCache?.carbs || ing.customIngredient?.carbs || 0
-		}))
+	// Justificación: Creamos una lista de ingredientes plana y consistente a partir
+	// de los datos anidados del loader. Esto simplifica el resto del componente.
+	const ingredientsList = $derived(
+		recipe.ingredients
+			.map((ing) => {
+				const details = ing.product ?? ing.customIngredient;
+				if (!details) return null;
+
+				return {
+					name: details.name,
+					quantity: ing.quantity,
+					calories: details.calories ?? 0,
+					protein: details.protein ?? 0,
+					fat: details.fat ?? 0,
+					carbs: details.carbs ?? 0
+				};
+			})
+			.filter((i): i is NonNullable<typeof i> => i !== null)
 	);
+
+	// La lógica de cálculo ahora recibe la lista limpia.
+	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
 </script>
 
 <div class="max-w-4xl mx-auto my-8 space-y-8">
@@ -82,11 +90,9 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each recipe.ingredients as ingredient}
+					{#each ingredientsList as ingredient}
 						<TableRow>
-							<TableCell>
-								{ingredient.productCache?.productName || ingredient.customIngredient?.name}
-							</TableCell>
+							<TableCell>{ingredient.name}</TableCell>
 							<TableCell class="text-right">{ingredient.quantity} g</TableCell>
 						</TableRow>
 					{/each}

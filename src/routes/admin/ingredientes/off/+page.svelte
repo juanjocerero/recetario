@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	
@@ -61,7 +61,12 @@
 </script>
 
 <div class="space-y-8 p-4 md:p-8">
-	<h1 class="text-2xl font-bold">Añadir Ingredientes desde Open Food Facts</h1>
+	<div class="flex justify-between items-center">
+		<h1 class="text-2xl font-bold">Añadir Ingredientes desde Open Food Facts</h1>
+		<a href="/admin/ingredientes" class={buttonVariants({ variant: 'outline' })}>
+			Volver al listado
+		</a>
+	</div>
 	
 	<form on:submit|preventDefault={handleSearch} class="flex items-center gap-2">
 		<Input
