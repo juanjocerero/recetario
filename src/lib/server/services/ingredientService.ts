@@ -1,4 +1,5 @@
 // Ruta: src/lib/server/services/ingredientService.ts
+import type { CustomIngredient, Product } from '@prisma/client';
 import prisma from '$lib/server/prisma';
 // Justificación: Importamos el 'const' IngredientSchema para la validación en tiempo de ejecución
 // y el 'type' Ingredient para las anotaciones de tipo estáticas, cumpliendo con verbatimModuleSyntax.
@@ -10,6 +11,34 @@ import { normalizeText } from '$lib/utils';
 // la petición y la respuesta, mientras que la lógica real reside aquí.
 
 export const ingredientService = {
+	/**
+	 * Busca ingredientes por nombre en la base de datos local (custom y cacheados).
+	 * @param query - El término de búsqueda.
+	 */
+	async searchByName(query: string): Promise<{ customIngredients: CustomIngredient[], cachedProducts: Product[] }> {
+		const normalizedQuery = normalizeText(query);
+
+		const customIngredients = await prisma.customIngredient.findMany({
+			where: {
+				normalizedName: {
+					contains: normalizedQuery
+				}
+			}
+		});
+
+		const cachedProducts = await prisma.product.findMany({
+			where: {
+				normalizedName: {
+					contains: normalizedQuery
+				}
+			}
+		});
+
+		return {
+			customIngredients,
+			cachedProducts
+		};
+	},
 	/**
 	 * Obtiene todos los ingredientes personalizados.
 	 */
