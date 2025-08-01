@@ -1,7 +1,7 @@
 /* --- Bundle de Código Generado ---
  * Modo: full
- * Ficheros Incluidos: 105
- * Fecha: 2025-08-01T14:53:18.370Z
+ * Ficheros Incluidos: 111
+ * Fecha: 2025-08-01T19:03:57.417Z
  */
 
 // --- Ruta: vitest.config.ts ---
@@ -109,6 +109,7 @@ export default config;
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@tailwindcss/vite": "^4.1.11",
 		"@types/bcryptjs": "^2.4.6",
+		"@types/cheerio": "^0.22.35",
 		"@types/node": "^24.1.0",
 		"autoprefixer": "^10.4.21",
 		"bits-ui": "^2.8.13",
@@ -150,9 +151,11 @@ export default config;
 		"@prisma/adapter-d1": "^6.13.0",
 		"@prisma/client": "^6.13.0",
 		"bcryptjs": "^3.0.2",
+		"cheerio": "^1.1.2",
 		"jose": "^6.0.12",
 		"ky": "^1.8.2",
 		"lucide-svelte": "^0.535.0",
+		"sharp": "^0.34.3",
 		"zod": "^4.0.14"
 	}
 }
@@ -339,7 +342,21 @@ model Recipe {
   title       String
   description String?
   steps       String
+  // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.
+  // Es opcional para permitir recetas sin imagen o para usar la imagen de una URL de referencia.
+  imageUrl    String?
   ingredients RecipeIngredient[]
+  // Justificación (Paso 1.1): Relación uno-a-muchos para almacenar las URLs de referencia de la receta.
+  urls        RecipeUrl[]
+}
+// Justificación (Paso 1.1): Nuevo modelo para almacenar las URLs de referencia asociadas a una receta.
+// Esto sigue las buenas prácticas de normalización de bases de datos.
+model RecipeUrl {
+  id       String @id @default(cuid())
+  url      String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId String
+  @@unique([recipeId, url])
 }
 model RecipeIngredient {
   id                 String            @id @default(cuid())
@@ -601,87 +618,6 @@ export const actions: Actions = {
 	}
 };
 
-// --- Ruta: src/lib/server/zodErrors.ts ---
-// Ruta: src/lib/server/zodErrors.ts
-import type { ZodError } from 'zod';
-/**
- * Transforma un error de Zod en un objeto más simple,
- * mapeando los mensajes de error a cada campo que falló la validación.
- * @param error - El error de Zod.
- * @returns Un objeto donde cada clave es un campo y el valor es el primer mensaje de error para ese campo.
- */
-export function formatZodError(error: ZodError) {
-	const fieldErrors: Record<string, string | undefined> = {};
-	for (const issue of error.issues) {
-		if (issue.path.length > 0) {
-			const field = issue.path.join('.');
-			if (!fieldErrors[field]) {
-				fieldErrors[field] = issue.message;
-			}
-		}
-	}
-	return {
-		message: 'Validation failed',
-		errors: fieldErrors
-	};
-}
-
-// --- Ruta: src/lib/server/prisma.ts ---
-// Ruta: src/lib/server/prisma.ts
-import { PrismaClient } from '@prisma/client';
-// Justificación: Se sigue el patrón singleton recomendado por Prisma
-// para evitar crear múltiples conexiones a la base de datos en entornos
-// serverless o durante el hot-reloading en desarrollo.
-// La importación desde '@prisma/client' funciona porque `npx prisma generate`
-// redirige este alias a la implementación generada en `node_modules/.prisma/client`.
-const prisma = new PrismaClient();
-export default prisma;
-
-// --- Ruta: src/lib/server/auth.ts ---
-// Ruta: src/lib/server/auth.ts
-import { SignJWT, jwtVerify } from 'jose';
-import { hash, compare } from 'bcryptjs';
-import { env } from '$env/dynamic/private';
-// Justificación (bcrypt): Usamos bcrypt para hashear contraseñas. Es un algoritmo
-// adaptativo y lento por diseño, lo que lo hace resistente a ataques de fuerza bruta.
-const SALT_ROUNDS = 10; // Número de rondas de salting. 10 es un buen equilibrio.
-export async function hashPassword(password: string) {
-	return await hash(password, SALT_ROUNDS);
-}
-export async function comparePasswords(password: string, hash: string) {
-	return await compare(password, hash);
-}
-// Justificación (JWT en Cookie): Usamos JSON Web Tokens (JWT) para gestionar sesiones.
-// El token se firma en el servidor con un secreto y se envía al cliente en una cookie
-// HttpOnly, lo que previene el acceso desde JavaScript (ataques XSS).
-// Justificación: Se comprueba que la variable de entorno crítica exista al iniciar.
-// Si no, es un error de configuración del servidor y la aplicación no debe arrancar.
-if (!env.SESSION_SECRET) {
-	throw new Error(
-		'La variable de entorno SESSION_SECRET no está configurada. La aplicación no puede iniciarse de forma segura.'
-	);
-}
-const secret = new TextEncoder().encode(env.SESSION_SECRET);
-const algorithm = 'HS256'; // Algoritmo de firma
-export async function createSessionToken(payload: { sub: string; [key: string]: unknown }) {
-	return await new SignJWT(payload)
-		.setProtectedHeader({ alg: algorithm })
-		.setExpirationTime('24h') // El token expira en 24 horas
-		.setIssuedAt()
-		.setSubject(payload.sub)
-		.sign(secret);
-}
-export async function verifySessionToken(token: string) {
-	try {
-		const { payload } = await jwtVerify(token, secret, {
-			algorithms: [algorithm]
-		});
-		return payload;
-	} catch (error) {
-		return null; // El token es inválido o ha expirado
-	}
-}
-
 // --- Ruta: src/lib/schemas/recipeSchema.ts ---
 // Ruta: src/lib/schemas/recipeSchema.ts
 import { z } from 'zod';
@@ -700,7 +636,13 @@ export const RecipeSchema = z.object({
 	steps: z.string().min(1, { message: 'Debe haber al menos un paso.' }),
 	ingredients: z
 		.array(RecipeIngredientSchema)
-		.min(1, { message: 'La receta debe tener al menos un ingrediente.' })
+		.min(1, { message: 'La receta debe tener al menos un ingrediente.' }),
+	// Justificación (Paso 3.1): Añadimos la validación para la URL de la imagen.
+	// Debe ser una cadena opcional que puede ser un data URL.
+	imageUrl: z.string().optional(),
+	// Justificación (Paso 3.1): Añadimos la validación para las URLs de referencia.
+	// Debe ser un array de strings que sean URLs válidas.
+	urls: z.array(z.string().url({ message: 'La URL no es válida.' })).optional()
 });
 // Exportamos los tipos inferidos para usarlos en el código sin tener que
 // depender directamente de Zod, mejorando el desacoplamiento.
@@ -724,6 +666,76 @@ export const IngredientSchema = z.object({
 // Exportamos también el tipo inferido para usarlo en el frontend o donde se necesite
 // la forma de los datos sin importar el validador.
 export type Ingredient = z.infer<typeof IngredientSchema>;
+
+// --- Ruta: prisma/migrations/20250801182228_add_recipe_images_and_urls/migration.sql ---
+-- AlterTable
+ALTER TABLE "Recipe" ADD COLUMN "imageUrl" TEXT;
+-- CreateTable
+CREATE TABLE "RecipeUrl" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "url" TEXT NOT NULL,
+    "recipeId" TEXT NOT NULL,
+    CONSTRAINT "RecipeUrl_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+-- CreateIndex
+CREATE UNIQUE INDEX "RecipeUrl_recipeId_url_key" ON "RecipeUrl"("recipeId", "url");
+
+// --- Ruta: prisma/migrations/20250801180502_init/migration.sql ---
+/*
+  Warnings:
+  - You are about to drop the `ProductCache` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the column `productCacheId` on the `RecipeIngredient` table. All the data in the column will be lost.
+*/
+-- DropTable
+PRAGMA foreign_keys=off;
+DROP TABLE "ProductCache";
+PRAGMA foreign_keys=on;
+-- CreateTable
+CREATE TABLE "Product" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "normalizedName" TEXT NOT NULL,
+    "brand" TEXT,
+    "imageUrl" TEXT,
+    "calories" REAL,
+    "fat" REAL,
+    "protein" REAL,
+    "carbs" REAL,
+    "fullPayload" JSONB,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+-- RedefineTables
+PRAGMA defer_foreign_keys=ON;
+PRAGMA foreign_keys=OFF;
+CREATE TABLE "new_CustomIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "normalizedName" TEXT NOT NULL,
+    "calories" REAL NOT NULL,
+    "fat" REAL NOT NULL,
+    "protein" REAL NOT NULL,
+    "carbs" REAL NOT NULL
+);
+INSERT INTO "new_CustomIngredient" ("calories", "carbs", "fat", "id", "name", "normalizedName", "protein") SELECT "calories", "carbs", "fat", "id", "name", "normalizedName", "protein" FROM "CustomIngredient";
+DROP TABLE "CustomIngredient";
+ALTER TABLE "new_CustomIngredient" RENAME TO "CustomIngredient";
+CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
+CREATE TABLE "new_RecipeIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "recipeId" TEXT NOT NULL,
+    "productId" TEXT,
+    "customIngredientId" TEXT,
+    "quantity" REAL NOT NULL,
+    CONSTRAINT "RecipeIngredient_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_customIngredientId_fkey" FOREIGN KEY ("customIngredientId") REFERENCES "CustomIngredient" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+INSERT INTO "new_RecipeIngredient" ("customIngredientId", "id", "quantity", "recipeId") SELECT "customIngredientId", "id", "quantity", "recipeId" FROM "RecipeIngredient";
+DROP TABLE "RecipeIngredient";
+ALTER TABLE "new_RecipeIngredient" RENAME TO "RecipeIngredient";
+PRAGMA foreign_keys=ON;
+PRAGMA defer_foreign_keys=OFF;
 
 // --- Ruta: prisma/migrations/20250731184218_add_normalized_names/migration.sql ---
 -- RedefineTables
@@ -805,10 +817,95 @@ CREATE TABLE "RecipeIngredient" (
 -- CreateIndex
 CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 
+// --- Ruta: src/lib/server/zodErrors.ts ---
+// Ruta: src/lib/server/zodErrors.ts
+import type { ZodError } from 'zod';
+/**
+ * Crea una respuesta de fallo estandarizada para las acciones de formulario de SvelteKit.
+ * Garantiza que el objeto devuelto siempre tenga la misma estructura.
+ *
+ * @param message - El mensaje de error general que se mostrará al usuario.
+ * @param error - (Opcional) Un error de Zod. Si se proporciona, se formateará
+ *                y se añadirá al campo `errors`.
+ * @returns Un objeto consistente para ser usado con `fail()`.
+ */
+export function createFailResponse(message: string, error?: ZodError) {
+	const response: { message: string; errors: Record<string, string | undefined> } = {
+		message,
+		errors: {}
+	};
+	if (error) {
+		for (const issue of error.issues) {
+			if (issue.path.length > 0) {
+				const field = issue.path.join('.');
+				if (!response.errors[field]) {
+					response.errors[field] = issue.message;
+				}
+			}
+		}
+	}
+	return response;
+}
+
+// --- Ruta: src/lib/server/prisma.ts ---
+// Ruta: src/lib/server/prisma.ts
+import { PrismaClient } from '@prisma/client';
+// Justificación: Se sigue el patrón singleton recomendado por Prisma
+// para evitar crear múltiples conexiones a la base de datos en entornos
+// serverless o durante el hot-reloading en desarrollo.
+// La importación desde '@prisma/client' funciona porque `npx prisma generate`
+// redirige este alias a la implementación generada en `node_modules/.prisma/client`.
+const prisma = new PrismaClient();
+export default prisma;
+
+// --- Ruta: src/lib/server/auth.ts ---
+// Ruta: src/lib/server/auth.ts
+import { SignJWT, jwtVerify } from 'jose';
+import { hash, compare } from 'bcryptjs';
+import { env } from '$env/dynamic/private';
+// Justificación (bcrypt): Usamos bcrypt para hashear contraseñas. Es un algoritmo
+// adaptativo y lento por diseño, lo que lo hace resistente a ataques de fuerza bruta.
+const SALT_ROUNDS = 10; // Número de rondas de salting. 10 es un buen equilibrio.
+export async function hashPassword(password: string) {
+	return await hash(password, SALT_ROUNDS);
+}
+export async function comparePasswords(password: string, hash: string) {
+	return await compare(password, hash);
+}
+// Justificación (JWT en Cookie): Usamos JSON Web Tokens (JWT) para gestionar sesiones.
+// El token se firma en el servidor con un secreto y se envía al cliente en una cookie
+// HttpOnly, lo que previene el acceso desde JavaScript (ataques XSS).
+// Justificación: Se comprueba que la variable de entorno crítica exista al iniciar.
+// Si no, es un error de configuración del servidor y la aplicación no debe arrancar.
+if (!env.SESSION_SECRET) {
+	throw new Error(
+		'La variable de entorno SESSION_SECRET no está configurada. La aplicación no puede iniciarse de forma segura.'
+	);
+}
+const secret = new TextEncoder().encode(env.SESSION_SECRET);
+const algorithm = 'HS256'; // Algoritmo de firma
+export async function createSessionToken(payload: { sub: string; [key: string]: unknown }) {
+	return await new SignJWT(payload)
+		.setProtectedHeader({ alg: algorithm })
+		.setExpirationTime('24h') // El token expira en 24 horas
+		.setIssuedAt()
+		.setSubject(payload.sub)
+		.sign(secret);
+}
+export async function verifySessionToken(token: string) {
+	try {
+		const { payload } = await jwtVerify(token, secret, {
+			algorithms: [algorithm]
+		});
+		return payload;
+	} catch (error) {
+		return null; // El token es inválido o ha expirado
+	}
+}
+
 // --- Ruta: src/routes/recetas/nueva/+page.svelte ---
 <!-- Ruta: src/routes/recetas/nueva/+page.svelte -->
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
@@ -819,7 +916,10 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
-	import { ChevronsUpDown } from 'lucide-svelte';
+	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
+	import { enhance } from '$app/forms';
+	import type { ActionData } from './$types';
+	let { form }: { form: ActionData } = $props();
 	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
 	type SearchResult = {
 		id: string;
@@ -828,10 +928,14 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 		type: 'custom' | 'product';
 		imageUrl: string | null;
 	};
+	// --- Estado del formulario ---
 	let title = $state('');
 	let description = $state('');
 	let steps = $state('');
+	let imageUrl = $state('');
+	let urls = $state<string[]>([]);
 	let ingredients = $state<IngredientWithDetails[]>([]);
+	// --- Estado del buscador de ingredientes ---
 	let searchResults = $state<SearchResult[]>([]);
 	let isSearching = $state(false);
 	let open = $state(false);
@@ -864,7 +968,6 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 				eventSource?.close();
 			});
 		}
-		// Función de limpieza de $effect: se ejecuta cuando searchTerm cambia
 		return () => {
 			eventSource?.close();
 		};
@@ -888,74 +991,117 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 		} finally {
 			open = false;
 			searchResults = [];
-			searchTerm = ''; // Limpiar el término de búsqueda
-			inputValue = ''; // Limpiar el texto visible en el botón
+			searchTerm = '';
+			inputValue = '';
 		}
 	}
 	function removeIngredient(index: number) {
 		ingredients.splice(index, 1);
 	}
-	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
-	let isSubmitting = $state(false);
-	let errors = $state<Record<string, any>>({});
-	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		isSubmitting = true;
-		errors = {};
-		const payload = {
-			title,
-			description,
-			steps,
-			ingredients: ingredients.map(({ id, quantity, type }) => ({ id, quantity, type }))
-		};
-		try {
-			const response = await fetch('/api/recipes', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-			if (response.ok) {
-				const newRecipe = await response.json();
-				await goto(`/recetas/${newRecipe.id}`);
-			} else {
-				const errorData = await response.json();
-				if (response.status === 400) {
-					errors = errorData.errors;
-				} else {
-					errors.general = errorData.message || 'Ocurrió un error en el servidor.';
-				}
-			}
-		} catch (err) {
-			errors.general = 'No se pudo conectar con el servidor.';
-		} finally {
-			isSubmitting = false;
+	// --- Gestión de URLs de referencia ---
+	function addUrlField() {
+		urls.push('');
+	}
+	function removeUrlField(index: number) {
+		urls.splice(index, 1);
+	}
+	// --- Gestión de subida de imagen ---
+	function handleImageUpload(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				imageUrl = e.target?.result as string;
+			};
+			reader.readAsDataURL(file);
 		}
 	}
+	// --- Cálculos y envío ---
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
+	let isSubmitting = $state(false);
 </script>
 <Card class="max-w-4xl mx-auto my-8">
 	<CardHeader>
 		<CardTitle>Crear Nueva Receta</CardTitle>
 	</CardHeader>
 	<CardContent>
-		<form onsubmit={handleSubmit} class="space-y-6">
+		<form
+			method="POST"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ result }) => {
+					// La redirección se maneja automáticamente por el servidor en caso de éxito.
+					// Solo necesitamos gestionar el estado de `isSubmitting`.
+					if (result.type === 'failure' || result.type === 'error') {
+						isSubmitting = false;
+					}
+				};
+			}}
+			class="space-y-6"
+		>
+			<!-- Campos ocultos para enviar datos complejos -->
+			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
+			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input type="hidden" name="imageUrl" value={imageUrl} />
+			<!-- Campos del formulario -->
 			<div class="space-y-2">
 				<Label for="title">Título</Label>
-				<Input id="title" bind:value={title} required />
-				{#if errors.title}
-				<p class="text-sm text-red-500">{errors.title._errors[0]}</p>
+				<Input id="title" name="title" bind:value={title} required />
+				{#if form?.errors?.title}
+					<p class="text-sm text-red-500">{form.errors.title}</p>
 				{/if}
 			</div>
 			<div class="space-y-2">
 				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" bind:value={description} />
+				<Textarea id="description" name="description" bind:value={description} />
+			</div>
+			<div class="space-y-2">
+				<Label for="image">Imagen de la Receta</Label>
+				<div class="flex items-center gap-4">
+					{#if imageUrl}
+						<img
+							src={imageUrl}
+							alt="Previsualización de la receta"
+							class="h-24 w-24 rounded-md object-cover"
+						/>
+					{/if}
+					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
+				</div>
+				<p class="text-sm text-gray-500">
+					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
+				</p>
+			</div>
+			<div class="space-y-2">
+				<Label>URLs de Referencia</Label>
+				{#each urls as url, i}
+					<div class="flex items-center gap-2">
+						<Input
+							type="url"
+							placeholder="https://ejemplo.com/receta"
+							bind:value={urls[i]}
+							class="flex-grow"
+						/>
+						<Button type="button" variant="ghost" size="icon" onclick={() => removeUrlField(i)}>
+							<Trash2 class="h-4 w-4" />
+						</Button>
+					</div>
+				{/each}
+				<Button type="button" variant="outline" size="sm" onclick={addUrlField}>
+					Añadir URL
+				</Button>
+				{#if form?.errors?.urls}
+					<p class="text-sm text-red-500">{form.errors.urls}</p>
+				{/if}
 			</div>
 			<div class="space-y-2">
 				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" bind:value={steps} rows={8} required />
-				{#if errors.steps}
-				<p class="text-sm text-red-500">{errors.steps._errors[0]}</p>
+				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
+				{#if form?.errors?.steps}
+					<p class="text-sm text-red-500">{form.errors.steps}</p>
 				{/if}
 			</div>
+			<!-- Buscador y tabla de ingredientes -->
 			<div class="space-y-2">
 				<Label>Añadir Ingrediente</Label>
 				<Popover.Root bind:open>
@@ -1004,123 +1150,131 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 								{/if}
 							</Command.List>
 						</Command.Root>
-				</Popover.Content>
-			</Popover.Root>
-		</div>
-		<div class="space-y-2">
-			<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Nombre</TableHead>
-						<TableHead class="w-[150px]">Cantidad (g)</TableHead>
-						<TableHead class="w-[100px] text-right">Acciones</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{#each ingredients as ingredient, i}
-					<TableRow>
-						<TableCell>{ingredient.name}</TableCell>
-						<TableCell>
-							<Input
-							type="number"
-							bind:value={ingredient.quantity}
-							min="1"
-							class="w-full"
-							/>
-						</TableCell>
-						<TableCell class="text-right">
-							<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							onclick={() => removeIngredient(i)}
-							>
-							Quitar
-						</Button>
-					</TableCell>
-				</TableRow>
-				{/each}
-				{#if ingredients.length === 0}
-				<TableRow>
-					<TableCell colspan={3} class="text-center text-gray-500">
-						Añade ingredientes usando el buscador.
-					</TableCell>
-				</TableRow>
+					</Popover.Content>
+				</Popover.Root>
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
+							<TableHead class="w-[100px] text-right">Acciones</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each ingredients as ingredient, i}
+							<TableRow>
+								<TableCell>{ingredient.name}</TableCell>
+								<TableCell>
+									<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
+								</TableCell>
+								<TableCell class="text-right">
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onclick={() => removeIngredient(i)}
+									>
+										Quitar
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+						{#if ingredients.length === 0}
+							<TableRow>
+								<TableCell colspan={3} class="text-center text-gray-500">
+									Añade ingredientes usando el buscador.
+								</TableCell>
+							</TableRow>
+						{/if}
+					</TableBody>
+				</Table>
+				{#if form?.errors?.ingredients}
+					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
 				{/if}
-			</TableBody>
-		</Table>
-	</div>
-	<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
-		<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
-		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-				<p class="text-sm text-gray-600">Calorías (kcal)</p>
 			</div>
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-				<p class="text-sm text-gray-600">Proteínas</p>
+			<!-- Información nutricional -->
+			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</div>
 			</div>
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-				<p class="text-sm text-gray-600">Grasas</p>
+			<div class="flex justify-end">
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? 'Guardando...' : 'Guardar Receta'}
+				</Button>
 			</div>
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-				<p class="text-sm text-gray-600">Carbohidratos</p>
-			</div>
-		</div>
-	</div>
-	<div class="flex justify-end">
-		<Button type="submit" disabled={isSubmitting}>
-			{isSubmitting ? 'Guardando...' : 'Guardar Receta'}
-		</Button>
-	</div>
-	{#if errors.general}
-	<p class="text-sm text-red-500 text-right">{errors.general}</p>
-	{/if}
-</form>
-</CardContent>
+			{#if form?.message}
+				<p class="text-sm text-red-500 text-right">{form.message}</p>
+			{/if}
+		</form>
+	</CardContent>
 </Card>
 
-// --- Ruta: src/routes/api/recipes/+server.ts ---
-// Ruta: src/routes/api/recipes/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+// --- Ruta: src/routes/recetas/nueva/+page.server.ts ---
+// Ruta: src/routes/recetas/nueva/+page.server.ts
+import { fail, redirect } from '@sveltejs/kit';
 import { recipeService } from '$lib/server/services/recipeService';
+import type { Actions } from './$types';
 import { RecipeSchema } from '$lib/schemas/recipeSchema';
-import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
-/**
- * Maneja las peticiones GET para obtener todas las recetas.
- */
-export const GET: RequestHandler = async () => {
-	try {
-		const recipes = await recipeService.getAll();
-		return json(recipes);
-	} catch (error) {
-		console.error('Error fetching recipes:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-/**
- * Maneja las peticiones POST para crear una nueva receta.
- */
-export const POST: RequestHandler = async ({ request }) => {
-	try {
-		const body = await request.json();
-		// Validamos el cuerpo de la petición con nuestro esquema Zod.
-		const validatedData = RecipeSchema.parse(body);
-		const newRecipe = await recipeService.create(validatedData);
-		return json(newRecipe, { status: 201 }); // 201 Created
-	} catch (error) {
-		if (error instanceof ZodError) {
-			// Si la validación falla, devolvemos un error 400 claro y formateado.
-			return json(formatZodError(error), { status: 400 });
+import { createFailResponse } from '$lib/server/zodErrors';
+// Justificación: Se crea un `actions` object para manejar la creación de la receta.
+// Esto alinea la página de 'nueva receta' con las mejores prácticas de SvelteKit
+// que ya implementamos en la página de 'editar'.
+export const actions: Actions = {
+	default: async ({ request }) => {
+		const formData = await request.formData();
+		const data = Object.fromEntries(formData.entries());
+		const dataToValidate = {
+			...data,
+			// Los datos complejos se envían como JSON string desde el cliente.
+			ingredients: JSON.parse(data.ingredients as string),
+			urls: JSON.parse(data.urls as string)
+		};
+		const validation = RecipeSchema.safeParse(dataToValidate);
+		if (!validation.success) {
+			const response = createFailResponse(
+				'La validación falló. Revisa los campos.',
+				validation.error
+			);
+			return fail(400, response);
 		}
-		console.error('Error creating recipe:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		try {
+			const newRecipe = await recipeService.create(validation.data);
+			if (newRecipe) {
+				// Justificación: En caso de éxito, se redirige al usuario a la página
+				// de la receta recién creada usando `redirect` de SvelteKit.
+				throw redirect(303, `/recetas/${newRecipe.id}`);
+			}
+			// Este caso no debería ocurrir si el servicio funciona, pero es un fallback.
+			return fail(500, createFailResponse('La receta no se pudo crear.'));
+		} catch (err) {
+			// Si el error es una redirección, SvelteKit la manejará.
+			if ((err as { status?: number })?.status === 303) {
+				throw err;
+			}
+			console.error(err);
+			const response = createFailResponse('No se pudo crear la receta en el servidor.');
+			return fail(500, response);
+		}
 	}
 };
 
@@ -1138,10 +1292,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	} from '$lib/components/ui/table';
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
 	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button';
 	const { data } = $props<PageData>();
 	const { recipe } = data;
-	// Justificación: Creamos una lista de ingredientes plana y consistente a partir
-	// de los datos anidados del loader. Esto simplifica el resto del componente.
 	const ingredientsList = $derived(
 		recipe.ingredients
 			.map((ing) => {
@@ -1158,79 +1311,122 @@ export const POST: RequestHandler = async ({ request }) => {
 			})
 			.filter((i): i is NonNullable<typeof i> => i !== null)
 	);
-	// La lógica de cálculo ahora recibe la lista limpia.
 	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
 </script>
 <div class="max-w-4xl mx-auto my-8 space-y-8">
-	<!-- Encabezado de la Receta -->
-	<header class="space-y-2">
-		<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
-		{#if recipe.description}
-			<p class="text-lg text-gray-600">{recipe.description}</p>
+	<header class="space-y-4">
+		<div class="flex justify-between items-start">
+			<div class="flex-1">
+				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
+				{#if recipe.description}
+					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
+				{/if}
+			</div>
+			<a href="/recetas/{recipe.id}/editar">
+				<Button variant="outline">Editar</Button>
+			</a>
+		</div>
+		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
+		{#if recipe.imageUrl}
+			<div class="w-full aspect-video rounded-lg overflow-hidden">
+				<img
+					src={recipe.imageUrl}
+					alt="Foto de {recipe.title}"
+					class="w-full h-full object-cover"
+				/>
+			</div>
 		{/if}
 	</header>
-	<!-- Información Nutricional -->
-	<Card>
-		<CardHeader>
-			<CardTitle>Información Nutricional</CardTitle>
-			<CardDescription>Valores totales para la receta completa.</CardDescription>
-		</CardHeader>
-		<CardContent>
-			<div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-					<p class="text-sm text-gray-600">Calorías (kcal)</p>
-				</div>
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-					<p class="text-sm text-gray-600">Proteínas</p>
-				</div>
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-					<p class="text-sm text-gray-600">Grasas</p>
-				</div>
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-					<p class="text-sm text-gray-600">Carbohidratos</p>
-				</div>
-			</div>
-		</CardContent>
-	</Card>
-	<!-- Ingredientes -->
-	<Card>
-		<CardHeader>
-			<CardTitle>Ingredientes</CardTitle>
-		</CardHeader>
-		<CardContent>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Nombre</TableHead>
-						<TableHead class="w-[150px] text-right">Cantidad</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{#each ingredientsList as ingredient}
-						<TableRow>
-							<TableCell>{ingredient.name}</TableCell>
-							<TableCell class="text-right">{ingredient.quantity} g</TableCell>
-						</TableRow>
-					{/each}
-				</TableBody>
-			</Table>
-		</CardContent>
-	</Card>
-	<!-- Pasos -->
-	<Card>
-		<CardHeader>
-			<CardTitle>Preparación</CardTitle>
-		</CardHeader>
-		<CardContent>
-			<div class="prose max-w-none whitespace-pre-wrap">
-				{recipe.steps}
-			</div>
-		</CardContent>
-	</Card>
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+		<div class="md:col-span-2 space-y-8">
+			<!-- Pasos -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Preparación</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div class="prose max-w-none whitespace-pre-wrap">
+						{recipe.steps}
+					</div>
+				</CardContent>
+			</Card>
+			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
+			{#if recipe.urls && recipe.urls.length > 0}
+				<Card>
+					<CardHeader>
+						<CardTitle>Referencias</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ul class="list-disc pl-5 space-y-2">
+							{#each recipe.urls as ref}
+								<li>
+									<a
+										href={ref.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-blue-600 hover:underline"
+									>
+										{ref.url}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</CardContent>
+				</Card>
+			{/if}
+		</div>
+		<div class="space-y-8">
+			<!-- Información Nutricional -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Información Nutricional</CardTitle>
+					<CardDescription>Valores totales para la receta.</CardDescription>
+				</CardHeader>
+				<CardContent class="grid grid-cols-2 gap-4">
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</CardContent>
+			</Card>
+			<!-- Ingredientes -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Ingredientes</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Nombre</TableHead>
+								<TableHead class="text-right">Cantidad</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{#each ingredientsList as ingredient}
+								<TableRow>
+									<TableCell class="font-medium">{ingredient.name}</TableCell>
+									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
+								</TableRow>
+							{/each}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
+		</div>
+	</div>
 </div>
 
 // --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
@@ -1251,20 +1447,61 @@ export const load: PageServerLoad = async ({ params }) => {
 	};
 };
 
+// --- Ruta: src/routes/api/recipes/+server.ts ---
+// Ruta: src/routes/api/recipes/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { ZodError } from 'zod';
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
+/**
+ * Maneja las peticiones GET para obtener todas las recetas.
+ */
+export const GET: RequestHandler = async () => {
+	try {
+		const recipes = await recipeService.getAll();
+		return json(recipes);
+	} catch (error) {
+		console.error('Error fetching recipes:', error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones POST para crear una nueva receta.
+ */
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json();
+		const validatedData = RecipeSchema.parse(body);
+		const newRecipe = await recipeService.create(validatedData);
+		return json(newRecipe, { status: 201 }); // 201 Created
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(createFailResponse('La validación falló', error), { status: 400 });
+		}
+		console.error('Error creating recipe:', error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+
 // --- Ruta: src/routes/api/ingredients/+server.ts ---
 // Ruta: src/routes/api/ingredients/+server.ts
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { ingredientService } from '$lib/server/services/ingredientService';
 import { IngredientSchema } from '$lib/schemas/ingredientSchema';
 import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
 export const GET: RequestHandler = async () => {
 	try {
 		const ingredients = await ingredientService.getAllUnified();
 		return json(ingredients);
 	} catch (error) {
 		console.error('Error fetching ingredients:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
 export const POST: RequestHandler = async ({ request }) => {
@@ -1275,10 +1512,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json(newIngredient, { status: 201 });
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json(formatZodError(error), { status: 400 });
+			// Justificación: Se usa la nueva utilidad para el error de validación.
+			return json(createFailResponse('La validación falló', error), { status: 400 });
 		}
 		console.error('Error creating ingredient:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
 
@@ -1606,11 +1845,108 @@ export const actions: Actions = {
 	}
 };
 
+// --- Ruta: src/lib/components/admin/SyncDialog.svelte ---
+<!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
+<script lang="ts">
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { CircleDashed } from 'lucide-svelte';
+	// Justificación: Este componente ahora solo se encarga de mostrar el *contenido* del diálogo.
+	// El control de apertura/cierre y el disparador se gestionan en la página padre,
+	// siguiendo las convenciones del proyecto y de Svelte 5.
+	type $Props = {
+		state: 'idle' | 'loading' | 'success' | 'error';
+		result: {
+			updatedIngredients: string[];
+			failedIngredients: { id: string; name: string; reason: string }[];
+		} | null;
+	};
+	let { state, result }: $Props = $props();
+</script>
+<Dialog.Content class="sm:max-w-[625px]">
+	{#if state === 'loading'}
+		<div class="flex flex-col items-center justify-center p-8">
+			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
+			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
+			<p class="text-sm text-muted-foreground">
+				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
+			</p>
+		</div>
+	{:else if state === 'success' && result}
+		<Dialog.Header>
+			<Dialog.Title>Sincronización Completada</Dialog.Title>
+			<Dialog.Description>
+				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
+				{#if result.failedIngredients.length > 0}
+					Hubo <strong>{result.failedIngredients.length}</strong> errores.
+				{/if}
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="max-h-[400px] overflow-y-auto">
+			{#if result.updatedIngredients.length > 0}
+				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.updatedIngredients as name}
+							<TableRow>
+								<TableCell>{name}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+			{#if result.failedIngredients.length > 0}
+				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead>Motivo del Error</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.failedIngredients as failure}
+							<TableRow>
+								<TableCell>{failure.name} ({failure.id})</TableCell>
+								<TableCell>{failure.reason}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<!-- Justificación: Se usa Dialog.Close directamente estilizado como un botón,
+			     evitando la complejidad y errores de 'asChild'. -->
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{:else if state === 'error'}
+		<Dialog.Header>
+			<Dialog.Title>Error en la Sincronización</Dialog.Title>
+			<Dialog.Description>
+				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
+				de nuevo más tarde.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer>
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{/if}
+</Dialog.Content>
+
 // --- Ruta: src/lib/server/services/recipeService.ts ---
 // Ruta: src/lib/server/services/recipeService.ts
 import prisma from '$lib/server/prisma';
+import type { Prisma } from '@prisma/client';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
 import { productService } from './productService';
+import { imageService } from './imageService';
 // Justificación: La capa de servicio para recetas abstrae toda la lógica de negocio
 // y el acceso a la base de datos (Prisma) para las operaciones CRUD.
 // Esto mantiene los endpoints de la API limpios y centrados en su rol de controlador.
@@ -1620,7 +1956,8 @@ const recipeInclude = {
 			product: true,
 			customIngredient: true
 		}
-	}
+	},
+	urls: true
 };
 /**
  * Función auxiliar para asegurar que todos los productos de una receta
@@ -1631,13 +1968,11 @@ async function ensureProductsAreCached(ingredients: RecipeData['ingredients']) {
 	const productCachePromises = ingredients
 		.filter((ing) => ing.type === 'product')
 		.map((ing) => productService.findByBarcode(ing.id));
-	// Justificación (Promise.all): Se ejecutan todas las verificaciones de caché
-	// en paralelo para mejorar el rendimiento, en lugar de una por una en secuencia.
 	await Promise.all(productCachePromises);
 }
 export const recipeService = {
 	/**
-	 * Obtiene todas las recetas con sus ingredientes.
+	 * Obtiene todas las recetas con sus ingredientes y URLs.
 	 */
 	async getAll() {
 		return await prisma.recipe.findMany({
@@ -1646,7 +1981,7 @@ export const recipeService = {
 		});
 	},
 	/**
-	 * Obtiene una receta por su ID, incluyendo todos sus ingredientes.
+	 * Obtiene una receta por su ID, incluyendo todos sus ingredientes y URLs.
 	 * @param id - El ID de la receta.
 	 */
 	async getById(id: string) {
@@ -1660,16 +1995,24 @@ export const recipeService = {
 	 * @param data - Datos de la receta validados por Zod.
 	 */
 	async create(data: RecipeData) {
-		const { title, description, steps, ingredients } = data;
-		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
+		const { title, description, steps, ingredients, urls, imageUrl: directImageUrl } = data;
 		await ensureProductsAreCached(ingredients);
-		// Paso 2: Proceder con la creación de la receta en una transacción.
-		// Justificación (transacción): Se usa $transaction para asegurar la atomicidad.
-		// O se crea la receta Y todos sus ingredientes, o no se crea nada.
-		// Esto previene que queden datos huérfanos si una de las operaciones falla.
-		return await prisma.$transaction(async (tx) => {
+		// Corrección: Se declara explícitamente el tipo para aceptar string, null y undefined.
+		let finalImageUrl: string | null | undefined = directImageUrl;
+		if (!finalImageUrl && urls && urls.length > 0) {
+			finalImageUrl = await imageService.getImageFromUrl(urls[0]);
+		}
+		return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
 			const newRecipe = await tx.recipe.create({
-				data: { title, description, steps }
+				data: {
+					title,
+					description,
+					steps,
+					imageUrl: finalImageUrl,
+					urls: {
+						create: urls?.map((url: string) => ({ url }))
+					}
+				}
 			});
 			for (const ingredient of ingredients) {
 				await tx.recipeIngredient.create({
@@ -1681,7 +2024,6 @@ export const recipeService = {
 					}
 				});
 			}
-			// Devolvemos la receta completa con sus ingredientes recién creados.
 			return await tx.recipe.findUnique({
 				where: { id: newRecipe.id },
 				include: recipeInclude
@@ -1694,22 +2036,24 @@ export const recipeService = {
 	 * @param data - Datos de la receta validados por Zod.
 	 */
 	async update(id: string, data: RecipeData) {
-		const { title, description, steps, ingredients } = data;
-		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
+		const { title, description, steps, ingredients, urls, imageUrl: directImageUrl } = data;
 		await ensureProductsAreCached(ingredients);
-		// Paso 2: Proceder con la actualización de la receta en una transacción.
-		return await prisma.$transaction(async (tx) => {
-			// 1. Actualizar los datos básicos de la receta.
+		// Corrección: Se declara explícitamente el tipo para aceptar string, null y undefined.
+		let finalImageUrl: string | null | undefined = directImageUrl;
+		if (!finalImageUrl && urls && urls.length > 0) {
+			finalImageUrl = await imageService.getImageFromUrl(urls[0]);
+		}
+		return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
 			await tx.recipe.update({
 				where: { id },
-				data: { title, description, steps }
+				data: {
+					title,
+					description,
+					steps,
+					imageUrl: finalImageUrl
+				}
 			});
-			// 2. Eliminar todos los ingredientes antiguos. Es la forma más simple y robusta
-			// de manejar actualizaciones, eliminaciones y adiciones de ingredientes.
-			await tx.recipeIngredient.deleteMany({
-				where: { recipeId: id }
-			});
-			// 3. Crear los nuevos ingredientes asociados a la receta.
+			await tx.recipeIngredient.deleteMany({ where: { recipeId: id } });
 			for (const ingredient of ingredients) {
 				await tx.recipeIngredient.create({
 					data: {
@@ -1720,7 +2064,12 @@ export const recipeService = {
 					}
 				});
 			}
-			// Devolvemos la receta actualizada completa.
+			await tx.recipeUrl.deleteMany({ where: { recipeId: id } });
+			if (urls && urls.length > 0) {
+				await tx.recipeUrl.createMany({
+					data: urls.map((url: string) => ({ recipeId: id, url }))
+				});
+			}
 			return await tx.recipe.findUnique({
 				where: { id },
 				include: recipeInclude
@@ -1728,7 +2077,7 @@ export const recipeService = {
 		});
 	},
 	/**
-	 * Elimina una receta. La cascada se encarga de los ingredientes.
+	 * Elimina una receta. La cascada se encarga de los ingredientes y URLs.
 	 * @param id - El ID de la receta a eliminar.
 	 */
 	async deleteById(id: string) {
@@ -1737,6 +2086,106 @@ export const recipeService = {
 		});
 	}
 };
+
+// --- Ruta: src/lib/server/services/recipeService.spec.ts ---
+// Ruta: src/lib/server/services/recipeService.spec.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { recipeService } from './recipeService';
+import { imageService } from './imageService';
+import prisma from '$lib/server/prisma';
+import type { RecipeData } from '$lib/schemas/recipeSchema';
+// Justificación (Paso 4.2): Mockeamos el imageService para que los tests de recipeService
+// no dependan de la red ni de la lógica de extracción de imágenes.
+vi.mock('./imageService', () => ({
+	imageService: {
+		getImageFromUrl: vi.fn()
+	}
+}));
+// Justificación: Usamos una base de datos de prueba en memoria para cada test,
+// asegurando un entorno limpio y aislado para cada caso.
+beforeEach(async () => {
+	// Limpiamos la base de datos antes de cada test
+	await prisma.recipeIngredient.deleteMany();
+	await prisma.recipeUrl.deleteMany();
+	await prisma.recipe.deleteMany();
+	await prisma.customIngredient.deleteMany();
+	vi.clearAllMocks();
+});
+const MOCK_RECIPE_DATA: RecipeData = {
+	title: 'Test Recipe',
+	description: 'A test description',
+	steps: 'Step 1. Do this.',
+	ingredients: [],
+	urls: ['https://example.com/recipe'],
+	imageUrl: ''
+};
+describe('recipeService with images and URLs', () => {
+	it('should create a recipe with a user-provided image', async () => {
+		// Arrange
+		const recipeData = { ...MOCK_RECIPE_DATA, imageUrl: 'data:image/png;base64,test' };
+		// Act
+		const result = await recipeService.create(recipeData);
+		// Assert
+		expect(result).toBeDefined();
+		expect(result.title).toBe(recipeData.title);
+		expect(result.imageUrl).toBe(recipeData.imageUrl);
+		expect(imageService.getImageFromUrl).not.toHaveBeenCalled(); // No debe llamar al servicio si la imagen ya viene
+	});
+	it('should call imageService to get an image if no image is provided but a URL is', async () => {
+		// Arrange
+		const recipeData = { ...MOCK_RECIPE_DATA, imageUrl: undefined };
+		const fetchedImageUrl = 'data:image/webp;base64,fetched-image';
+		(imageService.getImageFromUrl as vi.Mock).mockResolvedValue(fetchedImageUrl);
+		// Act
+		const result = await recipeService.create(recipeData);
+		// Assert
+		expect(result).toBeDefined();
+		expect(imageService.getImageFromUrl).toHaveBeenCalledWith(recipeData.urls![0]);
+		expect(result.imageUrl).toBe(fetchedImageUrl);
+	});
+	it('should create a recipe with URLs', async () => {
+		// Arrange
+		const recipeData = { ...MOCK_RECIPE_DATA };
+		// Act
+		const result = await recipeService.create(recipeData);
+		const dbRecipe = await prisma.recipe.findUnique({
+			where: { id: result!.id },
+			include: { urls: true }
+		});
+		// Assert
+		expect(dbRecipe).toBeDefined();
+		expect(dbRecipe?.urls).toHaveLength(1);
+		expect(dbRecipe?.urls[0].url).toBe(recipeData.urls![0]);
+	});
+	it('should update a recipe, removing old URLs and adding new ones', async () => {
+		// Arrange
+		// 1. Creamos una receta inicial con una URL
+		const initialRecipe = await prisma.recipe.create({
+			data: {
+				title: 'Initial',
+				steps: 'Initial',
+				urls: { create: { url: 'https://initial.com' } }
+			}
+		});
+		// 2. Preparamos los datos de actualización con una nueva URL
+		const updateData = {
+			...MOCK_RECIPE_DATA,
+			title: 'Updated Recipe',
+			urls: ['https://updated.com']
+		};
+		// Act
+		const updatedRecipe = await recipeService.update(initialRecipe.id, updateData);
+		// Assert
+		const dbRecipe = await prisma.recipe.findUnique({
+			where: { id: updatedRecipe!.id },
+			include: { urls: true }
+		});
+		expect(dbRecipe).toBeDefined();
+		expect(dbRecipe?.title).toBe('Updated Recipe');
+		expect(dbRecipe?.urls).toHaveLength(1);
+		expect(dbRecipe?.urls[0].url).toBe('https://updated.com'); // La URL antigua fue reemplazada
+	});
+});
 
 // --- Ruta: src/lib/server/services/productService.ts ---
 // Ruta: src/lib/server/services/productService.ts
@@ -2367,100 +2816,193 @@ describe('ingredientService', () => {
 	});
 });
 
-// --- Ruta: src/lib/components/admin/SyncDialog.svelte ---
-<!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
-<script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
-	import { CircleDashed } from 'lucide-svelte';
-	// Justificación: Este componente ahora solo se encarga de mostrar el *contenido* del diálogo.
-	// El control de apertura/cierre y el disparador se gestionan en la página padre,
-	// siguiendo las convenciones del proyecto y de Svelte 5.
-	type $Props = {
-		state: 'idle' | 'loading' | 'success' | 'error';
-		result: {
-			updatedIngredients: string[];
-			failedIngredients: { id: string; name: string; reason: string }[];
-		} | null;
+// --- Ruta: src/lib/server/services/imageService.ts ---
+// Justificación (Paso 2.2):
+// Este servicio encapsula la lógica para obtener y procesar imágenes desde URLs.
+// Utiliza 'cheerio' para parsear el HTML y 'sharp' para la optimización de imágenes,
+// siguiendo las directrices del plan de implementación.
+import sharp from 'sharp';
+import * as cheerio from 'cheerio';
+const MAX_IMAGE_WIDTH = 768; // Ancho máximo para las imágenes de receta
+/**
+ * Extrae la URL de la imagen principal (thumbnail) de una página web.
+ * Busca en las metaetiquetas 'og:image' y 'twitter:image'.
+ * @param url La URL de la página web.
+ * @returns La URL de la imagen o null si no se encuentra.
+ */
+async function getImageUrlFromPage(url: string): Promise<string | null> {
+	try {
+		const response = await fetch(url, {
+			headers: {
+				'User-Agent':
+					'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+			}
+		});
+		if (!response.ok) {
+			console.error(`Error fetching page ${url}: ${response.statusText}`);
+			return null;
+		}
+		const html = await response.text();
+		const $ = cheerio.load(html);
+		// Priorizamos la etiqueta 'og:image' ya que es el estándar más común.
+		const ogImage = $('meta[property="og:image"]').attr('content');
+		if (ogImage) return ogImage;
+		const twitterImage = $('meta[name="twitter:image"]').attr('content');
+		if (twitterImage) return twitterImage;
+		return null;
+	} catch (error) {
+		console.error(`Failed to fetch or parse page at ${url}`, error);
+		return null;
+	}
+}
+/**
+ * Descarga, optimiza y convierte una imagen a formato WebP en Base64.
+ * @param imageUrl La URL de la imagen a procesar.
+ * @returns La imagen en formato Base64 con el prefijo de datos, o null si falla.
+ */
+async function processImage(imageUrl: string): Promise<string | null> {
+	try {
+		const imageResponse = await fetch(imageUrl);
+		if (!imageResponse.ok) {
+			console.error(`Error fetching image ${imageUrl}: ${imageResponse.statusText}`);
+			return null;
+		}
+		const imageBuffer = await imageResponse.arrayBuffer();
+		// Justificación (Paso 2.2):
+		// Usamos 'sharp' para redimensionar la imagen a un ancho máximo y convertirla a WebP.
+		// WebP ofrece una compresión superior con buena calidad, reduciendo el tamaño
+		// de almacenamiento en la base de datos y mejorando los tiempos de carga.
+		const optimizedImageBuffer = await sharp(Buffer.from(imageBuffer))
+			.resize(MAX_IMAGE_WIDTH, null, { withoutEnlargement: true })
+			.webp({ quality: 60 })
+			.toBuffer();
+		const base64Image = optimizedImageBuffer.toString('base64');
+		return `data:image/webp;base64,${base64Image}`;
+	} catch (error) {
+		console.error(`Failed to process image at ${imageUrl}`, error);
+		return null;
+	}
+}
+export const imageService = {
+	/**
+	 * Orquesta el proceso completo: obtiene la URL de la imagen de una página
+	 * y luego la procesa.
+	 * @param pageUrl La URL de la página de referencia de la receta.
+	 * @returns La imagen procesada en Base64 o null si cualquier paso falla.
+	 */
+	getImageFromUrl: async (pageUrl: string): Promise<string | null> => {
+		const imageUrl = await getImageUrlFromPage(pageUrl);
+		if (!imageUrl) {
+			return null;
+		}
+		return processImage(imageUrl);
+	}
+};
+
+// --- Ruta: src/lib/server/services/imageService.spec.ts ---
+// Ruta: src/lib/server/services/imageService.spec.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { imageService } from './imageService';
+import sharp from 'sharp';
+import * as cheerio from 'cheerio';
+// Justificación (Paso 4.1): Mockeamos los módulos 'sharp' y 'cheerio' para aislar
+// nuestro servicio de dependencias externas y del sistema de archivos.
+// Esto nos permite probar la lógica de nuestro código de forma determinista.
+vi.mock('sharp', () => {
+	const mockSharpInstance = {
+		resize: vi.fn().mockReturnThis(),
+		webp: vi.fn().mockReturnThis(),
+		toBuffer: vi.fn().mockResolvedValue(Buffer.from('optimized-image-buffer'))
 	};
-	let { state, result }: $Props = $props();
-</script>
-<Dialog.Content class="sm:max-w-[625px]">
-	{#if state === 'loading'}
-		<div class="flex flex-col items-center justify-center p-8">
-			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
-			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
-			<p class="text-sm text-muted-foreground">
-				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
-			</p>
-		</div>
-	{:else if state === 'success' && result}
-		<Dialog.Header>
-			<Dialog.Title>Sincronización Completada</Dialog.Title>
-			<Dialog.Description>
-				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
-				{#if result.failedIngredients.length > 0}
-					Hubo <strong>{result.failedIngredients.length}</strong> errores.
-				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
-		<div class="max-h-[400px] overflow-y-auto">
-			{#if result.updatedIngredients.length > 0}
-				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each result.updatedIngredients as name}
-							<TableRow>
-								<TableCell>{name}</TableCell>
-							</TableRow>
-						{/each}
-					</TableBody>
-				</Table>
-			{/if}
-			{#if result.failedIngredients.length > 0}
-				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-							<TableHead>Motivo del Error</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each result.failedIngredients as failure}
-							<TableRow>
-								<TableCell>{failure.name} ({failure.id})</TableCell>
-								<TableCell>{failure.reason}</TableCell>
-							</TableRow>
-						{/each}
-					</TableBody>
-				</Table>
-			{/if}
-		</div>
-		<Dialog.Footer>
-			<!-- Justificación: Se usa Dialog.Close directamente estilizado como un botón,
-			     evitando la complejidad y errores de 'asChild'. -->
-			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
-		</Dialog.Footer>
-	{:else if state === 'error'}
-		<Dialog.Header>
-			<Dialog.Title>Error en la Sincronización</Dialog.Title>
-			<Dialog.Description>
-				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
-				de nuevo más tarde.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
-		</Dialog.Footer>
-	{/if}
-</Dialog.Content>
+	const sharp = vi.fn(() => mockSharpInstance);
+	return { default: sharp };
+});
+vi.mock('cheerio', () => {
+	const mockCheerio = {
+		load: vi.fn()
+	};
+	return { ...mockCheerio, default: mockCheerio };
+});
+// Mockeamos el `fetch` global
+global.fetch = vi.fn();
+describe('imageService', () => {
+	beforeEach(() => {
+		// Limpiamos los mocks antes de cada test para evitar interferencias.
+		vi.clearAllMocks();
+	});
+	it('should return a base64 WebP image if og:image is found', async () => {
+		// Arrange
+		const pageUrl = 'https://example.com';
+		const imageUrl = 'https://example.com/image.jpg';
+		const mockHtml = `<html><head><meta property="og:image" content="${imageUrl}"></head></html>`;
+		// Mock para el fetch de la página HTML
+		(fetch as vi.Mock).mockResolvedValueOnce(
+			new Response(mockHtml, {
+				status: 200,
+				headers: { 'Content-Type': 'text/html' }
+			})
+		);
+		// Mock para el fetch de la imagen
+		(fetch as vi.Mock).mockResolvedValueOnce(
+			new Response(Buffer.from('image-data'), {
+				status: 200,
+				headers: { 'Content-Type': 'image/jpeg' }
+			})
+		);
+		// Mock para Cheerio
+		const mock$ = vi.fn((selector) => {
+			if (selector === 'meta[property="og:image"]') {
+				return { attr: () => imageUrl };
+			}
+			return { attr: () => undefined };
+		});
+		(cheerio.load as vi.Mock).mockReturnValue(mock$);
+		// Act
+		const result = await imageService.getImageFromUrl(pageUrl);
+		// Assert
+		expect(result).toBe('data:image/webp;base64,b3B0aW1pemVkLWltYWdlLWJ1ZmZlcg==');
+		expect(fetch).toHaveBeenCalledWith(pageUrl, expect.any(Object));
+		expect(fetch).toHaveBeenCalledWith(imageUrl);
+		expect(sharp).toHaveBeenCalledWith(Buffer.from('image-data'));
+	});
+	it('should return null if no image meta tag is found', async () => {
+		// Arrange
+		const pageUrl = 'https://example.com/no-image';
+		const mockHtml = '<html><head></head></html>';
+		(fetch as vi.Mock).mockResolvedValueOnce(new Response(mockHtml));
+		const mock$ = vi.fn(() => ({ attr: () => undefined }));
+		(cheerio.load as vi.Mock).mockReturnValue(mock$);
+		// Act
+		const result = await imageService.getImageFromUrl(pageUrl);
+		// Assert
+		expect(result).toBeNull();
+		expect(fetch).toHaveBeenCalledOnce(); // Solo se llama al fetch de la página
+	});
+	it('should return null if fetching the page fails', async () => {
+		// Arrange
+		const pageUrl = 'https://example.com/not-found';
+		(fetch as vi.Mock).mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
+		// Act
+		const result = await imageService.getImageFromUrl(pageUrl);
+		// Assert
+		expect(result).toBeNull();
+	});
+	it('should return null if fetching the image fails', async () => {
+		// Arrange
+		const pageUrl = 'https://example.com';
+		const imageUrl = 'https://example.com/image-not-found.jpg';
+		const mockHtml = `<html><head><meta property="og:image" content="${imageUrl}"></head></html>`;
+		(fetch as vi.Mock).mockResolvedValueOnce(new Response(mockHtml));
+		(fetch as vi.Mock).mockResolvedValueOnce(new Response('Image Not Found', { status: 404 }));
+		const mock$ = vi.fn(() => ({ attr: () => imageUrl }));
+		(cheerio.load as vi.Mock).mockReturnValue(mock$);
+		// Act
+		const result = await imageService.getImageFromUrl(pageUrl);
+		// Assert
+		expect(result).toBeNull();
+		expect(fetch).toHaveBeenCalledTimes(2); // Se llama a ambos fetches
+	});
+});
 
 // --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
 // Ruta: src/routes/api/recipes/[id]/+server.ts
@@ -2469,7 +3011,8 @@ import type { RequestHandler } from './$types';
 import { recipeService } from '$lib/server/services/recipeService';
 import { RecipeSchema } from '$lib/schemas/recipeSchema';
 import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
 /**
  * Maneja las peticiones GET para obtener una receta por su ID.
  */
@@ -2477,12 +3020,12 @@ export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const recipe = await recipeService.getById(params.id);
 		if (!recipe) {
-			return json({ message: 'Receta no encontrada' }, { status: 404 });
+			return json(createFailResponse('Receta no encontrada'), { status: 404 });
 		}
 		return json(recipe);
 	} catch (error) {
 		console.error(`Error fetching recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
 /**
@@ -2494,15 +3037,15 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		const validatedData = RecipeSchema.parse(body);
 		const updatedRecipe = await recipeService.update(params.id, validatedData);
 		if (!updatedRecipe) {
-			return json({ message: 'Receta no encontrada para actualizar' }, { status: 404 });
+			return json(createFailResponse('Receta no encontrada para actualizar'), { status: 404 });
 		}
 		return json(updatedRecipe);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json(formatZodError(error), { status: 400 });
+			return json(createFailResponse('La validación falló', error), { status: 400 });
 		}
 		console.error(`Error updating recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
 /**
@@ -2513,338 +3056,56 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		await recipeService.deleteById(params.id);
 		return new Response(null, { status: 204 }); // 204 No Content
 	} catch (error) {
-		// Podríamos verificar si el error es porque el registro no existe (P2025 en Prisma)
 		console.error(`Error deleting recipe ${params.id}:`, error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/products/[id]/+server.ts ---
+// Ruta: src/routes/api/products/[id]/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { productService } from '$lib/server/services/productService';
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+	if (!id) {
+		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
+	}
+	try {
+		await productService.deleteById(id);
+		return new Response(null, { status: 204 }); // No Content
+	} catch (error) {
+		console.error(`Error deleting product ${id}:`, error);
 		return json({ message: 'Error interno del servidor' }, { status: 500 });
 	}
 };
 
-// --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
-<!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
-<script lang="ts">
-	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
-	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
-	import * as Popover from '$lib/components/ui/popover';
-	import * as Command from '$lib/components/ui/command';
-	import { ChevronsUpDown } from 'lucide-svelte';
-	import type { PageData } from './$types';
-	const { data }: { data: PageData } = $props();
-	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
-	type SearchResult = {
-		id: string;
-		name: string;
-		source: 'local' | 'off';
-		type: 'custom' | 'product';
-		imageUrl: string | null;
-	};
-	// Inicializar estado con los datos de la receta
-	let title = $state(data.recipe.title);
-	let description = $state(data.recipe.description ?? '');
-	let steps = $state(data.recipe.steps);
-	const initialIngredients = data.recipe.ingredients
-	.map((ing): IngredientWithDetails | null => {
-		const quantity = ing.quantity;
-		if (ing.customIngredient) {
-			return {
-				id: ing.customIngredient.id,
-				type: 'custom',
-				quantity,
-				name: ing.customIngredient.name,
-				calories: ing.customIngredient.calories ?? 0,
-				protein: ing.customIngredient.protein ?? 0,
-				fat: ing.customIngredient.fat ?? 0,
-				carbs: ing.customIngredient.carbs ?? 0
-			};
-		}
-		if (ing.product) {
-			return {
-				id: ing.product.id,
-				type: 'product',
-				quantity,
-				name: ing.product.name,
-				calories: ing.product.calories ?? 0,
-				protein: ing.product.protein ?? 0,
-				fat: ing.product.fat ?? 0,
-				carbs: ing.product.carbs ?? 0
-			};
-		}
-		return null;
-	})
-	.filter((ing): ing is IngredientWithDetails => ing !== null);
-	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
-	let searchResults = $state<SearchResult[]>([]);
-	let isSearching = $state(false);
-	let open = $state(false);
-	let inputValue = $state('');
-	let searchTerm = $state('');
-	$effect(() => {
-		let eventSource: EventSource | null = null;
-		if (searchTerm.length < 3) {
-			searchResults = [];
-			isSearching = false;
-		} else {
-			isSearching = true;
-			searchResults = [];
-			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
-			eventSource.addEventListener('message', (e) => {
-				const newResults = JSON.parse(e.data);
-				searchResults = [...searchResults, ...newResults];
-			});
-			eventSource.addEventListener('stream_error', (e) => {
-				const errorData = JSON.parse((e as MessageEvent).data);
-				console.error('Error de stream recibido:', errorData);
-			});
-			eventSource.onerror = (err) => {
-				console.error('Error en la conexión de EventSource:', err);
-				isSearching = false;
-				eventSource?.close();
-			};
-			eventSource.addEventListener('close', () => {
-				isSearching = false;
-				eventSource?.close();
-			});
-		}
-		// Función de limpieza de $effect
-		return () => {
-			eventSource?.close();
-		};
-	});
-	async function addIngredient(result: SearchResult) {
-		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
-		try {
-			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
-			if (!response.ok) throw new Error('Failed to fetch ingredient details');
-			const details: CalculableIngredient = await response.json();
-			ingredients.push({
-				...result,
-				quantity: 100,
-				calories: details.calories,
-				protein: details.protein,
-				fat: details.fat,
-				carbs: details.carbs
-			});
-		} catch (error) {
-			console.error('Error adding ingredient:', error);
-		} finally {
-			open = false;
-			searchResults = [];
-			searchTerm = '';
-			inputValue = '';
-		}
+// --- Ruta: src/routes/api/ingredients/sync/+server.ts ---
+// Ruta: src/routes/api/ingredients/sync/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import { verifySessionToken } from '$lib/server/auth';
+/**
+ * @description Endpoint para sincronizar los ingredientes con Open Food Facts
+ * @returns {Response}
+ */
+export const POST: RequestHandler = async ({ cookies }) => {
+	// Justificación: Se protege el endpoint verificando el token de autenticación
+	// del usuario. Esto asegura que solo usuarios logueados puedan iniciar un proceso
+	// que consume recursos como es la sincronización.
+	const token = cookies.get('session'); // CORREGIDO: El nombre de la cookie es 'session'
+	if (!token || !(await verifySessionToken(token))) {
+		return json({ message: 'No autorizado' }, { status: 401 });
 	}
-	function removeIngredient(index: number) {
-		ingredients.splice(index, 1);
+	try {
+		// Justificación: Se invoca la lógica de negocio desde el servicio correspondiente.
+		// El controlador (este archivo) se mantiene simple, delegando la complejidad
+		// al `ingredientService`, lo que facilita el mantenimiento y las pruebas.
+		const result = await ingredientService.syncWithOpenFoodFacts();
+		return json(result, { status: 200 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'Error desconocido en el servidor';
+		return json({ message: errorMessage }, { status: 500 });
 	}
-	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
-	let isSubmitting = $state(false);
-	let errors = $state<Record<string, any>>({});
-	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		isSubmitting = true;
-		errors = {};
-		const payload = {
-			title,
-			description,
-			steps,
-			ingredients: ingredients.map(({ id, quantity, type }) => ({ id, quantity, type }))
-		};
-		try {
-			const response = await fetch(`/api/recipes/${data.recipe.id}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-			if (response.ok) {
-				const updatedRecipe = await response.json();
-				await goto(`/recetas/${updatedRecipe.id}`);
-			} else {
-				const errorData = await response.json();
-				if (response.status === 400) {
-					errors = errorData.errors;
-				} else {
-					errors.general = errorData.message || 'Ocurrió un error en el servidor.';
-				}
-			}
-		} catch (err) {
-			errors.general = 'No se pudo conectar con el servidor.';
-		} finally {
-			isSubmitting = false;
-		}
-	}
-</script>
-<Card class="max-w-4xl mx-auto my-8">
-	<CardHeader>
-		<CardTitle>Editar Receta</CardTitle>
-	</CardHeader>
-	<CardContent>
-		<form onsubmit={handleSubmit} class="space-y-6">
-			<div class="space-y-2">
-				<Label for="title">Título</Label>
-				<Input id="title" bind:value={title} required />
-				{#if errors.title}
-				<p class="text-sm text-red-500">{errors.title._errors[0]}</p>
-				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" bind:value={description} />
-			</div>
-			<div class="space-y-2">
-				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" bind:value={steps} rows={8} required />
-				{#if errors.steps}
-				<p class="text-sm text-red-500">{errors.steps._errors[0]}</p>
-				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label>Añadir Ingrediente</Label>
-				<Popover.Root bind:open>
-					<Popover.Trigger
-						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
-						role="combobox"
-						aria-expanded={open}
-					>
-						<div class="flex items-center justify-between w-full">
-							{inputValue || 'Seleccionar ingrediente...'}
-							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-						</div>
-					</Popover.Trigger>
-					<Popover.Content class="w-[--trigger-width] p-0">
-						<Command.Root filter={() => 1}>
-							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
-							<Command.List>
-								{#if searchResults.length > 0}
-								{#each searchResults as result (result.id + result.type)}
-								<Command.Item
-								value={result.name}
-								onSelect={() => {
-									inputValue = result.name;
-									addIngredient(result);
-								}}
-								class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
-								>
-								<img
-								src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
-								alt={result.name}
-								class="h-8 w-8 rounded-sm object-cover"
-								/>
-								<span>{result.name}</span>
-							</Command.Item>
-							{/each}
-							{:else}
-							<div class="p-4 text-sm text-center text-gray-500">
-								{#if isSearching}
-								Buscando...
-								{:else if searchTerm.length < 3}
-								Escribe al menos 3 caracteres para buscar...
-								{:else}
-								No se encontraron resultados.
-								{/if}
-							</div>
-							{/if}
-						</Command.List>
-					</Command.Root>
-				</Popover.Content>
-			</Popover.Root>
-		</div>
-		<div class="space-y-2">
-			<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Nombre</TableHead>
-						<TableHead class="w-[150px]">Cantidad (g)</TableHead>
-						<TableHead class="w-[100px] text-right">Acciones</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{#each ingredients as ingredient, i}
-					<TableRow>
-						<TableCell>{ingredient.name}</TableCell>
-						<TableCell>
-							<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
-						</TableCell>
-						<TableCell class="text-right">
-							<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							onclick={() => removeIngredient(i)}
-							>
-							Quitar
-						</Button>
-					</TableCell>
-				</TableRow>
-				{/each}
-				{#if ingredients.length === 0}
-				<TableRow>
-					<TableCell colspan={3} class="text-center text-gray-500">
-						Añade ingredientes usando el buscador.
-					</TableCell>
-				</TableRow>
-				{/if}
-			</TableBody>
-		</Table>
-	</div>
-	<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
-		<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
-		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-				<p class="text-sm text-gray-600">Calorías (kcal)</p>
-			</div>
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-				<p class="text-sm text-gray-600">Proteínas</p>
-			</div>
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-				<p class="text-sm text-gray-600">Grasas</p>
-			</div>
-			<div>
-				<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-				<p class="text-sm text-gray-600">Carbohidratos</p>
-			</div>
-		</div>
-	</div>
-	<div class="flex justify-end">
-		<Button type="submit" disabled={isSubmitting}>
-			{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-		</Button>
-	</div>
-	{#if errors.general}
-	<p class="text-sm text-red-500 text-right">{errors.general}</p>
-	{/if}
-</form>
-</CardContent>
-</Card>
-
-// --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
-// Ruta: src/routes/recetas/[id]/editar/+page.server.ts
-import { error } from '@sveltejs/kit';
-import { recipeService } from '$lib/server/services/recipeService';
-import type { PageServerLoad } from './$types';
-// Justificación: La función `load` se ejecuta en el servidor antes de renderizar la página.
-// Es el lugar idóneo para cargar los datos necesarios para la edición de una receta.
-// Si la receta no se encuentra, lanzamos un error 404 para que SvelteKit muestre la página de error.
-export const load: PageServerLoad = async ({ params }) => {
-	const recipe = await recipeService.getById(params.id);
-	if (!recipe) {
-		throw error(404, 'Receta no encontrada');
-	}
-	// Justificación: Devolvemos un objeto `recipe` que contiene todos los datos necesarios.
-	// SvelteKit se encarga de serializarlo y pasarlo como prop `data` a la página Svelte.
-	// Esto asegura que el frontend tenga toda la información para pre-rellenar el formulario.
-	return {
-		recipe
-	};
 };
 
 // --- Ruta: src/routes/api/ingredients/search/api.spec.ts ---
@@ -3120,37 +3381,18 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 	});
 };
 
-// --- Ruta: src/routes/api/products/[id]/+server.ts ---
-// Ruta: src/routes/api/products/[id]/+server.ts
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { productService } from '$lib/server/services/productService';
-export const DELETE: RequestHandler = async ({ params }) => {
-	const { id } = params;
-	if (!id) {
-		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
-	}
-	try {
-		await productService.deleteById(id);
-		return new Response(null, { status: 204 }); // No Content
-	} catch (error) {
-		console.error(`Error deleting product ${id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
 // --- Ruta: src/routes/api/ingredients/[id]/+server.ts ---
 // Ruta: src/routes/api/ingredients/[id]/+server.ts
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { ingredientService } from '$lib/server/services/ingredientService';
 import { IngredientSchema } from '$lib/schemas/ingredientSchema';
 import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
-// Justificación (PUT): Endpoint para la actualización de un recurso específico.
-// Valida tanto el ID de la ruta como los datos del cuerpo antes de actuar.
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
 export const PUT: RequestHandler = async ({ request, params }) => {
 	const { id } = params;
 	if (!id) {
-		return json({ message: 'ID de ingrediente es requerido' }, { status: 400 });
+		return json(createFailResponse('ID de ingrediente es requerido'), { status: 400 });
 	}
 	try {
 		const body = await request.json();
@@ -3159,26 +3401,433 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		return json(updatedIngredient);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json(formatZodError(error), { status: 400 });
+			return json(createFailResponse('La validación falló', error), { status: 400 });
 		}
-		console.error(`Error updating ingredient with id ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		console.error(`Error updating ingredient with id ${id}:`, error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
-// Justificación (DELETE): Endpoint para la eliminación de un recurso específico.
-// Solo requiere el ID del recurso, haciendo la operación simple y clara.
 export const DELETE: RequestHandler = async ({ params }) => {
 	const { id } = params;
 	if (!id) {
-		return json({ message: 'ID de ingrediente es requerido' }, { status: 400 });
+		return json(createFailResponse('ID de ingrediente es requerido'), { status: 400 });
 	}
 	try {
 		await ingredientService.deleteById(id);
 		return new Response(null, { status: 204 }); // 204 No Content
 	} catch (error) {
-		// Aquí también se podrían manejar errores de 'RecordNotFound'.
 		console.error(`Error deleting ingredient ${id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '$lib/components/ui/command';
+	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
+	import type { PageData, ActionData } from './$types';
+	import { enhance } from '$app/forms';
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	type SearchResult = {
+		id: string;
+		name: string;
+		source: 'local' | 'off';
+		type: 'custom' | 'product';
+		imageUrl: string | null;
+	};
+	// --- Estado del formulario ---
+	let title = $state(data.recipe.title);
+	let description = $state(data.recipe.description ?? '');
+	let steps = $state(data.recipe.steps);
+	let imageUrl = $state(data.recipe.imageUrl ?? '');
+	let urls = $state(data.recipe.urls.map((u) => u.url) ?? []);
+	const initialIngredients = data.recipe.ingredients
+		.map((ing): IngredientWithDetails | null => {
+			const quantity = ing.quantity;
+			if (ing.customIngredient) {
+				return {
+					id: ing.customIngredient.id,
+					type: 'custom',
+					quantity,
+					name: ing.customIngredient.name,
+					calories: ing.customIngredient.calories ?? 0,
+					protein: ing.customIngredient.protein ?? 0,
+					fat: ing.customIngredient.fat ?? 0,
+					carbs: ing.customIngredient.carbs ?? 0
+				};
+			}
+			if (ing.product) {
+				return {
+					id: ing.product.id,
+					type: 'product',
+					quantity,
+					name: ing.product.name,
+					calories: ing.product.calories ?? 0,
+					protein: ing.product.protein ?? 0,
+					fat: ing.product.fat ?? 0,
+					carbs: ing.product.carbs ?? 0
+				};
+			}
+			return null;
+		})
+		.filter((ing): ing is IngredientWithDetails => ing !== null);
+	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
+	// --- Estado del buscador de ingredientes ---
+	let searchResults = $state<SearchResult[]>([]);
+	let isSearching = $state(false);
+	let open = $state(false);
+	let inputValue = $state('');
+	let searchTerm = $state('');
+	$effect(() => {
+		let eventSource: EventSource | null = null;
+		if (searchTerm.length < 3) {
+			searchResults = [];
+			isSearching = false;
+		} else {
+			isSearching = true;
+			searchResults = [];
+			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource.addEventListener('message', (e) => {
+				const newResults = JSON.parse(e.data);
+				searchResults = [...searchResults, ...newResults];
+			});
+			eventSource.addEventListener('stream_error', (e) => {
+				const errorData = JSON.parse((e as MessageEvent).data);
+				console.error('Error de stream recibido:', errorData);
+			});
+			eventSource.onerror = (err) => {
+				console.error('Error en la conexión de EventSource:', err);
+				isSearching = false;
+				eventSource?.close();
+			};
+			eventSource.addEventListener('close', () => {
+				isSearching = false;
+				eventSource?.close();
+			});
+		}
+		return () => {
+			eventSource?.close();
+		};
+	});
+	async function addIngredient(result: SearchResult) {
+		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
+		try {
+			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			if (!response.ok) throw new Error('Failed to fetch ingredient details');
+			const details: CalculableIngredient = await response.json();
+			ingredients.push({
+				...result,
+				quantity: 100,
+				calories: details.calories,
+				protein: details.protein,
+				fat: details.fat,
+				carbs: details.carbs
+			});
+		} catch (error) {
+			console.error('Error adding ingredient:', error);
+		} finally {
+			open = false;
+			searchResults = [];
+			searchTerm = '';
+			inputValue = '';
+		}
+	}
+	function removeIngredient(index: number) {
+		ingredients.splice(index, 1);
+	}
+	// --- Gestión de URLs de referencia ---
+	function addUrlField() {
+		urls.push('');
+	}
+	function removeUrlField(index: number) {
+		urls.splice(index, 1);
+	}
+	// --- Gestión de subida de imagen ---
+	function handleImageUpload(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				imageUrl = e.target?.result as string;
+			};
+			reader.readAsDataURL(file);
+		}
+	}
+	// --- Cálculos y envío ---
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
+	let isSubmitting = $state(false);
+</script>
+<Card class="max-w-4xl mx-auto my-8">
+	<CardHeader>
+		<CardTitle>Editar Receta</CardTitle>
+	</CardHeader>
+	<CardContent>
+		<form
+			method="POST"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ result }) => {
+					if (result.type === 'success') {
+						await goto(`/recetas/${data.recipe.id}`);
+					}
+					isSubmitting = false;
+				};
+			}}
+			class="space-y-6"
+		>
+			<!-- Campos ocultos para enviar datos complejos -->
+			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
+			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input type="hidden" name="imageUrl" value={imageUrl} />
+			<!-- Campos del formulario -->
+			<div class="space-y-2">
+				<Label for="title">Título</Label>
+				<Input id="title" name="title" bind:value={title} required />
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				{#if form?.errors?.title}
+					<p class="text-sm text-red-500">{form.errors.title}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="description">Descripción (Opcional)</Label>
+				<Textarea id="description" name="description" bind:value={description} />
+			</div>
+			<div class="space-y-2">
+				<Label for="image">Imagen de la Receta</Label>
+				<div class="flex items-center gap-4">
+					{#if imageUrl}
+						<img
+							src={imageUrl}
+							alt="Previsualización de la receta"
+							class="h-24 w-24 rounded-md object-cover"
+						/>
+					{/if}
+					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
+				</div>
+				<p class="text-sm text-gray-500">
+					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
+				</p>
+			</div>
+			<div class="space-y-2">
+				<Label>URLs de Referencia</Label>
+				{#each urls as url, i}
+					<div class="flex items-center gap-2">
+						<Input
+							type="url"
+							placeholder="https://ejemplo.com/receta"
+							bind:value={urls[i]}
+							class="flex-grow"
+						/>
+						<Button type="button" variant="ghost" size="icon" onclick={() => removeUrlField(i)}>
+							<Trash2 class="h-4 w-4" />
+						</Button>
+					</div>
+				{/each}
+				<Button type="button" variant="outline" size="sm" onclick={addUrlField}>
+					Añadir URL
+				</Button>
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				{#if form?.errors?.urls}
+					<p class="text-sm text-red-500">{form.errors.urls}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="steps">Pasos</Label>
+				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				{#if form?.errors?.steps}
+					<p class="text-sm text-red-500">{form.errors.steps}</p>
+				{/if}
+			</div>
+			<!-- Buscador y tabla de ingredientes -->
+			<div class="space-y-2">
+				<Label>Añadir Ingrediente</Label>
+				<Popover.Root bind:open>
+					<Popover.Trigger
+						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+						role="combobox"
+						aria-expanded={open}
+					>
+						<div class="flex items-center justify-between w-full">
+							{inputValue || 'Seleccionar ingrediente...'}
+							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						</div>
+					</Popover.Trigger>
+					<Popover.Content class="w-[--trigger-width] p-0">
+						<Command.Root filter={() => 1}>
+							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
+							<Command.List>
+								{#if searchResults.length > 0}
+									{#each searchResults as result (result.id + result.type)}
+										<Command.Item
+											value={result.name}
+											onSelect={() => {
+												inputValue = result.name;
+												addIngredient(result);
+											}}
+											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+										>
+											<img
+												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+												alt={result.name}
+												class="h-8 w-8 rounded-sm object-cover"
+											/>
+											<span>{result.name}</span>
+										</Command.Item>
+									{/each}
+								{:else}
+									<div class="p-4 text-sm text-center text-gray-500">
+										{#if isSearching}
+											Buscando...
+										{:else if searchTerm.length < 3}
+											Escribe al menos 3 caracteres para buscar...
+										{:else}
+											No se encontraron resultados.
+										{/if}
+									</div>
+								{/if}
+							</Command.List>
+						</Command.Root>
+					</Popover.Content>
+				</Popover.Root>
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
+							<TableHead class="w-[100px] text-right">Acciones</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each ingredients as ingredient, i}
+							<TableRow>
+								<TableCell>{ingredient.name}</TableCell>
+								<TableCell>
+									<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
+								</TableCell>
+								<TableCell class="text-right">
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onclick={() => removeIngredient(i)}
+									>
+										Quitar
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+						{#if ingredients.length === 0}
+							<TableRow>
+								<TableCell colspan={3} class="text-center text-gray-500">
+									Añade ingredientes usando el buscador.
+								</TableCell>
+							</TableRow>
+						{/if}
+					</TableBody>
+				</Table>
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				{#if form?.errors?.ingredients}
+					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
+				{/if}
+			</div>
+			<!-- Información nutricional -->
+			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</div>
+			</div>
+			<div class="flex justify-end">
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+				</Button>
+			</div>
+			{#if form?.message}
+				<p class="text-sm text-red-500 text-right">{form.message}</p>
+			{/if}
+		</form>
+	</CardContent>
+</Card>
+
+// --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/editar/+page.server.ts
+import { error, fail } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { PageServerLoad, Actions } from './$types';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+// Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
+import { createFailResponse } from '$lib/server/zodErrors';
+export const load: PageServerLoad = async ({ params }) => {
+	const recipe = await recipeService.getById(params.id);
+	if (!recipe) {
+		throw error(404, 'Receta no encontrada');
+	}
+	return {
+		recipe
+	};
+};
+export const actions: Actions = {
+	default: async ({ request, params }) => {
+		const formData = await request.formData();
+		const data = Object.fromEntries(formData.entries());
+		const dataToValidate = {
+			...data,
+			ingredients: JSON.parse(data.ingredients as string),
+			urls: JSON.parse(data.urls as string)
+		};
+		const validation = RecipeSchema.safeParse(dataToValidate);
+		if (!validation.success) {
+			// Justificación: Se usa la nueva utilidad para el fallo de validación.
+			const response = createFailResponse('La validación falló. Revisa los campos.', validation.error);
+			return fail(400, response);
+		}
+		try {
+			const updatedRecipe = await recipeService.update(params.id, validation.data);
+			return {
+				status: 200,
+				body: {
+					recipe: updatedRecipe
+				}
+			};
+		} catch (err) {
+			console.error(err);
+			// Justificación: Se usa la misma utilidad para el fallo del servidor,
+			// garantizando una estructura de respuesta 100% consistente.
+			const response = createFailResponse('No se pudo actualizar la receta.');
+			return fail(500, response);
+		}
 	}
 };
 
@@ -3314,34 +3963,68 @@ export const actions: Actions = {
 	}
 };
 
-// --- Ruta: src/lib/components/ui/textarea/textarea.svelte ---
+// --- Ruta: src/lib/components/ui/popover/popover-trigger.svelte ---
 <script lang="ts">
-	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
-	import type { HTMLTextareaAttributes } from "svelte/elements";
+	import { cn } from "$lib/utils.js";
+	import { Popover as PopoverPrimitive } from "bits-ui";
 	let {
 		ref = $bindable(null),
-		value = $bindable(),
 		class: className,
 		...restProps
-	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
+	}: PopoverPrimitive.TriggerProps = $props();
 </script>
-<textarea
-	bind:this={ref}
-	data-slot="textarea"
-	class={cn(
-		"border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 field-sizing-content shadow-xs flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-		className
-	)}
-	bind:value
+<PopoverPrimitive.Trigger
+	bind:ref
+	data-slot="popover-trigger"
+	class={cn("", className)}
 	{...restProps}
-></textarea>
+/>
 
-// --- Ruta: src/lib/components/ui/textarea/index.ts ---
-import Root from "./textarea.svelte";
+// --- Ruta: src/lib/components/ui/popover/popover-content.svelte ---
+<script lang="ts">
+	import { cn } from "$lib/utils.js";
+	import { Popover as PopoverPrimitive } from "bits-ui";
+	let {
+		ref = $bindable(null),
+		class: className,
+		sideOffset = 4,
+		align = "center",
+		portalProps,
+		...restProps
+	}: PopoverPrimitive.ContentProps & {
+		portalProps?: PopoverPrimitive.PortalProps;
+	} = $props();
+</script>
+<PopoverPrimitive.Portal {...portalProps}>
+	<PopoverPrimitive.Content
+		bind:ref
+		data-slot="popover-content"
+		{sideOffset}
+		{align}
+		class={cn(
+			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-popover-content-transform-origin) outline-hidden z-50 w-72 rounded-md border p-4 shadow-md",
+			className
+		)}
+		{...restProps}
+	/>
+</PopoverPrimitive.Portal>
+
+// --- Ruta: src/lib/components/ui/popover/index.ts ---
+import { Popover as PopoverPrimitive } from "bits-ui";
+import Content from "./popover-content.svelte";
+import Trigger from "./popover-trigger.svelte";
+const Root = PopoverPrimitive.Root;
+const Close = PopoverPrimitive.Close;
 export {
 	Root,
+	Content,
+	Trigger,
+	Close,
 	//
-	Root as Textarea,
+	Root as Popover,
+	Content as PopoverContent,
+	Trigger as PopoverTrigger,
+	Close as PopoverClose,
 };
 
 // --- Ruta: src/lib/components/ui/table/table.svelte ---
@@ -3542,70 +4225,6 @@ export {
 	Head as TableHead,
 	Header as TableHeader,
 	Row as TableRow,
-};
-
-// --- Ruta: src/lib/components/ui/popover/popover-trigger.svelte ---
-<script lang="ts">
-	import { cn } from "$lib/utils.js";
-	import { Popover as PopoverPrimitive } from "bits-ui";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: PopoverPrimitive.TriggerProps = $props();
-</script>
-<PopoverPrimitive.Trigger
-	bind:ref
-	data-slot="popover-trigger"
-	class={cn("", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/popover/popover-content.svelte ---
-<script lang="ts">
-	import { cn } from "$lib/utils.js";
-	import { Popover as PopoverPrimitive } from "bits-ui";
-	let {
-		ref = $bindable(null),
-		class: className,
-		sideOffset = 4,
-		align = "center",
-		portalProps,
-		...restProps
-	}: PopoverPrimitive.ContentProps & {
-		portalProps?: PopoverPrimitive.PortalProps;
-	} = $props();
-</script>
-<PopoverPrimitive.Portal {...portalProps}>
-	<PopoverPrimitive.Content
-		bind:ref
-		data-slot="popover-content"
-		{sideOffset}
-		{align}
-		class={cn(
-			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-popover-content-transform-origin) outline-hidden z-50 w-72 rounded-md border p-4 shadow-md",
-			className
-		)}
-		{...restProps}
-	/>
-</PopoverPrimitive.Portal>
-
-// --- Ruta: src/lib/components/ui/popover/index.ts ---
-import { Popover as PopoverPrimitive } from "bits-ui";
-import Content from "./popover-content.svelte";
-import Trigger from "./popover-trigger.svelte";
-const Root = PopoverPrimitive.Root;
-const Close = PopoverPrimitive.Close;
-export {
-	Root,
-	Content,
-	Trigger,
-	Close,
-	//
-	Root as Popover,
-	Content as PopoverContent,
-	Trigger as PopoverTrigger,
-	Close as PopoverClose,
 };
 
 // --- Ruta: src/lib/components/ui/label/label.svelte ---
@@ -3880,6 +4499,173 @@ export {
 </script>
 <DialogPrimitive.Close bind:ref data-slot="dialog-close" {...restProps} />
 
+// --- Ruta: src/lib/components/ui/card/index.ts ---
+import Root from "./card.svelte";
+import Content from "./card-content.svelte";
+import Description from "./card-description.svelte";
+import Footer from "./card-footer.svelte";
+import Header from "./card-header.svelte";
+import Title from "./card-title.svelte";
+import Action from "./card-action.svelte";
+export {
+	Root,
+	Content,
+	Description,
+	Footer,
+	Header,
+	Title,
+	Action,
+	//
+	Root as Card,
+	Content as CardContent,
+	Description as CardDescription,
+	Footer as CardFooter,
+	Header as CardHeader,
+	Title as CardTitle,
+	Action as CardAction,
+};
+
+// --- Ruta: src/lib/components/ui/card/card.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card"
+	class={cn(
+		"bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-title.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-title"
+	class={cn("font-semibold leading-none", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-header.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-header"
+	class={cn(
+		"@container/card-header has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-footer"
+	class={cn("[.border-t]:pt-6 flex items-center px-6", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-description.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLParagraphElement>> = $props();
+</script>
+<p
+	bind:this={ref}
+	data-slot="card-description"
+	class={cn("text-muted-foreground text-sm", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</p>
+
+// --- Ruta: src/lib/components/ui/card/card-content.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div bind:this={ref} data-slot="card-content" class={cn("px-6", className)} {...restProps}>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-action.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-action"
+	class={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
 // --- Ruta: src/lib/components/ui/command/index.ts ---
 import { Command as CommandPrimitive } from "bits-ui";
 import Root from "./command.svelte";
@@ -4150,173 +4936,6 @@ export {
 	</Dialog.Content>
 </Dialog.Root>
 
-// --- Ruta: src/lib/components/ui/card/index.ts ---
-import Root from "./card.svelte";
-import Content from "./card-content.svelte";
-import Description from "./card-description.svelte";
-import Footer from "./card-footer.svelte";
-import Header from "./card-header.svelte";
-import Title from "./card-title.svelte";
-import Action from "./card-action.svelte";
-export {
-	Root,
-	Content,
-	Description,
-	Footer,
-	Header,
-	Title,
-	Action,
-	//
-	Root as Card,
-	Content as CardContent,
-	Description as CardDescription,
-	Footer as CardFooter,
-	Header as CardHeader,
-	Title as CardTitle,
-	Action as CardAction,
-};
-
-// --- Ruta: src/lib/components/ui/card/card.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card"
-	class={cn(
-		"bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
-		className
-	)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-title.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-title"
-	class={cn("font-semibold leading-none", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-header.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-header"
-	class={cn(
-		"@container/card-header has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6",
-		className
-	)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-footer.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-footer"
-	class={cn("[.border-t]:pt-6 flex items-center px-6", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-description.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLParagraphElement>> = $props();
-</script>
-<p
-	bind:this={ref}
-	data-slot="card-description"
-	class={cn("text-muted-foreground text-sm", className)}
-	{...restProps}
->
-	{@render children?.()}
-</p>
-
-// --- Ruta: src/lib/components/ui/card/card-content.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div bind:this={ref} data-slot="card-content" class={cn("px-6", className)} {...restProps}>
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-action.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-action"
-	class={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
 // --- Ruta: src/lib/components/ui/button/index.ts ---
 import Root, {
 	type ButtonProps,
@@ -4412,33 +5031,34 @@ export {
 	</button>
 {/if}
 
-// --- Ruta: src/routes/api/ingredients/sync/+server.ts ---
-// Ruta: src/routes/api/ingredients/sync/+server.ts
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { ingredientService } from '$lib/server/services/ingredientService';
-import { verifySessionToken } from '$lib/server/auth';
-/**
- * @description Endpoint para sincronizar los ingredientes con Open Food Facts
- * @returns {Response}
- */
-export const POST: RequestHandler = async ({ cookies }) => {
-	// Justificación: Se protege el endpoint verificando el token de autenticación
-	// del usuario. Esto asegura que solo usuarios logueados puedan iniciar un proceso
-	// que consume recursos como es la sincronización.
-	const token = cookies.get('session'); // CORREGIDO: El nombre de la cookie es 'session'
-	if (!token || !(await verifySessionToken(token))) {
-		return json({ message: 'No autorizado' }, { status: 401 });
-	}
-	try {
-		// Justificación: Se invoca la lógica de negocio desde el servicio correspondiente.
-		// El controlador (este archivo) se mantiene simple, delegando la complejidad
-		// al `ingredientService`, lo que facilita el mantenimiento y las pruebas.
-		const result = await ingredientService.syncWithOpenFoodFacts();
-		return json(result, { status: 200 });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Error desconocido en el servidor';
-		return json({ message: errorMessage }, { status: 500 });
-	}
+// --- Ruta: src/lib/components/ui/textarea/textarea.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
+	import type { HTMLTextareaAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		value = $bindable(),
+		class: className,
+		...restProps
+	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
+</script>
+<textarea
+	bind:this={ref}
+	data-slot="textarea"
+	class={cn(
+		"border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 field-sizing-content shadow-xs flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+		className
+	)}
+	bind:value
+	{...restProps}
+></textarea>
+
+// --- Ruta: src/lib/components/ui/textarea/index.ts ---
+import Root from "./textarea.svelte";
+export {
+	Root,
+	//
+	Root as Textarea,
 };
 
 // --- Ruta: src/routes/api/products/search/[barcode]/+server.ts ---
