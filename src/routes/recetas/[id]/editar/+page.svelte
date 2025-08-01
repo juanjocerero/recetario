@@ -65,36 +65,44 @@
 	let open = $state(false);
 	let inputValue = $state('');
 	
-	let searchController: AbortController | null = null;
-	
-	async function handleSearch(event: Event) {
-		if (searchController) {
-			searchController.abort();
-		}
-		searchController = new AbortController();
-		const signal = searchController.signal;
-		
+	let eventSource: EventSource | null = null;
+
+	function handleSearch(event: Event) {
 		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
-		
+
+		if (eventSource) {
+			eventSource.close();
+		}
+		searchResults = [];
+
 		if (currentSearchTerm.length < 2) {
-			searchResults = [];
+			isSearching = false;
 			return;
 		}
-		
+
 		isSearching = true;
-		try {
-			const response = await fetch(`/api/ingredients/search?q=${currentSearchTerm}`, { signal });
-			if (response.ok) {
-				searchResults = await response.json();
-			}
-		} catch (error) {
-			if (error instanceof DOMException && error.name === 'AbortError') {
-				return;
-			}
-			console.error('Error searching ingredients:', error);
-		} finally {
+		eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(currentSearchTerm)}`);
+
+		eventSource.addEventListener('message', (e) => {
+			const newResults = JSON.parse(e.data);
+			searchResults = [...searchResults, ...newResults];
+		});
+
+		eventSource.addEventListener('stream_error', (e) => {
+			const errorData = JSON.parse((e as MessageEvent).data);
+			console.error('Error de stream recibido:', errorData);
+		});
+
+		eventSource.onerror = (err) => {
+			console.error('Error en la conexión de EventSource:', err);
 			isSearching = false;
-		}
+			eventSource?.close();
+		};
+
+		eventSource.addEventListener('close', () => {
+			isSearching = false;
+			eventSource?.close();
+		});
 	}
 	
 	async function addIngredient(result: SearchResult) {
@@ -119,6 +127,10 @@
 			open = false;
 			searchResults = [];
 			inputValue = '';
+			if (eventSource) {
+				eventSource.close();
+				isSearching = false;
+			}
 		}
 	}
 	

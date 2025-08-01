@@ -13,23 +13,50 @@
 	let searchTerm = '';
 	let results: SearchResult[] = [];
 	let isLoading = false;
-	
-	async function handleSearch() {
+	let searchAttempted = false; // Para mostrar el mensaje de "no resultados"
+	let eventSource: EventSource | null = null;
+
+	function handleSearch() {
 		if (searchTerm.length < 3) {
 			results = [];
+			searchAttempted = false;
 			return;
 		}
+
+		results = [];
 		isLoading = true;
-		try {
-			const response = await fetch(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
-			if (response.ok) {
-				results = await response.json();
-			}
-		} catch (error) {
-			console.error('Error en la búsqueda:', error);
-		} finally {
-			isLoading = false;
+		searchAttempted = true;
+
+		if (eventSource) {
+			eventSource.close();
 		}
+
+		eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+
+		eventSource.addEventListener('message', (event) => {
+			const newResults = JSON.parse(event.data);
+			results = [...results, ...newResults];
+		});
+
+		// Escucha los errores de aplicación enviados explícitamente por el servidor
+		eventSource.addEventListener('stream_error', (event) => {
+			// Este es un MessageEvent, por lo que podemos castearlo y leer `data`
+			const errorData = JSON.parse((event as MessageEvent).data);
+			console.error('Error de stream recibido:', errorData);
+		});
+
+		// Escucha los errores de conexión genéricos
+		eventSource.onerror = (err) => {
+			// Este es un Event genérico, no tiene `data`. Solo indica fallo en la conexión.
+			console.error('Error en la conexión de EventSource. La conexión se ha cerrado.', err);
+			isLoading = false;
+			eventSource?.close();
+		};
+		
+		eventSource.addEventListener('close', () => {
+			isLoading = false;
+			eventSource?.close();
+		});
 	}
 </script>
 
@@ -48,9 +75,9 @@
 	</form>
 	
 	{#if results.length > 0}
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
 		{#each results as result (result.id)}
-		<Card>
+		<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
 			<CardHeader>
 				<img
 				src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
@@ -59,11 +86,7 @@
 				/>
 			</CardHeader>
 			<CardContent class="flex flex-col justify-between space-y-4">
-				<CardTitle class="text-base">{result.name}</CardTitle>
-				<CardDescription>
-					ID: {result.id} <br />
-					Origen: <span class="font-semibold">{result.source === 'off' ? 'Open Food Facts' : 'Local'}</span>
-				</CardDescription>
+				<CardTitle class="text-sm">{result.name}</CardTitle>
 				{#if result.source === 'off'}
 				<form method="POST" action="?/add">
 					<input type="hidden" name="productId" value={result.id} />
@@ -75,6 +98,10 @@
 			</CardContent>
 		</Card>
 		{/each}
+	</div>
+	{:else if !isLoading && searchAttempted}
+	<div class="text-center text-gray-500 py-8">
+		<p>No se encontraron resultados para tu búsqueda.</p>
 	</div>
 	{/if}
 </div>
