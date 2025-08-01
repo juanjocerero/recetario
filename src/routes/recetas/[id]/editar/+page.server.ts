@@ -1,11 +1,11 @@
 // Ruta: src/routes/recetas/[id]/editar/+page.server.ts
-import { error } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { recipeService } from '$lib/server/services/recipeService';
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+// Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
+import { createFailResponse } from '$lib/server/zodErrors';
 
-// Justificación: La función `load` se ejecuta en el servidor antes de renderizar la página.
-// Es el lugar idóneo para cargar los datos necesarios para la edición de una receta.
-// Si la receta no se encuentra, lanzamos un error 404 para que SvelteKit muestre la página de error.
 export const load: PageServerLoad = async ({ params }) => {
 	const recipe = await recipeService.getById(params.id);
 
@@ -13,10 +13,44 @@ export const load: PageServerLoad = async ({ params }) => {
 		throw error(404, 'Receta no encontrada');
 	}
 
-	// Justificación: Devolvemos un objeto `recipe` que contiene todos los datos necesarios.
-	// SvelteKit se encarga de serializarlo y pasarlo como prop `data` a la página Svelte.
-	// Esto asegura que el frontend tenga toda la información para pre-rellenar el formulario.
 	return {
 		recipe
 	};
+};
+
+export const actions: Actions = {
+	default: async ({ request, params }) => {
+		const formData = await request.formData();
+		const data = Object.fromEntries(formData.entries());
+
+		const dataToValidate = {
+			...data,
+			ingredients: JSON.parse(data.ingredients as string),
+			urls: JSON.parse(data.urls as string)
+		};
+
+		const validation = RecipeSchema.safeParse(dataToValidate);
+
+		if (!validation.success) {
+			// Justificación: Se usa la nueva utilidad para el fallo de validación.
+			const response = createFailResponse('La validación falló. Revisa los campos.', validation.error);
+			return fail(400, response);
+		}
+
+		try {
+			const updatedRecipe = await recipeService.update(params.id, validation.data);
+			return {
+				status: 200,
+				body: {
+					recipe: updatedRecipe
+				}
+			};
+		} catch (err) {
+			console.error(err);
+			// Justificación: Se usa la misma utilidad para el fallo del servidor,
+			// garantizando una estructura de respuesta 100% consistente.
+			const response = createFailResponse('No se pudo actualizar la receta.');
+			return fail(500, response);
+		}
+	}
 };

@@ -11,12 +11,11 @@
 	} from '$lib/components/ui/table';
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
 	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button';
 
 	const { data } = $props<PageData>();
 	const { recipe } = data;
 
-	// Justificación: Creamos una lista de ingredientes plana y consistente a partir
-	// de los datos anidados del loader. Esto simplifica el resto del componente.
 	const ingredientsList = $derived(
 		recipe.ingredients
 			.map((ing) => {
@@ -35,81 +34,126 @@
 			.filter((i): i is NonNullable<typeof i> => i !== null)
 	);
 
-	// La lógica de cálculo ahora recibe la lista limpia.
 	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
 </script>
 
 <div class="max-w-4xl mx-auto my-8 space-y-8">
-	<!-- Encabezado de la Receta -->
-	<header class="space-y-2">
-		<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
-		{#if recipe.description}
-			<p class="text-lg text-gray-600">{recipe.description}</p>
+	<header class="space-y-4">
+		<div class="flex justify-between items-start">
+			<div class="flex-1">
+				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
+				{#if recipe.description}
+					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
+				{/if}
+			</div>
+			<a href="/recetas/{recipe.id}/editar">
+				<Button variant="outline">Editar</Button>
+			</a>
+		</div>
+
+		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
+		{#if recipe.imageUrl}
+			<div class="w-full aspect-video rounded-lg overflow-hidden">
+				<img
+					src={recipe.imageUrl}
+					alt="Foto de {recipe.title}"
+					class="w-full h-full object-cover"
+				/>
+			</div>
 		{/if}
 	</header>
 
-	<!-- Información Nutricional -->
-	<Card>
-		<CardHeader>
-			<CardTitle>Información Nutricional</CardTitle>
-			<CardDescription>Valores totales para la receta completa.</CardDescription>
-		</CardHeader>
-		<CardContent>
-			<div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-					<p class="text-sm text-gray-600">Calorías (kcal)</p>
-				</div>
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-					<p class="text-sm text-gray-600">Proteínas</p>
-				</div>
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-					<p class="text-sm text-gray-600">Grasas</p>
-				</div>
-				<div>
-					<p class="font-bold text-2xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-					<p class="text-sm text-gray-600">Carbohidratos</p>
-				</div>
-			</div>
-		</CardContent>
-	</Card>
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+		<div class="md:col-span-2 space-y-8">
+			<!-- Pasos -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Preparación</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div class="prose max-w-none whitespace-pre-wrap">
+						{recipe.steps}
+					</div>
+				</CardContent>
+			</Card>
 
-	<!-- Ingredientes -->
-	<Card>
-		<CardHeader>
-			<CardTitle>Ingredientes</CardTitle>
-		</CardHeader>
-		<CardContent>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Nombre</TableHead>
-						<TableHead class="w-[150px] text-right">Cantidad</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{#each ingredientsList as ingredient}
-						<TableRow>
-							<TableCell>{ingredient.name}</TableCell>
-							<TableCell class="text-right">{ingredient.quantity} g</TableCell>
-						</TableRow>
-					{/each}
-				</TableBody>
-			</Table>
-		</CardContent>
-	</Card>
+			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
+			{#if recipe.urls && recipe.urls.length > 0}
+				<Card>
+					<CardHeader>
+						<CardTitle>Referencias</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ul class="list-disc pl-5 space-y-2">
+							{#each recipe.urls as ref}
+								<li>
+									<a
+										href={ref.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-blue-600 hover:underline"
+									>
+										{ref.url}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</CardContent>
+				</Card>
+			{/if}
+		</div>
 
-	<!-- Pasos -->
-	<Card>
-		<CardHeader>
-			<CardTitle>Preparación</CardTitle>
-		</CardHeader>
-		<CardContent>
-			<div class="prose max-w-none whitespace-pre-wrap">
-				{recipe.steps}
-			</div>
-		</CardContent>
-	</Card>
+		<div class="space-y-8">
+			<!-- Información Nutricional -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Información Nutricional</CardTitle>
+					<CardDescription>Valores totales para la receta.</CardDescription>
+				</CardHeader>
+				<CardContent class="grid grid-cols-2 gap-4">
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			<!-- Ingredientes -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Ingredientes</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Nombre</TableHead>
+								<TableHead class="text-right">Cantidad</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{#each ingredientsList as ingredient}
+								<TableRow>
+									<TableCell class="font-medium">{ingredient.name}</TableCell>
+									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
+								</TableRow>
+							{/each}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
+		</div>
+	</div>
 </div>

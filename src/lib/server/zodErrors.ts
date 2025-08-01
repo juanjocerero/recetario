@@ -2,23 +2,30 @@
 import type { ZodError } from 'zod';
 
 /**
- * Transforma un error de Zod en un objeto más simple,
- * mapeando los mensajes de error a cada campo que falló la validación.
- * @param error - El error de Zod.
- * @returns Un objeto donde cada clave es un campo y el valor es el primer mensaje de error para ese campo.
+ * Crea una respuesta de fallo estandarizada para las acciones de formulario de SvelteKit.
+ * Garantiza que el objeto devuelto siempre tenga la misma estructura.
+ *
+ * @param message - El mensaje de error general que se mostrará al usuario.
+ * @param error - (Opcional) Un error de Zod. Si se proporciona, se formateará
+ *                y se añadirá al campo `errors`.
+ * @returns Un objeto consistente para ser usado con `fail()`.
  */
-export function formatZodError(error: ZodError) {
-	const fieldErrors: Record<string, string | undefined> = {};
-	for (const issue of error.issues) {
-		if (issue.path.length > 0) {
-			const field = issue.path.join('.');
-			if (!fieldErrors[field]) {
-				fieldErrors[field] = issue.message;
+export function createFailResponse(message: string, error?: ZodError) {
+	const response: { message: string; errors: Record<string, string | undefined> } = {
+		message,
+		errors: {}
+	};
+
+	if (error) {
+		for (const issue of error.issues) {
+			if (issue.path.length > 0) {
+				const field = issue.path.join('.');
+				if (!response.errors[field]) {
+					response.errors[field] = issue.message;
+				}
 			}
 		}
 	}
-	return {
-		message: 'Validation failed',
-		errors: fieldErrors
-	};
+
+	return response;
 }

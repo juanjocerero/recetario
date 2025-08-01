@@ -3,7 +3,8 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { ingredientService } from '$lib/server/services/ingredientService';
 import { IngredientSchema } from '$lib/schemas/ingredientSchema';
 import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
 
 export const GET: RequestHandler = async () => {
 	try {
@@ -11,7 +12,8 @@ export const GET: RequestHandler = async () => {
 		return json(ingredients);
 	} catch (error) {
 		console.error('Error fetching ingredients:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
 
@@ -23,10 +25,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json(newIngredient, { status: 201 });
 	} catch (error) {
 		if (error instanceof ZodError) {
-			return json(formatZodError(error), { status: 400 });
+			// Justificación: Se usa la nueva utilidad para el error de validación.
+			return json(createFailResponse('La validación falló', error), { status: 400 });
 		}
 		console.error('Error creating ingredient:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
-
