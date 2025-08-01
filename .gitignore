@@ -26,3 +26,4 @@ vite.config.ts.timestamp-*
 # Resultados de tests
 playwright-report
 package-lock.json
+prisma/dev.db
