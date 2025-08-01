@@ -15,11 +15,25 @@ const OUTPUT_FILE = path.join(ROOT_DIR, 'bundle.txt');
 
 // Justificación: Exclusiones de seguridad para asegurar que nunca se incluyan
 // directorios sensibles o el propio fichero de salida en el bundle.
-const HARDCODED_EXCLUSIONS = ['node_modules/**', '.git/**', 'bundle.txt'];
+const HARDCODED_EXCLUSIONS = [
+	'node_modules/**', 
+	'.git/**', 
+	'bundle.txt', 
+	'static/**'
+];
 
 // Justificación: Campo personalizable para añadir ficheros o patrones glob
 // que se deseen excluir del bundle, como ficheros de lock o configuración.
-const CUSTOM_EXCLUSIONS = ['package-lock.json', '**/__pycache__/**'];
+const CUSTOM_EXCLUSIONS = [
+	'**/*.css',
+	'package-lock.json', 
+	'.env.example', 
+	'.gitignore',
+	'README.md',
+	'scripts/create-bundle.js',
+	'prisma/dev.db',
+	'**/__pycache__/**'
+];
 
 /**
  * Procesa el contenido de un fichero de código según el modo especificado.

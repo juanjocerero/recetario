@@ -1,7 +1,7 @@
 /* --- Bundle de Código Generado ---
  * Modo: full
- * Ficheros Incluidos: 93
- * Fecha: 2025-08-01T01:09:49.818Z
+ * Ficheros Incluidos: 85
+ * Fecha: 2025-08-01T01:16:50.670Z
  */
 
 // --- Ruta: vitest.config.ts ---
@@ -214,32 +214,6 @@ export default ts.config(
 	"registry": "https://shadcn-svelte.com/registry"
 }
 
-// --- Ruta: README.md ---
-# sv
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
-## Creating a project
-If you're seeing this, you've probably already done this step. Congrats!
-```sh
-# create a new project in the current directory
-npx sv create
-# create a new project in my-app
-npx sv create my-app
-```
-## Developing
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-```sh
-npm run dev
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-## Building
-To create a production version of your app:
-```sh
-npm run build
-```
-You can preview the production build with `npm run preview`.
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
-
 // --- Ruta: .prettierrc ---
 {
 	"useTabs": true,
@@ -270,45 +244,6 @@ bun.lockb
 
 // --- Ruta: .npmrc ---
 engine-strict=true
-
-// --- Ruta: .gitignore ---
-test-results
-node_modules
-# Output
-.output
-.vercel
-.netlify
-.wrangler
-/.svelte-kit
-/build
-# OS
-.DS_Store
-Thumbs.db
-# Env
-.env
-.env.*
-!.env.example
-!.env.test
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*package-lock.json
-# Resultados de tests
-playwright-report
-
-// --- Ruta: .env.example ---
-# Este fichero sirve como ejemplo y documentación de las variables de entorno necesarias.
-# No copies los valores de aquí directamente a producción.
-# Clave secreta para firmar los tokens de sesión (JWT).
-# Debe ser una cadena larga, aleatoria y segura.
-# Puedes generar una con: openssl rand -base64 32
-SESSION_SECRET=""
-# Contraseña del administrador hasheada con bcrypt.
-# Se genera una sola vez y se guarda aquí.
-# Puedes generar el hash con un script auxiliar.
-ADMIN_PASSWORD_HASH=""
-
-// --- Ruta: static/favicon.svg ---
-<svg xmlns="http://www.w3.org/2000/svg" width="107" height="128" viewBox="0 0 107 128"><title>svelte-logo</title><path d="M94.157 22.819c-10.4-14.885-30.94-19.297-45.792-9.835L22.282 29.608A29.92 29.92 0 0 0 8.764 49.65a31.5 31.5 0 0 0 3.108 20.231 30 30 0 0 0-4.477 11.183 31.9 31.9 0 0 0 5.448 24.116c10.402 14.887 30.942 19.297 45.791 9.835l26.083-16.624A29.92 29.92 0 0 0 98.235 78.35a31.53 31.53 0 0 0-3.105-20.232 30 30 0 0 0 4.474-11.182 31.88 31.88 0 0 0-5.447-24.116" style="fill:#ff3e00"/><path d="M45.817 106.582a20.72 20.72 0 0 1-22.237-8.243 19.17 19.17 0 0 1-3.277-14.503 18 18 0 0 1 .624-2.435l.49-1.498 1.337.981a33.6 33.6 0 0 0 10.203 5.098l.97.294-.09.968a5.85 5.85 0 0 0 1.052 3.878 6.24 6.24 0 0 0 6.695 2.485 5.8 5.8 0 0 0 1.603-.704L69.27 76.28a5.43 5.43 0 0 0 2.45-3.631 5.8 5.8 0 0 0-.987-4.371 6.24 6.24 0 0 0-6.698-2.487 5.7 5.7 0 0 0-1.6.704l-9.953 6.345a19 19 0 0 1-5.296 2.326 20.72 20.72 0 0 1-22.237-8.243 19.17 19.17 0 0 1-3.277-14.502 17.99 17.99 0 0 1 8.13-12.052l26.081-16.623a19 19 0 0 1 5.3-2.329 20.72 20.72 0 0 1 22.237 8.243 19.17 19.17 0 0 1 3.277 14.503 18 18 0 0 1-.624 2.435l-.49 1.498-1.337-.98a33.6 33.6 0 0 0-10.203-5.1l-.97-.294.09-.968a5.86 5.86 0 0 0-1.052-3.878 6.24 6.24 0 0 0-6.696-2.485 5.8 5.8 0 0 0-1.602.704L37.73 51.72a5.42 5.42 0 0 0-2.449 3.63 5.79 5.79 0 0 0 .986 4.372 6.24 6.24 0 0 0 6.698 2.486 5.8 5.8 0 0 0 1.602-.704l9.952-6.342a19 19 0 0 1 5.295-2.328 20.72 20.72 0 0 1 22.237 8.242 19.17 19.17 0 0 1 3.277 14.503 18 18 0 0 1-8.13 12.053l-26.081 16.622a19 19 0 0 1-5.3 2.328" style="fill:#fff"/></svg>
 
 // --- Ruta: src/demo.spec.ts ---
 import { describe, it, expect } from 'vitest';
@@ -346,123 +281,6 @@ declare global {
 }
 export {};
 
-// --- Ruta: src/app.css ---
-@import "tailwindcss";
-@import "tw-animate-css";
-@custom-variant dark (&:is(.dark *));
-:root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
-}
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
-}
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
 // --- Ruta: scripts/hash-password.js ---
 // Ruta: scripts/hash-password.js
 // Uso: node scripts/hash-password.js 'tu_contraseña_aqui'
@@ -478,185 +296,6 @@ hash(password, SALT_ROUNDS).then((hash) => {
 	console.log('Hash:', hash);
 	console.log('\nCopia este hash en tu fichero .env como ADMIN_PASSWORD_HASH');
 });
-
-// --- Ruta: scripts/create-bundle.js ---
-// Ruta: scripts/create-bundle.js
-// Justificación: Este script automatiza la creación de un "bundle" de texto plano
-// de toda la base de código. Es una herramienta de análisis útil que permite
-// ver todo el proyecto en un solo fichero, con opciones para limpiar el código
-// eliminando imports y comentarios, facilitando su estudio o procesamiento.
-import { promises as fs } from 'fs';
-import path from 'path';
-import { glob } from 'glob';
-import ignore from 'ignore';
-const ROOT_DIR = process.cwd();
-const GITIGNORE_PATH = path.join(ROOT_DIR, '.gitignore');
-const OUTPUT_FILE = path.join(ROOT_DIR, 'bundle.txt');
-// Justificación: Exclusiones de seguridad para asegurar que nunca se incluyan
-// directorios sensibles o el propio fichero de salida en el bundle.
-const HARDCODED_EXCLUSIONS = ['node_modules/**', '.git/**', 'bundle.txt'];
-// Justificación: Campo personalizable para añadir ficheros o patrones glob
-// que se deseen excluir del bundle, como ficheros de lock o configuración.
-const CUSTOM_EXCLUSIONS = ['package-lock.json', '**/__pycache__/**'];
-/**
- * Procesa el contenido de un fichero de código según el modo especificado.
- * @param {string} content - El contenido del fichero.
- * @param {'full' | 'no-imports' | 'no-comments'} mode - El modo de procesamiento.
- * @returns {string} El contenido procesado.
- */
-function processContent(content, mode) {
-	let processedContent = content;
-	if (mode === 'no-imports' || mode === 'no-comments') {
-		// Justificación: Expresión regular para eliminar líneas de import.
-		// Es multilínea (m) para que `^` coincida con el inicio de cada línea.
-		processedContent = processedContent.replace(/^import.*?;?$/gm, '');
-	}
-	if (mode === 'no-comments') {
-		// Justificación: Expresiones regulares para eliminar comentarios de una línea y de bloque.
-		processedContent = processedContent.replace(/\/\/.*/g, ''); // Comentarios de una línea
-		processedContent = processedContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Comentarios de bloque
-	}
-	// Eliminar líneas vacías múltiples para un resultado más limpio.
-	return processedContent.replace(/^\s*[\r\n]/gm, '').trim();
-}
-async function createBundle() {
-	console.log('Iniciando la creación del bundle de código...');
-	// --- 1. Parsear argumentos de la línea de comandos ---
-	const args = process.argv.slice(2);
-	const modeArg = args.find((arg) => arg.startsWith('--mode='));
-	const mode = modeArg ? modeArg.split('=')[1] : 'full';
-	if (!['full', 'no-imports', 'no-comments'].includes(mode)) {
-		console.error(
-			`Modo inválido: "${mode}". Los modos válidos son: full, no-imports, no-comments.`
-		);
-		process.exit(1);
-	}
-	console.log(`Modo seleccionado: ${mode}`);
-	try {
-		// --- 2. Leer .gitignore y preparar el filtro ---
-		const gitignoreContent = await fs.readFile(GITIGNORE_PATH, 'utf-8');
-		const ig = ignore()
-			.add(gitignoreContent)
-			.add(HARDCODED_EXCLUSIONS.join('\n'))
-			.add(CUSTOM_EXCLUSIONS.join('\n'));
-		// --- 3. Encontrar todos los ficheros y filtrarlos ---
-		const allFiles = await glob('**/*', { nodir: true, dot: true, cwd: ROOT_DIR });
-		const filteredFiles = allFiles.filter((file) => !ig.ignores(file));
-		console.log(`Se encontraron ${filteredFiles.length} ficheros para incluir en el bundle.`);
-		// --- 4. Procesar cada fichero y construir el bundle ---
-		let bundleContent = `/* --- Bundle de Código Generado ---
- * Modo: ${mode}
- * Ficheros Incluidos: ${filteredFiles.length}
- * Fecha: ${new Date().toISOString()}
- */\n\n`;
-		for (const file of filteredFiles) {
-			const filePath = path.join(ROOT_DIR, file);
-			try {
-				const content = await fs.readFile(filePath, 'utf-8');
-				const processed = processContent(content, mode);
-				if (processed) {
-					bundleContent += `// --- Ruta: ${file} ---\n`;
-					bundleContent += processed;
-					bundleContent += '\n\n';
-				}
-			} catch (error) {
-				// Ignorar errores de lectura (ej. ficheros binarios)
-				if (error.code !== 'ENOENT') {
-					console.warn(`- Omitiendo fichero (no es texto plano): ${file}`);
-				}
-			}
-		}
-		// --- 5. Escribir el fichero final ---
-		await fs.writeFile(OUTPUT_FILE, bundleContent);
-		console.log(`\n¡Éxito! El bundle ha sido creado en: ${OUTPUT_FILE}`);
-	} catch (error) {
-		console.error('\nOcurrió un error durante la creación del bundle:', error);
-		process.exit(1);
-	}
-}
-createBundle();
-
-// --- Ruta: scripts/backfill-normalized-names.js ---
-// Ruta: scripts/backfill-normalized-names.js
-// Justificación: Versión de depuración del script.
-// Se añade logging detallado para imprimir los valores que se están comparando.
-// Esto es para diagnosticar por qué el script no está actualizando los registros
-// cuando se espera que lo haga.
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
-function normalizeText(text) {
-	if (!text) return '';
-	return text
-		.toLowerCase()
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '');
-}
-async function backfillCustomIngredients() {
-	console.log('\n--- Iniciando backfill para CustomIngredient ---');
-	const ingredients = await prisma.customIngredient.findMany();
-	if (ingredients.length === 0) {
-		console.log('No hay ingredientes personalizados para procesar.');
-		return;
-	}
-	console.log(`Se encontraron ${ingredients.length} ingredientes personalizados. Analizando...`);
-	let updatedCount = 0;
-	for (const ingredient of ingredients) {
-		const calculatedNormalizedName = normalizeText(ingredient.name);
-		console.log(`\n> Procesando: "${ingredient.name}" (ID: ${ingredient.id})`);
-		console.log(`  - DB normalizedName:     '${ingredient.normalizedName}'`);
-		console.log(`  - Calculado normalizedName: '${calculatedNormalizedName}'`);
-		console.log(`  - ¿Son diferentes?:      ${ingredient.normalizedName !== calculatedNormalizedName}`);
-		if (ingredient.normalizedName !== calculatedNormalizedName) {
-			await prisma.customIngredient.update({
-				where: { id: ingredient.id },
-				data: { normalizedName: calculatedNormalizedName }
-			});
-			console.log(`  - ¡ACTUALIZADO!`);
-			updatedCount++;
-		}
-	}
-	console.log(`\nTotal de ingredientes personalizados actualizados: ${updatedCount}`);
-}
-async function backfillProductCache() {
-	console.log('\n--- Iniciando backfill para ProductCache ---');
-	const products = await prisma.productCache.findMany();
-	if (products.length === 0) {
-		console.log('No hay productos en caché para procesar.');
-		return;
-	}
-	console.log(`Se encontraron ${products.length} productos en caché. Analizando...`);
-	let updatedCount = 0;
-	for (const product of products) {
-		const calculatedNormalizedName = normalizeText(product.productName);
-        console.log(`\n> Procesando: "${product.productName}" (ID: ${product.id})`);
-		console.log(`  - DB normalizedProductName:     '${product.normalizedProductName}'`);
-		console.log(`  - Calculado normalizedName: '${calculatedNormalizedName}'`);
-		console.log(`  - ¿Son diferentes?:      ${product.normalizedProductName !== calculatedNormalizedName}`);
-		if (product.normalizedProductName !== calculatedNormalizedName) {
-			await prisma.productCache.update({
-				where: { id: product.id },
-				data: { normalizedProductName: calculatedNormalizedName }
-			});
-			console.log(`  - ¡ACTUALIZADO!`);
-			updatedCount++;
-		}
-	}
-	console.log(`\nTotal de productos en caché actualizados: ${updatedCount}`);
-}
-async function main() {
-	console.log('Iniciando proceso de backfill para todos los modelos normalizados (MODO DEBUG).');
-	try {
-		await backfillCustomIngredients();
-		await backfillProductCache();
-		console.log('\nProceso de backfill completado con éxito.');
-	} catch (error) {
-		console.error('Ocurrió un error durante el proceso de backfill:', error);
-		process.exit(1);
-	} finally {
-		await prisma.$disconnect();
-	}
-}
-main();
 
 // --- Ruta: prisma/schema.prisma ---
 // Ruta: prisma/schema.prisma
@@ -715,106 +354,6 @@ model RecipeIngredient {
   customIngredientId String?
   quantity           Float             // En gramos
 }
-
-// --- Ruta: prisma/dev.db ---
-SQLite format 3   @     �                                                             � .zp$ W��
-Q
-�W
-6�dWOO                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              �x�t--�tablenew_ProductCachenew_ProductCacheCREATE TABLE "ProductCache" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "productName" TEXT NOT NULL,
-    "normalizedProductName" TEXT NOT NULL DEFAULT '',
-    "brand" TEXT,
-    "imageUrl" TEXT,
-    "calories" REAL,
-    "fat" REAL,
-    "protein" REAL,
-    "carbs" REAL,
-    "fullPayload" JSONB,
-    "updatedAt" DATETIME NOT NULL
-)?S- 7K% indexsqlite_autoindex_ProductCache_1ProductCache�?-�'indexCustomIngredient_name_keyCustomIngredientCREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name")?S- indexsqlite_autoindex_CustomIngredient_1CustomIngredient�6	--�tableRecipeIngredientRecipeIngredient
-CREATE TABLE "RecipeIngredient" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "recipeId" TEXT NOT NULL,
-    "productCacheId" TEXT,
-    "customIngredientId" TEXT,
-    "quantity" REAL NOT NULL,
-    CONSTRAINT "RecipeIngredient_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "RecipeIngredient_productCacheId_fkey" FOREIGN KEY ("productCacheId") REFERENCES "ProductCache" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "RecipeIngredient_customIngredientId_fkey" FOREIGN KEY ("customIngredientId") REFERENCES "CustomIngredient" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-)?
-S- indexsqlite_autoindex_RecipeIngredient_1RecipeIngredient�#�!tableRecipeRecipeCREATE TABLE "Recipe" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "steps" TEXT NOT NULL
-)+? indexsqlite_autoindex_Recipe_1Recipe	� --�+     �+--�	tableCustomIngredientCustomIngredientCREATE TABLE "CustomIngredient" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "name" TEXT NOT NULL,
-    "normalizedName" TEXT NOT NULL DEFAULT '',
-    "calories" REAL NOT NULL,
-    "fat" REAL NOT NULL,
-    "protein" REAL NOT NULL,
-    "carbs" REAL NOT NULL
-)�l%%�tableProductCacheProductCacheCREATE TABLE "ProductCache" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "productName" TEXT NOT NULL,
-    "normalizedProductName" TEXT NOT NULL DEFAULT '',
-    "brand" TEXT,
-    "imageUrl" TEXT,
-    "calories" REAL,
-    "fat" REAL,
-    "protein" REAL,
-    "carbs" REAL,
-    "fullPayload" JSONB,
-    "updatedAt" DATETIME NOT NULL
-)he�Z11�_table_prisma_migrations_prisma_migrationsCREATE TABLE "_prisma_migrations" (
-    "id"                    TEXT PRIMARY KEY NOT NULL,
-    "checksum"              TEXT NOT NULL,
-    "finished_at"           DATETIME,
-    "migration_name"        TEXT NOT NULL,
-    "logs"                  TEXT,
-    "rolled_back_at"        DATETIME,
-    "started_at"            DATETIME NOT NULL DEFAULT current_timestamp,
-    "applied_steps_count"   INTEGER UNSIGNED NOT NULL DEFAULT 0
-)CW1 indexsqlite_autoindex__prisma_migrations_1_prisma_migrations          � p�                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    �
-U�S  	415eb059-e236-4e6a-b10a-88f7d953555b83de8a61c4d746391234ad877f0ed8ad4aff9dfd7ced732f6dd2beaafc11dc6d�a��20250731184218_add_normalized_names�a����
-U�3  	9c7e203a-4177-409a-8970-5ebf01e08461013ee46b8bb3d8de608daffe3bcb833395b0b21a7efc072a7df5de9a71c9c99c�\�C�20250730185406_init�\�C�
-   � ��                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   (U415eb059-e236-4e6a-b10a-88f7d953555b'U	9c7e203a-4177-409a-8970-5ebf01e08461                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-n ` ��`����x                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        Karagarga
-   
-Tofu T;Tofu Test 1754009819837%OTofu Test 1754004001695 (Editado)
-TelitaCarrizo	Arroz;Tofu Test 1754002947557	Pollo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 � �zP!�#�%�'�                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }?S�cmds42ip00018iybnvbs9dk8nPollo con Arroz E2E - 17540096527331. Cocer el arroz.
-2. Freír el pollo.
-3. Mezclar y servir.}
-?S�cmds409y20011iybn738crmwbPollo con Arroz E2E - 17540095637871. Cocer el arroz.
-2. Freír el pollo.
-3. Mezclar y servir.}	?S�cmds3wxa8000siybnagcanwi1Pollo con Arroz E2E - 17540094078611. Cocer el arroz.
-2. Freír el pollo.
-3. Mezclar y servir.}?S�cmds3pzsr000liybnht4qmynpPollo con Arroz E2E - 17540090773181. Cocer el arroz.
-2. Freír el pollo.
-3. Mezclar y servir.}?S�cmds3j4cn000ciybn98zcldu1Pollo con Arroz E2E - 17540087536621. Cocer el arroz.
-2. Freír el pollo.
-3. Mezclar y servir.}?S�cmds3ij2j0006iybn9j5slyw8Pollo con Arroz E2E - 17540087311141. Cocer el arroz.
-2. Freír el pollo.
-3. Mezclar y servir.}?S�cmds287rt000kiyg1kqlhfg45Pollo con Arroz E2E - 17540065744291. Cocer el arroz.
-2. Freír el pollo.
-3. Mezclar y servir.-?cmds1ocnh0004iyg1g9lpaqi3PericaKakoasdas(?cmds1fv0v0000iy2sy31r0pvrsdaafsafsd;?1cmds0nxa6000eiy99p787v3ugkochinkisss1. asd
-3232. asdasG?1/cmds0m3v30009iy998sg69qnqPerico con palotesparica1. Comer
-2. Comer
-   � ����kM/���                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ?cmds42ip00018iybnvbs9dk8n?cmds409y20011iybn738crmwb
-?cmds3wxa8000siybnagcanwi1	?cmds3pzsr000liybnht4qmynp?cmds3j4cn000ciybn98zcldu1?cmds3ij2j0006iybn9j5slyw8?cmds287rt000kiyg1kqlhfg45?cmds1ocnh0004iyg1g9lpaqi3?cmds1fv0v0000iy2sy31r0pvr?cmds0nxa6000eiy99p787v3ug?	cmds0m3v30009iy998sg69qnq   � �X�Z�[�\�]
-�
-^
-		�	_	
-�                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 S?? ?cmds42ip1001ciybnu7hrtldpcmds42ip00018iybnvbs9dk8ncmds06jdk0004iy993y0drwv4 �S?? ?cmds42ip1001aiybn44nov387cmds42ip00018iybnvbs9dk8ncmds02k8k0002iy998azti7ch �S?? ?cmds409y40015iybnpno6ow6dcmds409y20011iybn738crmwbcmds06jdk0004iy993y0drwv4 �S?? ?cmds409y30013iybnllsfpux3cmds409y20011iybn738crmwbcmds02k8k0002iy998azti7ch �S?? ?cmds3wxaa000wiybnvv1asuzmcmds3wxa8000siybnagcanwi1cmds06jdk0004iy993y0drwv4 �S?? ?cmds3wxaa000uiybn4wtumi0lcmds3wxa8000siybnagcanwi1cmds02k8k0002iy998azti7ch �S?? ?cmds3pzst000piybnpcaqjb0bcmds3pzsr000liybnht4qmynpcmds06jdk0004iy993y0drwv4 �S?? ?cmds3pzss000niybnt8nwx0zjcmds3pzsr000liybnht4qmynpcmds02k8k0002iy998azti7ch �S?? ?cmds3j4co000giybnfp8vhpxmcmds3j4cn000ciybn98zcldu1cmds06jdk0004iy993y0drwv4 �S?? ?cmds3j4co000eiybnjaly74picmds3j4cn000ciybn98zcldu1cmds02k8k0002iy998azti7ch �S?? ?cmds3ij2k000aiybnhq6gxvjycmds3ij2j0006iybn9j5slyw8cmds06jdk0004iy993y0drwv4 �S?? ?cmds3ij2k0008iybnmfqm8eqpcmds3ij2j0006iybn9j5slyw8cmds02k8k0002iy998azti7ch �S
-?? ?cmds287rv000oiyg1uha1uzvxcmds287rt000kiyg1kqlhfg45cmds06jdk0004iy993y0drwv4 �S	?? ?cmds287ru000miyg127rnomb8cmds287rt000kiyg1kqlhfg45cmds02k8k0002iy998azti7ch �S?? ?cmds1ohup000eiyg1jb1w4skocmds1ocnh0004iyg1g9lpaqi3cmds06jdk0004iy993y0drwv4,S?? ?cmds1ohup000ciyg1ivtjjpzocmds1ocnh0004iyg1g9lpaqi3cmds02k8k0002iy998azti7ch �S?? ?cmds1ni2a0003iyg11dxniwrucmds1fv0v0000iy2sy31r0pvrcmds06jdk0004iy993y0drwv4 �S?? ?cmds1ni2a0001iyg1q5cl78gacmds1fv0v0000iy2sy31r0pvrcmds02k8k0002iy998azti7ch�S?? ?cmds0onqm000oiy99liw26dszcmds0nxa6000eiy99p787v3ugcmds06jdk0004iy993y0drwv4,R?? ?cmds0onql000miy99hcs6ycgecmds0nxa6000eiy99p787v3ugcmds02k8k0002iy998azti7chdR?? ?cmds0m3v5000diy99r6ujb7imcmds0m3v30009iy998sg69qnqcmds06jdk0004iy993y0drwv4dR?? ?cmds0m3v4000biy990pttipsrcmds0m3v30009iy998sg69qnqcmds02k8k0002iy998azti7ch2
-   m ����kM/����{]?!����m                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ?cmds42ip1001ciybnu7hrtldp?cmds42ip1001aiybn44nov387?cmds409y40015iybnpno6ow6d?cmds409y30013iybnllsfpux3?cmds3wxaa000wiybnvv1asuzm?cmds3wxaa000uiybn4wtumi0l?cmds3pzst000piybnpcaqjb0b?cmds3pzss000niybnt8nwx0zj?cmds3j4co000giybnfp8vhpxm?cmds3j4co000eiybnjaly74pi?cmds3ij2k000aiybnhq6gxvjy?cmds3ij2k0008iybnmfqm8eqp?cmds287rv000oiyg1uha1uzvx
-?cmds287ru000miyg127rnomb8	?cmds1ohup000eiyg1jb1w4sko?cmds1ohup000ciyg1ivtjjpzo?cmds1ni2a0003iyg11dxniwru?cmds1ni2a0001iyg1q5cl78ga?cmds0onqm000oiy99liw26dsz?cmds0onql000miy99hcs6ycge?cmds0m3v5000diy99r6ujb7im?	cmds0m3v4000biy990pttipsr
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     %OTofu Test 1753924914644 (Editado)%OTofu Test 1753924604092 $O	Tofu Test 1753980857036 (Editado)� w �k+w�X��                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               4?cmds0fjbd0007iy99dij6zaj9Carrizocarrizooa8
-?cmds1qo6x000giyg1zyrnh7nnKaragargakaragarga,� OOcmds43zs60[?;;cmds45vjs001eiybn21gbrwmjTofu Test 1754009819837tofu test 1754009819837 �	@      o?OOcmds0p5s4000piy99f9rxsg5lTofu Test 1754004001695 (Editado)tofu test 1754004001695 (editado) �	@      .?			cmds0kgge0008iy99x87gnwntTelitatelita   2			cmds0fjbd0007iy99dij6zaj9Carrizocarrizo>?cmds06jdk0004iy993y0drwv4Arrozarroz �?�333333@������ [?;;cmds02kfk0003iy99yfebwq5jTofu Test 1754002947557tofu test 1754002947557 �	@      6?cmds02k8k0002iy998azti7chPollopollo �@������
-    ���M�k/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ?cmds1qo6x000giyg1zyrnh7nn
-?cmds45vjs001eiybn21gbrwmj?cmds0fjbd0007iy99dij6zaj9?cmds0p5s4000piy99f9rxsg5l?cmds0kgge0008iy99x87gnwnt?cmds06jdk0004iy993y0drwv4?cmds02kfk0003iy99yfebwq5j?	cmds02k8k0002iy998azti7ch
 
 // --- Ruta: src/routes/+page.svelte ---
 <h1>Welcome to SvelteKit</h1>
@@ -2405,131 +1944,6 @@ describe('ingredientService', () => {
 	// Aquí se podrían añadir más tests para getAll, update y deleteById...
 });
 
-// --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
-// Ruta: src/routes/api/recipes/[id]/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { recipeService } from '$lib/server/services/recipeService';
-import { RecipeSchema } from '$lib/schemas/recipeSchema';
-import { ZodError } from 'zod';
-import { formatZodError } from '$lib/server/zodErrors';
-/**
- * Maneja las peticiones GET para obtener una receta por su ID.
- */
-export const GET: RequestHandler = async ({ params }) => {
-	try {
-		const recipe = await recipeService.getById(params.id);
-		if (!recipe) {
-			return json({ message: 'Receta no encontrada' }, { status: 404 });
-		}
-		return json(recipe);
-	} catch (error) {
-		console.error(`Error fetching recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-/**
- * Maneja las peticiones PUT para actualizar una receta.
- */
-export const PUT: RequestHandler = async ({ request, params }) => {
-	try {
-		const body = await request.json();
-		const validatedData = RecipeSchema.parse(body);
-		const updatedRecipe = await recipeService.update(params.id, validatedData);
-		if (!updatedRecipe) {
-			return json({ message: 'Receta no encontrada para actualizar' }, { status: 404 });
-		}
-		return json(updatedRecipe);
-	} catch (error) {
-		if (error instanceof ZodError) {
-			return json(formatZodError(error), { status: 400 });
-		}
-		console.error(`Error updating recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-/**
- * Maneja las peticiones DELETE para eliminar una receta.
- */
-export const DELETE: RequestHandler = async ({ params }) => {
-	try {
-		await recipeService.deleteById(params.id);
-		return new Response(null, { status: 204 }); // 204 No Content
-	} catch (error) {
-		// Podríamos verificar si el error es porque el registro no existe (P2025 en Prisma)
-		console.error(`Error deleting recipe ${params.id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/ingredients/search/+server.ts ---
-// Ruta: src/routes/api/ingredients/search/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import prisma from '$lib/server/prisma';
-import { normalizeText } from '$lib/utils';
-// Justificación: Este endpoint es crucial para la UX del formulario de recetas.
-// Permite una búsqueda de texto (usando 'contains' case-insensitive)
-// contra los ingredientes personalizados y los productos en caché,
-// devolviendo una lista unificada que el frontend puede mostrar como sugerencias.
-export const GET: RequestHandler = async ({ url }) => {
-	const query = url.searchParams.get('q');
-	// Justificación (Validación): Se requiere un query y que tenga una longitud mínima
-	// para evitar búsquedas vacías o excesivamente amplias que sobrecarguen la base de datos.
-	if (!query || query.length < 3) {
-		return json(
-			{ message: 'Se requiere un término de búsqueda de al menos 3 caracteres.' },
-			{ status: 400 }
-		);
-	}
-	// Justificación: Normalizamos el término de búsqueda del usuario de la misma forma
-	// que normalizamos los datos en la DB. Esto es clave para que la búsqueda
-	// insensible a acentos funcione correctamente.
-	const normalizedQuery = normalizeText(query);
-	try {
-		// Justificación (Búsqueda paralela): Ejecutamos ambas búsquedas en paralelo
-		// con Promise.all para minimizar la latencia de la respuesta.
-		const [customIngredients, cachedProducts] = await Promise.all([
-			prisma.customIngredient.findMany({
-				where: {
-					normalizedName: {
-						contains: normalizedQuery
-					}
-				},
-				take: 20, // Limitar el número de resultados por rendimiento
-				select: { id: true, name: true }
-			}),
-			prisma.productCache.findMany({
-				where: {
-					normalizedProductName: {
-						contains: normalizedQuery
-					}
-				},
-				take: 20,
-				select: { id: true, productName: true }
-			})
-		]);
-		// Justificación (Formato Unificado): Mapeamos los resultados de ambas tablas
-		// a un formato consistente. El campo 'type' es esencial para que el frontend
-		// sepa cómo manejar cada ingrediente al añadirlo a la receta.
-		const formattedCustom = customIngredients.map((ing) => ({
-			id: ing.id,
-			name: ing.name,
-			type: 'custom' as const
-		}));
-		const formattedProducts = cachedProducts.map((prod) => ({
-			id: prod.id,
-			name: prod.productName,
-			type: 'product' as const
-		}));
-		const results = [...formattedCustom, ...formattedProducts];
-		return json(results);
-	} catch (error) {
-		console.error('Error searching ingredients:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
 // --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
 <!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
 <script lang="ts">
@@ -2816,6 +2230,131 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		recipe
 	};
+};
+
+// --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
+// Ruta: src/routes/api/recipes/[id]/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { ZodError } from 'zod';
+import { formatZodError } from '$lib/server/zodErrors';
+/**
+ * Maneja las peticiones GET para obtener una receta por su ID.
+ */
+export const GET: RequestHandler = async ({ params }) => {
+	try {
+		const recipe = await recipeService.getById(params.id);
+		if (!recipe) {
+			return json({ message: 'Receta no encontrada' }, { status: 404 });
+		}
+		return json(recipe);
+	} catch (error) {
+		console.error(`Error fetching recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones PUT para actualizar una receta.
+ */
+export const PUT: RequestHandler = async ({ request, params }) => {
+	try {
+		const body = await request.json();
+		const validatedData = RecipeSchema.parse(body);
+		const updatedRecipe = await recipeService.update(params.id, validatedData);
+		if (!updatedRecipe) {
+			return json({ message: 'Receta no encontrada para actualizar' }, { status: 404 });
+		}
+		return json(updatedRecipe);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(formatZodError(error), { status: 400 });
+		}
+		console.error(`Error updating recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones DELETE para eliminar una receta.
+ */
+export const DELETE: RequestHandler = async ({ params }) => {
+	try {
+		await recipeService.deleteById(params.id);
+		return new Response(null, { status: 204 }); // 204 No Content
+	} catch (error) {
+		// Podríamos verificar si el error es porque el registro no existe (P2025 en Prisma)
+		console.error(`Error deleting recipe ${params.id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/search/+server.ts ---
+// Ruta: src/routes/api/ingredients/search/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import prisma from '$lib/server/prisma';
+import { normalizeText } from '$lib/utils';
+// Justificación: Este endpoint es crucial para la UX del formulario de recetas.
+// Permite una búsqueda de texto (usando 'contains' case-insensitive)
+// contra los ingredientes personalizados y los productos en caché,
+// devolviendo una lista unificada que el frontend puede mostrar como sugerencias.
+export const GET: RequestHandler = async ({ url }) => {
+	const query = url.searchParams.get('q');
+	// Justificación (Validación): Se requiere un query y que tenga una longitud mínima
+	// para evitar búsquedas vacías o excesivamente amplias que sobrecarguen la base de datos.
+	if (!query || query.length < 3) {
+		return json(
+			{ message: 'Se requiere un término de búsqueda de al menos 3 caracteres.' },
+			{ status: 400 }
+		);
+	}
+	// Justificación: Normalizamos el término de búsqueda del usuario de la misma forma
+	// que normalizamos los datos en la DB. Esto es clave para que la búsqueda
+	// insensible a acentos funcione correctamente.
+	const normalizedQuery = normalizeText(query);
+	try {
+		// Justificación (Búsqueda paralela): Ejecutamos ambas búsquedas en paralelo
+		// con Promise.all para minimizar la latencia de la respuesta.
+		const [customIngredients, cachedProducts] = await Promise.all([
+			prisma.customIngredient.findMany({
+				where: {
+					normalizedName: {
+						contains: normalizedQuery
+					}
+				},
+				take: 20, // Limitar el número de resultados por rendimiento
+				select: { id: true, name: true }
+			}),
+			prisma.productCache.findMany({
+				where: {
+					normalizedProductName: {
+						contains: normalizedQuery
+					}
+				},
+				take: 20,
+				select: { id: true, productName: true }
+			})
+		]);
+		// Justificación (Formato Unificado): Mapeamos los resultados de ambas tablas
+		// a un formato consistente. El campo 'type' es esencial para que el frontend
+		// sepa cómo manejar cada ingrediente al añadirlo a la receta.
+		const formattedCustom = customIngredients.map((ing) => ({
+			id: ing.id,
+			name: ing.name,
+			type: 'custom' as const
+		}));
+		const formattedProducts = cachedProducts.map((prod) => ({
+			id: prod.id,
+			name: prod.productName,
+			type: 'product' as const
+		}));
+		const results = [...formattedCustom, ...formattedProducts];
+		return json(results);
+	} catch (error) {
+		console.error('Error searching ingredients:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
 };
 
 // --- Ruta: src/routes/api/ingredients/[id]/+server.ts ---
