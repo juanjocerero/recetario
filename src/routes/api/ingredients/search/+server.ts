@@ -9,86 +9,93 @@ type OffProduct = {
 	image_front_small_url?: string;
 };
 
-export const GET: RequestHandler = async ({ url, fetch }) => {
-	try {
-		const query = url.searchParams.get('q');
+export const GET: RequestHandler = ({ url, fetch }) => {
+	const query = url.searchParams.get('q');
 
-		if (!query) {
-			return json({ error: 'Query parameter "q" is required' }, { status: 400 });
-		}
+	if (!query) {
+		return json({ error: 'Query parameter "q" is required' }, { status: 400 });
+	}
 
-		// 1. Búsqueda local y externa en paralelo para mayor eficiencia
-		const localSearchPromise = ingredientService.searchByName(query);
+	const stream = new ReadableStream({
+		async start(controller) {
+			const localIds = new Set<string>();
 
-		// Justificación: Se realizan búsquedas para ambas marcas en paralelo.
-		const brands = ['Mercadona', 'Hacendado'];
-		const offSearchPromises = brands.map((brand) => {
-			const offQuery = `${query} ${brand}`;
-			const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-				offQuery
-			)}&search_simple=1&action=process&json=1&page_size=10`; // Limitar a 10 por marca
-			return fetch(offUrl).then((res) => res.json()) as Promise<{ products: OffProduct[] }>;
-		});
+			// Función para enviar datos al stream
+			const send = (data: any) => {
+				controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
+			};
 
-		const [localResultsData, ...offResponses] = await Promise.all([
-			localSearchPromise,
-			...offSearchPromises
-		]);
+			try {
+				// 1. Búsqueda local (rápida)
+				const { customIngredients, cachedProducts } = await ingredientService.searchByName(query);
+				const localResults = [
+					...customIngredients.map((i) => ({
+						id: i.id,
+						name: i.name,
+						source: 'local' as const,
+						imageUrl: null
+					})),
+					...cachedProducts.map((p) => ({
+						id: p.id,
+						name: p.name,
+						source: 'local' as const,
+						imageUrl: p.imageUrl
+					}))
+				];
 
-		const { customIngredients, cachedProducts } = localResultsData;
+				if (localResults.length > 0) {
+					localResults.forEach((r) => localIds.add(r.id));
+					send(localResults);
+				}
 
-		// 2. Mapear resultados locales a un formato estándar
-		const localResults = [
-			...customIngredients.map((i) => ({
-				id: i.id,
-				name: i.name,
-				source: 'local' as const,
-				imageUrl: null
-			})),
-			...cachedProducts.map((p) => ({
-				id: p.id,
-				name: p.name,
-				source: 'local' as const,
-				imageUrl: p.imageUrl
-			}))
-		];
+				// 2. Búsquedas externas (lentas)
+				const brands = ['Mercadona', 'Hacendado'];
+				const offSearchPromises = brands.map((brand) => {
+					const offQuery = `${query} ${brand}`;
+					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+						offQuery
+					)}&search_simple=1&action=process&json=1&page_size=10`;
+					
+					return fetch(offUrl)
+						.then((res) => res.json() as Promise<{ products: OffProduct[] }>)
+						.then(response => {
+							const offProducts = response.products || [];
+							const uniqueOffProducts = offProducts
+								.filter(p => p.code && !localIds.has(p.code))
+								.map(p => {
+									localIds.add(p.code); // Asegurar desduplicación entre streams
+									return {
+										id: p.code,
+										name: p.product_name,
+										source: 'off' as const,
+										imageUrl: p.image_front_small_url || null
+									};
+								});
+							
+							if (uniqueOffProducts.length > 0) {
+								send(uniqueOffProducts);
+							}
+						})
+						.catch(err => console.error(`Error fetching ${brand}:`, err));
+				});
 
-		const localIds = new Set(localResults.map((r) => r.id));
+				await Promise.all(offSearchPromises);
 
-		// 3. Combinar y desduplicar resultados de OFF
-		const allOffProducts = offResponses.flatMap((response) => response.products || []);
-		const uniqueOffProducts = new Map<string, OffProduct>();
-		for (const product of allOffProducts) {
-			if (product.code && !uniqueOffProducts.has(product.code)) {
-				uniqueOffProducts.set(product.code, product);
+			} catch (error) {
+				console.error('[Search Stream Error]', error);
+				const errorMessage = error instanceof Error ? error.message : 'Unknown stream error';
+				controller.enqueue(`error: ${JSON.stringify({ message: errorMessage })}\n\n`);
+			} finally {
+				controller.close();
 			}
 		}
+	});
 
-		// 4. Mapear resultados de OFF, excluyendo los que ya tenemos en local
-		const offResults = Array.from(uniqueOffProducts.values())
-			.filter((p) => !localIds.has(p.code)) // Excluir duplicados locales
-			.map((p) => ({
-				id: p.code,
-				name: p.product_name,
-				source: 'off' as const,
-				imageUrl: p.image_front_small_url || null
-			}));
-
-		// 5. Combinar y devolver
-		const finalResults = [...localResults, ...offResults];
-
-		return json(finalResults);
-	} catch (error) {
-		console.error('[Search API Error]', error);
-		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-		const errorStack = error instanceof Error ? error.stack : undefined;
-		return json(
-			{
-				error: 'Error interno en la búsqueda de ingredientes.',
-				details: errorMessage,
-				stack: errorStack // Importante para depuración
-			},
-			{ status: 500 }
-		);
-	}
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		}
+	});
 };
