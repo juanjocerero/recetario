@@ -3,12 +3,13 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import prisma from '$lib/server/prisma';
 import ky from 'ky';
 import { productService } from './productService';
-import type { Prisma, ProductCache } from '@prisma/client';
+import type { Prisma, Product } from '@prisma/client';
+import { normalizeText } from '$lib/utils';
 
 // Justificación: Mockeamos los módulos externos para aislar nuestro servicio.
 vi.mock('$lib/server/prisma', () => ({
 	default: {
-		productCache: {
+		product: {
 			findUnique: vi.fn(),
 			create: vi.fn()
 		}
@@ -21,8 +22,13 @@ vi.mock('ky', () => ({
 	}
 }));
 
+vi.mock('$lib/utils', () => ({
+	normalizeText: vi.fn((text) => text.toLowerCase())
+}));
+
 const mockedPrisma = prisma;
 const mockedKy = ky;
+const mockedNormalizeText = normalizeText as Mock;
 
 // Definimos los tipos aquí para que el test sea autocontenido.
 type OpenFoodFactsProduct = {
@@ -49,16 +55,18 @@ describe('productService', () => {
 	});
 
 	const barcode = '123456789';
-	const cachedProduct: ProductCache = {
+	const cachedProduct: Product = {
 		id: barcode,
-		productName: 'Producto en Caché',
+		name: 'Producto en Caché',
+		normalizedName: 'producto en caché',
 		brand: 'Marca Caché',
 		imageUrl: 'http://cache.com/img.png',
 		calories: 100,
 		fat: 10,
 		protein: 5,
 		carbs: 20,
-		fullPayload: {} as Prisma.JsonObject,
+		fullPayload: {} as Prisma.JsonValue,
+		createdAt: new Date(),
 		updatedAt: new Date()
 	};
 
@@ -81,61 +89,69 @@ describe('productService', () => {
 	};
 
 	it('debería devolver un producto de la caché si existe (Cache Hit)', async () => {
-		// Arrange: Hacemos un type cast a Mock para acceder a los métodos de mock de Vitest.
-		(mockedPrisma.productCache.findUnique as Mock).mockResolvedValue(cachedProduct);
+		// Arrange
+		(mockedPrisma.product.findUnique as Mock).mockResolvedValue(cachedProduct);
 
 		// Act
 		const result = await productService.findByBarcode(barcode);
 
 		// Assert
 		expect(result).toEqual(cachedProduct);
-		expect(mockedPrisma.productCache.findUnique).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.product.findUnique).toHaveBeenCalledTimes(1);
 		expect(mockedKy.get).not.toHaveBeenCalled();
 	});
 
 	it('debería obtener el producto de la API y guardarlo en caché si no existe (Cache Miss)', async () => {
 		// Arrange
-		(mockedPrisma.productCache.findUnique as Mock).mockResolvedValue(null);
-
-		// Justificación: Se elimina el `as any`. La estructura del objeto es suficiente.
+		(mockedPrisma.product.findUnique as Mock).mockResolvedValue(null);
 		(mockedKy.get as Mock).mockReturnValue({
 			json: vi.fn().mockResolvedValue(apiProductResponse)
 		});
 
-		const createdProduct: ProductCache = {
-			id: barcode,
-			productName: 'Producto de API',
-			brand: 'Marca API',
-			imageUrl: 'http://api.com/img.png',
-			calories: 200,
-			fat: 20,
-			protein: 10,
-			carbs: 40,
-			fullPayload: productFromApi as Prisma.JsonObject,
-			updatedAt: new Date()
+		const expectedDataToCreate = {
+			id: productFromApi.code,
+			name: productFromApi.product_name,
+			normalizedName: 'producto de api',
+			brand: productFromApi.brands,
+			imageUrl: productFromApi.image_url,
+			calories: productFromApi.nutriments.energy_kcal_100g,
+			fat: productFromApi.nutriments.fat_100g,
+			protein: productFromApi.nutriments.proteins_100g,
+			carbs: productFromApi.nutriments.carbohydrates_100g,
+			fullPayload: productFromApi as unknown as Prisma.JsonValue
 		};
-		(mockedPrisma.productCache.create as Mock).mockResolvedValue(createdProduct);
+
+		(mockedPrisma.product.create as Mock).mockResolvedValue({
+			...expectedDataToCreate,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		mockedNormalizeText.mockReturnValue('producto de api');
 
 		// Act
 		await productService.findByBarcode(barcode);
 
 		// Assert
-		expect(mockedPrisma.productCache.findUnique).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.product.findUnique).toHaveBeenCalledTimes(1);
 		expect(mockedKy.get).toHaveBeenCalledTimes(1);
-		expect(mockedPrisma.productCache.create).toHaveBeenCalledTimes(1);
-		expect(mockedPrisma.productCache.create).toHaveBeenCalledWith({
-			data: {
-				id: productFromApi.code,
-				productName: productFromApi.product_name,
-				normalizedProductName: 'producto de api', // Justificación: Añadimos el campo esperado.
-				brand: productFromApi.brands,
-				imageUrl: productFromApi.image_url,
-				calories: productFromApi.nutriments.energy_kcal_100g,
-				fat: productFromApi.nutriments.fat_100g,
-				protein: productFromApi.nutriments.proteins_100g,
-				carbs: productFromApi.nutriments.carbohydrates_100g,
-				fullPayload: productFromApi as Prisma.JsonObject
-			}
+		expect(mockedPrisma.product.create).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.product.create).toHaveBeenCalledWith({
+			data: expectedDataToCreate
 		});
+	});
+
+	it('debería devolver null si el producto no se encuentra ni en caché ni en la API', async () => {
+		// Arrange
+		(mockedPrisma.product.findUnique as Mock).mockResolvedValue(null);
+		(mockedKy.get as Mock).mockReturnValue({
+			json: vi.fn().mockResolvedValue({ status: 0 }) // Simula producto no encontrado en OFF
+		});
+
+		// Act
+		const result = await productService.findByBarcode(barcode);
+
+		// Assert
+		expect(result).toBeNull();
+		expect(mockedPrisma.product.create).not.toHaveBeenCalled();
 	});
 });

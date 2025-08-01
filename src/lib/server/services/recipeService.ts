@@ -2,6 +2,8 @@
 import prisma from '$lib/server/prisma';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
 
+import { productService } from './productService';
+
 // Justificación: La capa de servicio para recetas abstrae toda la lógica de negocio
 // y el acceso a la base de datos (Prisma) para las operaciones CRUD.
 // Esto mantiene los endpoints de la API limpios y centrados en su rol de controlador.
@@ -14,6 +16,21 @@ const recipeInclude = {
 		}
 	}
 };
+
+/**
+ * Función auxiliar para asegurar que todos los productos de una receta
+ * están cacheados en nuestra base de datos antes de la operación principal.
+ * @param ingredients - La lista de ingredientes de la receta.
+ */
+async function ensureProductsAreCached(ingredients: RecipeData['ingredients']) {
+	const productCachePromises = ingredients
+		.filter((ing) => ing.type === 'product')
+		.map((ing) => productService.findByBarcode(ing.id));
+
+	// Justificación (Promise.all): Se ejecutan todas las verificaciones de caché
+	// en paralelo para mejorar el rendimiento, en lugar de una por una en secuencia.
+	await Promise.all(productCachePromises);
+}
 
 export const recipeService = {
 	/**
@@ -44,6 +61,10 @@ export const recipeService = {
 	async create(data: RecipeData) {
 		const { title, description, steps, ingredients } = data;
 
+		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
+		await ensureProductsAreCached(ingredients);
+
+		// Paso 2: Proceder con la creación de la receta en una transacción.
 		// Justificación (transacción): Se usa $transaction para asegurar la atomicidad.
 		// O se crea la receta Y todos sus ingredientes, o no se crea nada.
 		// Esto previene que queden datos huérfanos si una de las operaciones falla.
@@ -79,6 +100,10 @@ export const recipeService = {
 	async update(id: string, data: RecipeData) {
 		const { title, description, steps, ingredients } = data;
 
+		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
+		await ensureProductsAreCached(ingredients);
+
+		// Paso 2: Proceder con la actualización de la receta en una transacción.
 		return await prisma.$transaction(async (tx) => {
 			// 1. Actualizar los datos básicos de la receta.
 			await tx.recipe.update({

@@ -14,7 +14,12 @@
 	import { ChevronsUpDown } from 'lucide-svelte';
 	
 	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
-	type SearchResult = { id: string; name: string; type: 'custom' | 'product' };
+	type SearchResult = {
+		id: string;
+		name: string;
+		type: 'custom' | 'product';
+		imageUrl: string | null;
+	};
 	
 	let title = $state('');
 	let description = $state('');
@@ -175,14 +180,20 @@
 								<Command.Group>
 									{#each searchResults as result (result.id + result.type)}
 									<Command.Item
-									value={result.name}
-									onSelect={() => {
-										inputValue = result.name;
-										addIngredient(result);
-									}}
+										value={result.name}
+										onSelect={() => {
+											inputValue = result.name;
+											addIngredient(result);
+										}}
+										class="flex items-center gap-2"
 									>
-									{result.name}
-								</Command.Item>
+										<img
+											src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+											alt={result.name}
+											class="h-8 w-8 rounded-sm object-cover"
+										/>
+										<span>{result.name}</span>
+									</Command.Item>
 								{/each}
 							</Command.Group>
 						</Command.List>
