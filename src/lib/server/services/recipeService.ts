@@ -11,7 +11,7 @@ import { productService } from './productService';
 const recipeInclude = {
 	ingredients: {
 		include: {
-			productCache: true,
+			product: true,
 			customIngredient: true
 		}
 	}

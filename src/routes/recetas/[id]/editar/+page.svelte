@@ -43,16 +43,16 @@
 					carbs: ing.customIngredient.carbs ?? 0
 				};
 			}
-			if (ing.productCache) {
+			if (ing.product) {
 				return {
-					id: ing.productCache.id,
+					id: ing.product.id,
 					type: 'product',
 					quantity,
-					name: ing.productCache.productName,
-					calories: ing.productCache.calories ?? 0,
-					protein: ing.productCache.protein ?? 0,
-					fat: ing.productCache.fat ?? 0,
-					carbs: ing.productCache.carbs ?? 0
+					name: ing.product.name,
+					calories: ing.product.calories ?? 0,
+					protein: ing.product.protein ?? 0,
+					fat: ing.product.fat ?? 0,
+					carbs: ing.product.carbs ?? 0
 				};
 			}
 			return null;

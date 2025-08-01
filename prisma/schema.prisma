@@ -11,33 +11,30 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-model ProductCache {
-  id                     String             @id // Código de barras
-  productName            String
-  normalizedProductName  String             @default("") // Para búsqueda case/accent-insensitive
-  brand                  String?
-  imageUrl               String?
-  calories               Float?             // Valor por 100g
-  fat                    Float?             // Valor por 100g
-  protein                Float?             // Valor por 100g
-  carbs                  Float?             // Valor por 100g
-  fullPayload            Json?
-  updatedAt              DateTime           @updatedAt
-  // Justificación: Relación inversa requerida por Prisma.
-  // Un producto puede estar en múltiples ingredientes de recetas.
-  recipeIngredients      RecipeIngredient[]
+model Product {
+  id                String             @id // Código de barras
+  name              String
+  normalizedName    String // Para búsqueda case/accent-insensitive
+  brand             String?
+  imageUrl          String?
+  calories          Float?             // Valor por 100g
+  fat               Float?             // Valor por 100g
+  protein           Float?             // Valor por 100g
+  carbs             Float?             // Valor por 100g
+  fullPayload       Json?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  recipeIngredients RecipeIngredient[]
 }
 
 model CustomIngredient {
   id                String             @id @default(cuid())
   name              String             @unique
-  normalizedName    String             @default("") // Para búsqueda case/accent-insensitive
+  normalizedName    String // Para búsqueda case/accent-insensitive
   calories          Float
   fat               Float
   protein           Float
   carbs             Float
-  // Justificación: Relación inversa requerida por Prisma.
-  // Un ingrediente custom puede estar en múltiples ingredientes de recetas.
   recipeIngredients RecipeIngredient[]
 }
 
@@ -53,9 +50,9 @@ model RecipeIngredient {
   id                 String            @id @default(cuid())
   recipe             Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId           String
-  // Se relaciona directamente con un ProductCache o un CustomIngredient
-  productCache       ProductCache?     @relation(fields: [productCacheId], references: [id])
-  productCacheId     String?
+  // Se relaciona directamente con un Product o un CustomIngredient
+  product            Product?          @relation(fields: [productId], references: [id])
+  productId          String?
   customIngredient   CustomIngredient? @relation(fields: [customIngredientId], references: [id])
   customIngredientId String?
   quantity           Float             // En gramos
