@@ -20,25 +20,32 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 		async start(controller) {
 			const localIds = new Set<string>();
 
+			type SearchResult = {
+				id: string;
+				name: string;
+				source: 'local' | 'off';
+				imageUrl: string | null;
+			};
+
 			// Función para enviar datos al stream
-			const send = (data: any) => {
+			const send = (data: SearchResult[]) => {
 				controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
 			};
 
 			try {
 				// 1. Búsqueda local (rápida)
 				const { customIngredients, cachedProducts } = await ingredientService.searchByName(query);
-				const localResults = [
+				const localResults: SearchResult[] = [
 					...customIngredients.map((i) => ({
 						id: i.id,
 						name: i.name,
-						source: 'local' as const,
+						source: 'local',
 						imageUrl: null
 					})),
 					...cachedProducts.map((p) => ({
 						id: p.id,
 						name: p.name,
-						source: 'local' as const,
+						source: 'local',
 						imageUrl: p.imageUrl
 					}))
 				];
@@ -49,7 +56,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 				}
 
 				// 2. Búsquedas externas (lentas)
-				const brands = ['Mercadona', 'Hacendado'];
+				const brands = ['Hacendado', 'Mercadona'];
 				const offSearchPromises = brands.map((brand) => {
 					const offQuery = `${query} ${brand}`;
 					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
@@ -60,14 +67,14 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 						.then((res) => res.json() as Promise<{ products: OffProduct[] }>)
 						.then(response => {
 							const offProducts = response.products || [];
-							const uniqueOffProducts = offProducts
+							const uniqueOffProducts: SearchResult[] = offProducts
 								.filter(p => p.code && !localIds.has(p.code))
 								.map(p => {
 									localIds.add(p.code); // Asegurar desduplicación entre streams
 									return {
 										id: p.code,
 										name: p.product_name,
-										source: 'off' as const,
+										source: 'off',
 										imageUrl: p.image_front_small_url || null
 									};
 								});
