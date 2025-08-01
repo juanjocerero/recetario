@@ -14,9 +14,41 @@ vi.mock('@sveltejs/kit', async () => {
 	const actual = await vi.importActual('@sveltejs/kit');
 	return {
 		...actual,
-		json: vi.fn((data) => data) // Mock simple que devuelve los datos
+		json: vi.fn((data, init) => new Response(JSON.stringify(data), init))
 	};
 });
+
+// Helper para consumir el stream y obtener los resultados como un array
+async function consumeStream(stream: ReadableStream | null) {
+	if (!stream) return [];
+	const reader = stream.getReader();
+	const results = [];
+
+	// Mockear TextDecoder para el entorno de prueba de Node.js
+	global.TextDecoder = class TextDecoder {
+		decode(chunk: any) {
+			return chunk.toString();
+		}
+	} as any;
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+
+		// En el entorno de prueba, los chunks pueden no ser Uint8Array.
+		// Los tratamos como texto y procesamos el formato SSE.
+		const chunk = value.toString();
+		const lines = chunk.split('\n\n').filter(Boolean);
+
+		for (const line of lines) {
+			if (line.startsWith('event: message')) {
+				const data = JSON.parse(line.split('data: ')[1]);
+				results.push(...data);
+			}
+		}
+	}
+	return results;
+}
 
 describe('API Endpoint: /api/ingredients/search', () => {
 	const mockSearchByName = vi.mocked(ingredientService.searchByName);
@@ -42,7 +74,8 @@ describe('API Endpoint: /api/ingredients/search', () => {
 		const request = { url: new URL('http://localhost/api/ingredients/search?q=tomate') };
 
 		// Act
-		const result = await GET({ url: request.url, fetch: mockFetch } as any);
+		const response = await GET({ url: request.url, fetch: mockFetch } as any);
+		const result = await consumeStream(response.body as ReadableStream);
 
 		// Assert
 		expect(mockSearchByName).toHaveBeenCalledWith('tomate');
@@ -50,17 +83,19 @@ describe('API Endpoint: /api/ingredients/search', () => {
 			id: 'custom1',
 			name: 'Tomate de la huerta',
 			source: 'local',
+			type: 'custom',
 			imageUrl: null
 		});
 		expect(result).toContainEqual({
 			id: 'prod1',
 			name: 'Tomate Frito (Mercadona)',
 			source: 'local',
+			type: 'product',
 			imageUrl: 'url_image'
 		});
 	});
 
-	it('debe llamar a la API de Open Food Facts con " Mercadona" añadido a la query', async () => {
+	it('debe llamar a la API de Open Food Facts con "Hacendado" y "Mercadona" añadido a la query', async () => {
 		// Arrange
 		mockSearchByName.mockResolvedValue({ customIngredients: [], cachedProducts: [] });
 		const mockFetch = vi.fn().mockResolvedValue({
@@ -70,12 +105,15 @@ describe('API Endpoint: /api/ingredients/search', () => {
 		const request = { url: new URL('http://localhost/api/ingredients/search?q=queso') };
 
 		// Act
-		await GET({ url: request.url, fetch: mockFetch } as any);
+		const response = await GET({ url: request.url, fetch: mockFetch } as any);
+		await consumeStream(response.body as ReadableStream); // Consumir para que se ejecute
 
 		// Assert
-		expect(mockFetch).toHaveBeenCalledOnce();
-		const fetchUrl = mockFetch.mock.calls[0][0] as string;
-		expect(fetchUrl).toContain('search_terms=queso%20Mercadona');
+		expect(mockFetch).toHaveBeenCalledTimes(2);
+		const fetchUrl1 = mockFetch.mock.calls[0][0] as string;
+		const fetchUrl2 = mockFetch.mock.calls[1][0] as string;
+		expect(fetchUrl1).toContain('search_terms=queso%20Hacendado');
+		expect(fetchUrl2).toContain('search_terms=queso%20Mercadona');
 	});
 
 	it('debe unificar resultados y eliminar duplicados dando prioridad a los locales', async () => {
@@ -99,25 +137,25 @@ describe('API Endpoint: /api/ingredients/search', () => {
 		const request = { url: new URL('http://localhost/api/ingredients/search?q=producto') };
 
 		// Act
-		const result = await GET({ url: request.url, fetch: mockFetch } as any);
+		const response = await GET({ url: request.url, fetch: mockFetch } as any);
+		const result = await consumeStream(response.body as ReadableStream);
 
 		// Assert
 		expect(result).toHaveLength(2);
-		// Comprueba que el resultado local está presente
 		expect(result).toContainEqual({
 			id: '12345',
 			name: 'Producto Local Repetido',
 			source: 'local',
+			type: 'product',
 			imageUrl: null
 		});
-		// Comprueba que el resultado único de OFF está presente
 		expect(result).toContainEqual({
 			id: '67890',
 			name: 'Producto OFF Único',
 			source: 'off',
+			type: 'product',
 			imageUrl: 'url2'
 		});
-		// Comprueba que el resultado duplicado de OFF NO está presente
 		expect(result.find((r) => r.id === '12345' && r.source === 'off')).toBeUndefined();
 	});
 
@@ -127,12 +165,11 @@ describe('API Endpoint: /api/ingredients/search', () => {
 		const mockFetch = vi.fn();
 
 		// Act
-		await GET({ url: request.url, fetch: mockFetch } as any);
+		const response = await GET({ url: request.url, fetch: mockFetch } as any);
 
 		// Assert
-		expect(mockJsonResponse).toHaveBeenCalledWith(
-			{ error: 'Query parameter "q" is required' },
-			{ status: 400 }
-		);
+		expect(response.status).toBe(400);
+		const body = await response.json();
+		expect(body.error).toBe('Query parameter "q" is required');
 	});
 });

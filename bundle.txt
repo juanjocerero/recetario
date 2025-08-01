@@ -1,7 +1,7 @@
 /* --- Bundle de Código Generado ---
  * Modo: full
- * Ficheros Incluidos: 101
- * Fecha: 2025-08-01T09:38:32.526Z
+ * Ficheros Incluidos: 103
+ * Fecha: 2025-08-01T12:39:01.840Z
  */
 
 // --- Ruta: vitest.config.ts ---
@@ -309,32 +309,29 @@ datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
-model ProductCache {
-  id                     String             @id // Código de barras
-  productName            String
-  normalizedProductName  String             @default("") // Para búsqueda case/accent-insensitive
-  brand                  String?
-  imageUrl               String?
-  calories               Float?             // Valor por 100g
-  fat                    Float?             // Valor por 100g
-  protein                Float?             // Valor por 100g
-  carbs                  Float?             // Valor por 100g
-  fullPayload            Json?
-  updatedAt              DateTime           @updatedAt
-  // Justificación: Relación inversa requerida por Prisma.
-  // Un producto puede estar en múltiples ingredientes de recetas.
-  recipeIngredients      RecipeIngredient[]
+model Product {
+  id                String             @id // Código de barras
+  name              String
+  normalizedName    String // Para búsqueda case/accent-insensitive
+  brand             String?
+  imageUrl          String?
+  calories          Float?             // Valor por 100g
+  fat               Float?             // Valor por 100g
+  protein           Float?             // Valor por 100g
+  carbs             Float?             // Valor por 100g
+  fullPayload       Json?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  recipeIngredients RecipeIngredient[]
 }
 model CustomIngredient {
   id                String             @id @default(cuid())
   name              String             @unique
-  normalizedName    String             @default("") // Para búsqueda case/accent-insensitive
+  normalizedName    String // Para búsqueda case/accent-insensitive
   calories          Float
   fat               Float
   protein           Float
   carbs             Float
-  // Justificación: Relación inversa requerida por Prisma.
-  // Un ingrediente custom puede estar en múltiples ingredientes de recetas.
   recipeIngredients RecipeIngredient[]
 }
 model Recipe {
@@ -348,9 +345,9 @@ model RecipeIngredient {
   id                 String            @id @default(cuid())
   recipe             Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId           String
-  // Se relaciona directamente con un ProductCache o un CustomIngredient
-  productCache       ProductCache?     @relation(fields: [productCacheId], references: [id])
-  productCacheId     String?
+  // Se relaciona directamente con un Product o un CustomIngredient
+  product            Product?          @relation(fields: [productId], references: [id])
+  productId          String?
   customIngredient   CustomIngredient? @relation(fields: [customIngredientId], references: [id])
   customIngredientId String?
   quantity           Float             // En gramos
@@ -824,7 +821,13 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 	import * as Command from '$lib/components/ui/command';
 	import { ChevronsUpDown } from 'lucide-svelte';
 	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
-	type SearchResult = { id: string; name: string; type: 'custom' | 'product' };
+	type SearchResult = {
+		id: string;
+		name: string;
+		source: 'local' | 'off';
+		type: 'custom' | 'product';
+		imageUrl: string | null;
+	};
 	let title = $state('');
 	let description = $state('');
 	let steps = $state('');
@@ -833,33 +836,39 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 	let isSearching = $state(false);
 	let open = $state(false);
 	let inputValue = $state('');
-	let searchController: AbortController | null = null;
-	async function handleSearch(event: Event) {
-		if (searchController) {
-			searchController.abort();
-		}
-		searchController = new AbortController();
-		const signal = searchController.signal;
-		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
-		if (currentSearchTerm.length < 2) {
+	let searchTerm = $state('');
+	$effect(() => {
+		let eventSource: EventSource | null = null;
+		if (searchTerm.length < 3) {
 			searchResults = [];
-			return;
-		}
-		isSearching = true;
-		try {
-			const response = await fetch(`/api/ingredients/search?q=${currentSearchTerm}`, { signal });
-			if (response.ok) {
-				searchResults = await response.json();
-			}
-		} catch (error) {
-			if (error instanceof DOMException && error.name === 'AbortError') {
-				return;
-			}
-			console.error('Error searching ingredients:', error);
-		} finally {
 			isSearching = false;
+		} else {
+			isSearching = true;
+			searchResults = [];
+			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource.addEventListener('message', (e) => {
+				const newResults = JSON.parse(e.data);
+				searchResults = [...searchResults, ...newResults];
+			});
+			eventSource.addEventListener('stream_error', (e) => {
+				const errorData = JSON.parse((e as MessageEvent).data);
+				console.error('Error de stream recibido:', errorData);
+			});
+			eventSource.onerror = (err) => {
+				console.error('Error en la conexión de EventSource:', err);
+				isSearching = false;
+				eventSource?.close();
+			};
+			eventSource.addEventListener('close', () => {
+				isSearching = false;
+				eventSource?.close();
+			});
 		}
-	}
+		// Función de limpieza de $effect: se ejecuta cuando searchTerm cambia
+		return () => {
+			eventSource?.close();
+		};
+	});
 	async function addIngredient(result: SearchResult) {
 		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
 		try {
@@ -879,6 +888,8 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 		} finally {
 			open = false;
 			searchResults = [];
+			searchTerm = ''; // Limpiar el término de búsqueda
+			inputValue = ''; // Limpiar el texto visible en el botón
 		}
 	}
 	function removeIngredient(index: number) {
@@ -948,36 +959,51 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 			<div class="space-y-2">
 				<Label>Añadir Ingrediente</Label>
 				<Popover.Root bind:open>
-					<Popover.Trigger class="w-full">
-						<Button variant="outline" role="combobox" aria-expanded={open} class="w-full justify-between">
+					<Popover.Trigger
+						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+						role="combobox"
+						aria-expanded={open}
+					>
+						<div class="flex items-center justify-between w-full">
 							{inputValue || 'Seleccionar ingrediente...'}
 							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-						</Button>
+						</div>
 					</Popover.Trigger>
 					<Popover.Content class="w-[--trigger-width] p-0">
-						<Command.Root>
-							<Command.Input oninput={handleSearch} placeholder="Buscar ingrediente..." />
+						<Command.Root filter={() => 1}>
+							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
 							<Command.List>
-								{#if isSearching}
-								<Command.Item>Buscando...</Command.Item>
-								{:else if searchResults.length === 0}
-								<Command.Empty>Ningún ingrediente encontrado.</Command.Empty>
-								{/if}
-								<Command.Group>
+								{#if searchResults.length > 0}
 									{#each searchResults as result (result.id + result.type)}
-									<Command.Item
-									value={result.name}
-									onSelect={() => {
-										inputValue = result.name;
-										addIngredient(result);
-									}}
-									>
-									{result.name}
-								</Command.Item>
-								{/each}
-							</Command.Group>
-						</Command.List>
-					</Command.Root>
+										<Command.Item
+											value={result.name}
+											onSelect={() => {
+												inputValue = result.name;
+												addIngredient(result);
+											}}
+											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+										>
+											<img
+												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+												alt={result.name}
+												class="h-8 w-8 rounded-sm object-cover"
+											/>
+											<span>{result.name}</span>
+										</Command.Item>
+									{/each}
+								{:else}
+									<div class="p-4 text-sm text-center text-gray-500">
+										{#if isSearching}
+											Buscando...
+										{:else if searchTerm.length < 3}
+											Escribe al menos 3 caracteres para buscar...
+										{:else}
+											No se encontraron resultados.
+										{/if}
+									</div>
+								{/if}
+							</Command.List>
+						</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
 		</div>
@@ -1072,22 +1098,28 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 	} from '$lib/components/ui/table';
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
 	import type { PageData } from './$types';
-	export let data: PageData;
+	const { data } = $props<PageData>();
 	const { recipe } = data;
-	// Justificación: Calculamos la información nutricional a partir de los datos cargados.
-	// La lógica de cálculo está aislada en `recipeCalculator`, haciendo este componente
-	// puramente presentacional.
-	const nutritionalInfo = calculateNutritionalInfo(
-		recipe.ingredients.map((ing) => ({
-			quantity: ing.quantity,
-			calories:
-				ing.productCache?.calories || ing.customIngredient?.calories || 0,
-			protein:
-				ing.productCache?.protein || ing.customIngredient?.protein || 0,
-			fat: ing.productCache?.fat || ing.customIngredient?.fat || 0,
-			carbs: ing.productCache?.carbs || ing.customIngredient?.carbs || 0
-		}))
+	// Justificación: Creamos una lista de ingredientes plana y consistente a partir
+	// de los datos anidados del loader. Esto simplifica el resto del componente.
+	const ingredientsList = $derived(
+		recipe.ingredients
+			.map((ing) => {
+				const details = ing.product ?? ing.customIngredient;
+				if (!details) return null;
+				return {
+					name: details.name,
+					quantity: ing.quantity,
+					calories: details.calories ?? 0,
+					protein: details.protein ?? 0,
+					fat: details.fat ?? 0,
+					carbs: details.carbs ?? 0
+				};
+			})
+			.filter((i): i is NonNullable<typeof i> => i !== null)
 	);
+	// La lógica de cálculo ahora recibe la lista limpia.
+	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
 </script>
 <div class="max-w-4xl mx-auto my-8 space-y-8">
 	<!-- Encabezado de la Receta -->
@@ -1138,11 +1170,9 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each recipe.ingredients as ingredient}
+					{#each ingredientsList as ingredient}
 						<TableRow>
-							<TableCell>
-								{ingredient.productCache?.productName || ingredient.customIngredient?.name}
-							</TableCell>
+							<TableCell>{ingredient.name}</TableCell>
 							<TableCell class="text-right">{ingredient.quantity} g</TableCell>
 						</TableRow>
 					{/each}
@@ -1230,7 +1260,7 @@ import { ZodError } from 'zod';
 import { formatZodError } from '$lib/server/zodErrors';
 export const GET: RequestHandler = async () => {
 	try {
-		const ingredients = await ingredientService.getAll();
+		const ingredients = await ingredientService.getAllUnified();
 		return json(ingredients);
 	} catch (error) {
 		console.error('Error fetching ingredients:', error);
@@ -1266,51 +1296,57 @@ export const POST: RequestHandler = async ({ request }) => {
 </script>
 <div class="container mx-auto py-10">
 	<div class="flex justify-between items-center mb-6">
-		<h1 class="text-2xl font-bold">Gestión de Ingredientes Personalizados</h1>
-		<Dialog.Root>
-			<Dialog.Trigger class={buttonVariants()}>Añadir Ingrediente</Dialog.Trigger>
-			<Dialog.Content class="sm:max-w-[425px]">
-				<Dialog.Header>
-					<Dialog.Title>Añadir Nuevo Ingrediente</Dialog.Title>
-					<Dialog.Description>
-						Completa los detalles del ingrediente personalizado. Todos los valores son por 100g.
-					</Dialog.Description>
-				</Dialog.Header>
-				<form method="POST" action="?/create" use:enhance>
-					<div class="grid gap-4 py-4">
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="name" class="text-right">Nombre</Label>
-							<Input id="name" name="name" class="col-span-3" />
+		<h1 class="text-2xl font-bold">Gestión de Ingredientes</h1>
+		<div class="flex gap-2">
+			<a href="/admin/ingredientes/off" class={buttonVariants({ variant: 'outline' })}>
+				Añadir desde Open Food Facts
+			</a>
+			<Dialog.Root>
+				<Dialog.Trigger class={buttonVariants()}>Añadir Ingrediente Personalizado</Dialog.Trigger>
+				<Dialog.Content class="sm:max-w-[425px]">
+					<Dialog.Header>
+						<Dialog.Title>Añadir Nuevo Ingrediente</Dialog.Title>
+						<Dialog.Description>
+							Completa los detalles del ingrediente personalizado. Todos los valores son por 100g.
+						</Dialog.Description>
+					</Dialog.Header>
+					<form method="POST" action="?/create" use:enhance>
+						<div class="grid gap-4 py-4">
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="name" class="text-right">Nombre</Label>
+								<Input id="name" name="name" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="calories" class="text-right">Calorías</Label>
+								<Input id="calories" name="calories" type="number" step="0.1" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="protein" class="text-right">Proteínas</Label>
+								<Input id="protein" name="protein" type="number" step="0.1" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="fat" class="text-right">Grasas</Label>
+								<Input id="fat" name="fat" type="number" step="0.1" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="carbs" class="text-right">Carbohidratos</Label>
+								<Input id="carbs" name="carbs" type="number" step="0.1" class="col-span-3" />
+							</div>
 						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="calories" class="text-right">Calorías</Label>
-							<Input id="calories" name="calories" type="number" step="0.1" class="col-span-3" />
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="protein" class="text-right">Proteínas</Label>
-							<Input id="protein" name="protein" type="number" step="0.1" class="col-span-3" />
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="fat" class="text-right">Grasas</Label>
-							<Input id="fat" name="fat" type="number" step="0.1" class="col-span-3" />
-						</div>
-						<div class="grid grid-cols-4 items-center gap-4">
-							<Label for="carbs" class="text-right">Carbohidratos</Label>
-							<Input id="carbs" name="carbs" type="number" step="0.1" class="col-span-3" />
-						</div>
-					</div>
-					<Dialog.Footer>
-						<Dialog.Close class={buttonVariants()} type="submit">Guardar Ingrediente</Dialog.Close>
-					</Dialog.Footer>
-				</form>
-			</Dialog.Content>
-		</Dialog.Root>
+						<Dialog.Footer>
+							<Dialog.Close class={buttonVariants()} type="submit">Guardar Ingrediente</Dialog.Close>
+						</Dialog.Footer>
+					</form>
+				</Dialog.Content>
+			</Dialog.Root>
+		</div>
 	</div>
 	<div class="rounded-md border">
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>
 					<Table.Head>Nombre</Table.Head>
+					<Table.Head>Origen</Table.Head>
 					<Table.Head class="text-right">Calorías (por 100g)</Table.Head>
 					<Table.Head class="text-right">Proteínas (g)</Table.Head>
 					<Table.Head class="text-right">Grasas (g)</Table.Head>
@@ -1320,120 +1356,140 @@ export const POST: RequestHandler = async ({ request }) => {
 			</Table.Header>
 			<Table.Body>
 				{#each data.ingredients as ingredient (ingredient.id)}
-					<Table.Row>
-						<Table.Cell class="font-medium">{ingredient.name}</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.calories}</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.protein}</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.fat}</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.carbs}</Table.Cell>
-						<Table.Cell class="text-right">
-							<Dialog.Root>
-								<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}
-									>Editar</Dialog.Trigger
-								>
-								<Dialog.Content class="sm:max-w-[425px]">
-									<Dialog.Header>
-										<Dialog.Title>Editar Ingrediente</Dialog.Title>
-									</Dialog.Header>
-									<form method="POST" action="?/update" use:enhance>
-										<input type="hidden" name="id" value={ingredient.id} />
-										<div class="grid gap-4 py-4">
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="name-edit" class="text-right">Nombre</Label>
-												<Input
-													id="name-edit"
-													name="name"
-													value={ingredient.name}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="calories-edit" class="text-right">Calorías</Label>
-												<Input
-													id="calories-edit"
-													name="calories"
-													type="number"
-													step="0.1"
-													value={ingredient.calories}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="protein-edit" class="text-right">Proteínas</Label>
-												<Input
-													id="protein-edit"
-													name="protein"
-													type="number"
-													step="0.1"
-													value={ingredient.protein}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="fat-edit" class="text-right">Grasas</Label>
-												<Input
-													id="fat-edit"
-													name="fat"
-													type="number"
-													step="0.1"
-													value={ingredient.fat}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="carbs-edit" class="text-right">Carbohidratos</Label>
-												<Input
-													id="carbs-edit"
-													name="carbs"
-													type="number"
-													step="0.1"
-													value={ingredient.carbs}
-													class="col-span-3"
-												/>
-											</div>
-										</div>
-										<Dialog.Footer>
-											<Dialog.Close class={buttonVariants()} type="submit"
-												>Guardar Cambios</Dialog.Close
-											>
-										</Dialog.Footer>
-									</form>
-								</Dialog.Content>
-							</Dialog.Root>
-							<Dialog.Root>
-								<Dialog.Trigger
-									class={buttonVariants({ variant: 'destructive', size: 'sm' }) + ' ml-2'}
-									>Eliminar</Dialog.Trigger
-								>
-								<Dialog.Content class="sm:max-w-[425px]">
-									<Dialog.Header>
-										<Dialog.Title>Confirmar Eliminación</Dialog.Title>
-										<Dialog.Description>
-											¿Estás seguro de que quieres eliminar el ingrediente "{ingredient.name}"?
-											Esta acción no se puede deshacer.
-										</Dialog.Description>
-									</Dialog.Header>
-									<form method="POST" action="?/delete" use:enhance>
-										<input type="hidden" name="id" value={ingredient.id} />
-										<Dialog.Footer>
-											<Dialog.Close class={buttonVariants({ variant: 'outline' })}
-												>Cancelar</Dialog.Close
-											>
-											<Button variant="destructive" type="submit">Eliminar</Button>
-										</Dialog.Footer>
-									</form>
-								</Dialog.Content>
-							</Dialog.Root>
-						</Table.Cell>
-					</Table.Row>
-				{:else}
-					<Table.Row>
-						<Table.Cell colspan={6} class="text-center">No hay ingredientes personalizados.</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
-	</div>
+				<Table.Row>
+					<Table.Cell class="font-medium">{ingredient.name}</Table.Cell>
+					<Table.Cell>
+						{#if ingredient.source === 'custom'}
+						<span class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+							Personalizado
+						</span>
+						{:else}
+						<span class="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">
+							Caché de OFF
+						</span>
+						{/if}
+					</Table.Cell>
+					<Table.Cell class="text-right">{ingredient.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
+					<Table.Cell class="text-right">{ingredient.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
+					<Table.Cell class="text-right">{ingredient.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
+					<Table.Cell class="text-right">{ingredient.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
+					<Table.Cell class="text-right">
+						<Dialog.Root>
+							<Button
+							variant="outline"
+							size="sm"
+							disabled={ingredient.source !== 'custom'}
+							onclick={(e) => {
+								if (ingredient.source !== 'custom') e.preventDefault();
+								// Lógica para abrir el diálogo si es necesario
+							}}
+							>
+							Editar
+						</Button>
+						<Dialog.Content class="sm:max-w-[425px]">
+							<Dialog.Header>
+								<Dialog.Title>Editar Ingrediente</Dialog.Title>
+							</Dialog.Header>
+							<form method="POST" action="?/update" use:enhance>
+								<input type="hidden" name="id" value={ingredient.id} />
+								<div class="grid gap-4 py-4">
+									<div class="grid grid-cols-4 items-center gap-4">
+										<Label for="name-edit" class="text-right">Nombre</Label>
+										<Input
+										id="name-edit"
+										name="name"
+										value={ingredient.name}
+										class="col-span-3"
+										/>
+									</div>
+									<div class="grid grid-cols-4 items-center gap-4">
+										<Label for="calories-edit" class="text-right">Calorías</Label>
+										<Input
+										id="calories-edit"
+										name="calories"
+										type="number"
+										step="0.1"
+										value={ingredient.calories}
+										class="col-span-3"
+										/>
+									</div>
+									<div class="grid grid-cols-4 items-center gap-4">
+										<Label for="protein-edit" class="text-right">Proteínas</Label>
+										<Input
+										id="protein-edit"
+										name="protein"
+										type="number"
+										step="0.1"
+										value={ingredient.protein}
+										class="col-span-3"
+										/>
+									</div>
+									<div class="grid grid-cols-4 items-center gap-4">
+										<Label for="fat-edit" class="text-right">Grasas</Label>
+										<Input
+										id="fat-edit"
+										name="fat"
+										type="number"
+										step="0.1"
+										value={ingredient.fat}
+										class="col-span-3"
+										/>
+									</div>
+									<div class="grid grid-cols-4 items-center gap-4">
+										<Label for="carbs-edit" class="text-right">Carbohidratos</Label>
+										<Input
+										id="carbs-edit"
+										name="carbs"
+										type="number"
+										step="0.1"
+										value={ingredient.carbs}
+										class="col-span-3"
+										/>
+									</div>
+								</div>
+								<Dialog.Footer>
+									<Dialog.Close class={buttonVariants()} type="submit"
+									>Guardar Cambios</Dialog.Close
+									>
+								</Dialog.Footer>
+							</form>
+						</Dialog.Content>
+					</Dialog.Root>
+					<Dialog.Root>
+						<Dialog.Trigger
+						class={buttonVariants({ variant: 'destructive', size: 'sm' }) + ' ml-2'}
+						>Eliminar</Dialog.Trigger
+						>
+						<Dialog.Content class="sm:max-w-[425px]">
+							<Dialog.Header>
+								<Dialog.Title>Confirmar Eliminación</Dialog.Title>
+								<Dialog.Description>
+									¿Estás seguro de que quieres eliminar el ingrediente "{ingredient.name}"?
+									Esta acción no se puede deshacer.
+								</Dialog.Description>
+							</Dialog.Header>
+							<form method="POST" action="?/delete" use:enhance>
+								<input type="hidden" name="id" value={ingredient.id} />
+								<input type="hidden" name="source" value={ingredient.source} />
+								<Dialog.Footer>
+									<Dialog.Close class={buttonVariants({ variant: 'outline' })}
+									>Cancelar</Dialog.Close
+									>
+									<Button variant="destructive" type="submit">Eliminar</Button>
+								</Dialog.Footer>
+							</form>
+						</Dialog.Content>
+					</Dialog.Root>
+				</Table.Cell>
+			</Table.Row>
+			{:else}
+			<Table.Row>
+				<Table.Cell colspan={7} class="text-center">No hay ingredientes.</Table.Cell>
+			</Table.Row>
+			{/each}
+		</Table.Body>
+	</Table.Root>
+</div>
 </div>
 
 // --- Ruta: src/routes/admin/ingredientes/+page.server.ts ---
@@ -1496,7 +1552,11 @@ export const actions: Actions = {
 	delete: async ({ request, fetch }) => {
 		const formData = await request.formData();
 		const id = formData.get('id') as string;
-		const response = await fetch(`/api/ingredients/${id}`, {
+		const source = formData.get('source') as string;
+		// Justificación: La lógica para determinar qué endpoint llamar ahora reside aquí,
+		// basándose en el 'source' del ingrediente.
+		const apiPath = source === 'custom' ? `/api/ingredients/${id}` : `/api/products/${id}`;
+		const response = await fetch(apiPath, {
 			method: 'DELETE'
 		});
 		if (!response.ok) {
@@ -1510,17 +1570,31 @@ export const actions: Actions = {
 // Ruta: src/lib/server/services/recipeService.ts
 import prisma from '$lib/server/prisma';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
+import { productService } from './productService';
 // Justificación: La capa de servicio para recetas abstrae toda la lógica de negocio
 // y el acceso a la base de datos (Prisma) para las operaciones CRUD.
 // Esto mantiene los endpoints de la API limpios y centrados en su rol de controlador.
 const recipeInclude = {
 	ingredients: {
 		include: {
-			productCache: true,
+			product: true,
 			customIngredient: true
 		}
 	}
 };
+/**
+ * Función auxiliar para asegurar que todos los productos de una receta
+ * están cacheados en nuestra base de datos antes de la operación principal.
+ * @param ingredients - La lista de ingredientes de la receta.
+ */
+async function ensureProductsAreCached(ingredients: RecipeData['ingredients']) {
+	const productCachePromises = ingredients
+		.filter((ing) => ing.type === 'product')
+		.map((ing) => productService.findByBarcode(ing.id));
+	// Justificación (Promise.all): Se ejecutan todas las verificaciones de caché
+	// en paralelo para mejorar el rendimiento, en lugar de una por una en secuencia.
+	await Promise.all(productCachePromises);
+}
 export const recipeService = {
 	/**
 	 * Obtiene todas las recetas con sus ingredientes.
@@ -1547,6 +1621,9 @@ export const recipeService = {
 	 */
 	async create(data: RecipeData) {
 		const { title, description, steps, ingredients } = data;
+		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
+		await ensureProductsAreCached(ingredients);
+		// Paso 2: Proceder con la creación de la receta en una transacción.
 		// Justificación (transacción): Se usa $transaction para asegurar la atomicidad.
 		// O se crea la receta Y todos sus ingredientes, o no se crea nada.
 		// Esto previene que queden datos huérfanos si una de las operaciones falla.
@@ -1559,7 +1636,7 @@ export const recipeService = {
 					data: {
 						recipeId: newRecipe.id,
 						quantity: ingredient.quantity,
-						productCacheId: ingredient.type === 'product' ? ingredient.id : null,
+						productId: ingredient.type === 'product' ? ingredient.id : null,
 						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
 					}
 				});
@@ -1578,6 +1655,9 @@ export const recipeService = {
 	 */
 	async update(id: string, data: RecipeData) {
 		const { title, description, steps, ingredients } = data;
+		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
+		await ensureProductsAreCached(ingredients);
+		// Paso 2: Proceder con la actualización de la receta en una transacción.
 		return await prisma.$transaction(async (tx) => {
 			// 1. Actualizar los datos básicos de la receta.
 			await tx.recipe.update({
@@ -1595,7 +1675,7 @@ export const recipeService = {
 					data: {
 						recipeId: id,
 						quantity: ingredient.quantity,
-						productCacheId: ingredient.type === 'product' ? ingredient.id : null,
+						productId: ingredient.type === 'product' ? ingredient.id : null,
 						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
 					}
 				});
@@ -1631,7 +1711,8 @@ type OpenFoodFactsProduct = {
 	brands?: string;
 	image_url?: string;
 	nutriments: {
-		energy_kcal_100g?: number;
+		'energy-kcal_100g'?: number; // Variante con guion
+		energy_kcal_100g?: number; // Variante con guion bajo
 		fat_100g?: number;
 		proteins_100g?: number;
 		carbohydrates_100g?: number;
@@ -1668,6 +1749,9 @@ export const productService = {
 				return null; // Producto no encontrado en OFF
 			}
 			const productFromApi = response.product;
+			const calories =
+				productFromApi.nutriments['energy-kcal_100g'] ??
+				productFromApi.nutriments.energy_kcal_100g;
 			// 1. Normalizar datos de la API a nuestro esquema
 			const normalizedProduct = {
 				id: productFromApi.code,
@@ -1676,7 +1760,7 @@ export const productService = {
 				normalizedName: normalizeText(productFromApi.product_name),
 				brand: productFromApi.brands,
 				imageUrl: productFromApi.image_url,
-				calories: productFromApi.nutriments.energy_kcal_100g,
+				calories: calories,
 				fat: productFromApi.nutriments.fat_100g,
 				protein: productFromApi.nutriments.proteins_100g,
 				carbs: productFromApi.nutriments.carbohydrates_100g,
@@ -1696,6 +1780,15 @@ export const productService = {
 			console.error(`[OFF] Error fetching product ${barcode}:`, error);
 			return null;
 		}
+	},
+	/**
+	 * Elimina un producto de la caché por su ID (código de barras).
+	 * @param barcode - El ID del producto a eliminar.
+	 */
+	async deleteById(barcode: string) {
+		return await prisma.product.delete({
+			where: { id: barcode }
+		});
 	}
 };
 
@@ -1705,11 +1798,12 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import prisma from '$lib/server/prisma';
 import ky from 'ky';
 import { productService } from './productService';
-import type { Prisma, ProductCache } from '@prisma/client';
+import type { Prisma, Product } from '@prisma/client';
+import { normalizeText } from '$lib/utils';
 // Justificación: Mockeamos los módulos externos para aislar nuestro servicio.
 vi.mock('$lib/server/prisma', () => ({
 	default: {
-		productCache: {
+		product: {
 			findUnique: vi.fn(),
 			create: vi.fn()
 		}
@@ -1720,8 +1814,12 @@ vi.mock('ky', () => ({
 		get: vi.fn()
 	}
 }));
+vi.mock('$lib/utils', () => ({
+	normalizeText: vi.fn((text) => text.toLowerCase())
+}));
 const mockedPrisma = prisma;
 const mockedKy = ky;
+const mockedNormalizeText = normalizeText as Mock;
 // Definimos los tipos aquí para que el test sea autocontenido.
 type OpenFoodFactsProduct = {
 	code: string;
@@ -1744,16 +1842,18 @@ describe('productService', () => {
 		vi.resetAllMocks();
 	});
 	const barcode = '123456789';
-	const cachedProduct: ProductCache = {
+	const cachedProduct: Product = {
 		id: barcode,
-		productName: 'Producto en Caché',
+		name: 'Producto en Caché',
+		normalizedName: 'producto en caché',
 		brand: 'Marca Caché',
 		imageUrl: 'http://cache.com/img.png',
 		calories: 100,
 		fat: 10,
 		protein: 5,
 		carbs: 20,
-		fullPayload: {} as Prisma.JsonObject,
+		fullPayload: {} as Prisma.JsonValue,
+		createdAt: new Date(),
 		updatedAt: new Date()
 	};
 	const productFromApi: OpenFoodFactsProduct = {
@@ -1773,55 +1873,60 @@ describe('productService', () => {
 		product: productFromApi
 	};
 	it('debería devolver un producto de la caché si existe (Cache Hit)', async () => {
-		// Arrange: Hacemos un type cast a Mock para acceder a los métodos de mock de Vitest.
-		(mockedPrisma.productCache.findUnique as Mock).mockResolvedValue(cachedProduct);
+		// Arrange
+		(mockedPrisma.product.findUnique as Mock).mockResolvedValue(cachedProduct);
 		// Act
 		const result = await productService.findByBarcode(barcode);
 		// Assert
 		expect(result).toEqual(cachedProduct);
-		expect(mockedPrisma.productCache.findUnique).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.product.findUnique).toHaveBeenCalledTimes(1);
 		expect(mockedKy.get).not.toHaveBeenCalled();
 	});
 	it('debería obtener el producto de la API y guardarlo en caché si no existe (Cache Miss)', async () => {
 		// Arrange
-		(mockedPrisma.productCache.findUnique as Mock).mockResolvedValue(null);
-		// Justificación: Se elimina el `as any`. La estructura del objeto es suficiente.
+		(mockedPrisma.product.findUnique as Mock).mockResolvedValue(null);
 		(mockedKy.get as Mock).mockReturnValue({
 			json: vi.fn().mockResolvedValue(apiProductResponse)
 		});
-		const createdProduct: ProductCache = {
-			id: barcode,
-			productName: 'Producto de API',
-			brand: 'Marca API',
-			imageUrl: 'http://api.com/img.png',
-			calories: 200,
-			fat: 20,
-			protein: 10,
-			carbs: 40,
-			fullPayload: productFromApi as Prisma.JsonObject,
-			updatedAt: new Date()
+		const expectedDataToCreate = {
+			id: productFromApi.code,
+			name: productFromApi.product_name,
+			normalizedName: 'producto de api',
+			brand: productFromApi.brands,
+			imageUrl: productFromApi.image_url,
+			calories: productFromApi.nutriments.energy_kcal_100g,
+			fat: productFromApi.nutriments.fat_100g,
+			protein: productFromApi.nutriments.proteins_100g,
+			carbs: productFromApi.nutriments.carbohydrates_100g,
+			fullPayload: productFromApi as unknown as Prisma.JsonValue
 		};
-		(mockedPrisma.productCache.create as Mock).mockResolvedValue(createdProduct);
+		(mockedPrisma.product.create as Mock).mockResolvedValue({
+			...expectedDataToCreate,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		mockedNormalizeText.mockReturnValue('producto de api');
 		// Act
 		await productService.findByBarcode(barcode);
 		// Assert
-		expect(mockedPrisma.productCache.findUnique).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.product.findUnique).toHaveBeenCalledTimes(1);
 		expect(mockedKy.get).toHaveBeenCalledTimes(1);
-		expect(mockedPrisma.productCache.create).toHaveBeenCalledTimes(1);
-		expect(mockedPrisma.productCache.create).toHaveBeenCalledWith({
-			data: {
-				id: productFromApi.code,
-				productName: productFromApi.product_name,
-				normalizedProductName: 'producto de api', // Justificación: Añadimos el campo esperado.
-				brand: productFromApi.brands,
-				imageUrl: productFromApi.image_url,
-				calories: productFromApi.nutriments.energy_kcal_100g,
-				fat: productFromApi.nutriments.fat_100g,
-				protein: productFromApi.nutriments.proteins_100g,
-				carbs: productFromApi.nutriments.carbohydrates_100g,
-				fullPayload: productFromApi as Prisma.JsonObject
-			}
+		expect(mockedPrisma.product.create).toHaveBeenCalledTimes(1);
+		expect(mockedPrisma.product.create).toHaveBeenCalledWith({
+			data: expectedDataToCreate
 		});
+	});
+	it('debería devolver null si el producto no se encuentra ni en caché ni en la API', async () => {
+		// Arrange
+		(mockedPrisma.product.findUnique as Mock).mockResolvedValue(null);
+		(mockedKy.get as Mock).mockReturnValue({
+			json: vi.fn().mockResolvedValue({ status: 0 }) // Simula producto no encontrado en OFF
+		});
+		// Act
+		const result = await productService.findByBarcode(barcode);
+		// Assert
+		expect(result).toBeNull();
+		expect(mockedPrisma.product.create).not.toHaveBeenCalled();
 	});
 });
 
@@ -1831,7 +1936,7 @@ import type { CustomIngredient, Product } from '@prisma/client';
 import prisma from '$lib/server/prisma';
 // Justificación: Importamos el 'const' IngredientSchema para la validación en tiempo de ejecución
 // y el 'type' Ingredient para las anotaciones de tipo estáticas, cumpliendo con verbatimModuleSyntax.
-import { IngredientSchema, type Ingredient } from '$lib/schemas/ingredientSchema';
+import { type Ingredient } from '$lib/schemas/ingredientSchema';
 import { normalizeText } from '$lib/utils';
 // Justificación: La capa de servicio abstrae la lógica de negocio y el acceso a datos.
 // Esto mantiene los endpoints de la API (controladores) limpios y centrados en manejar
@@ -1869,6 +1974,22 @@ export const ingredientService = {
 		return await prisma.customIngredient.findMany({
 			orderBy: { name: 'asc' }
 		});
+	},
+	/**
+	 * Obtiene todos los ingredientes (personalizados y cacheados) en una lista unificada.
+	 */
+	async getAllUnified() {
+		const customIngredients = await prisma.customIngredient.findMany({
+			orderBy: { name: 'asc' }
+		});
+		const cachedProducts = await prisma.product.findMany({
+			orderBy: { name: 'asc' }
+		});
+		const unifiedList = [
+			...customIngredients.map((i) => ({ ...i, source: 'custom' as const })),
+			...cachedProducts.map((p) => ({ ...p, source: 'product' as const }))
+		];
+		return unifiedList.sort((a, b) => a.name.localeCompare(b.name));
 	},
 	/**
 	 * Crea un nuevo ingrediente personalizado.
@@ -1984,67 +2105,92 @@ describe('ingredientService', () => {
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
 	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
-	import type { PageData, ActionData } from './$types';
-	let { data, form } = $props<{ data: PageData; form: ActionData }>();
-	const { recipe } = data;
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '$lib/components/ui/command';
+	import { ChevronsUpDown } from 'lucide-svelte';
+	import type { PageData } from './$types';
+	const { data }: { data: PageData } = $props();
 	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
-	let title = $state(recipe.title);
-	let description = $state(recipe.description || '');
-	let steps = $state(recipe.steps);
-	let ingredients = $state<IngredientWithDetails[]>(
-		recipe.ingredients.map((ing: PageData['recipe']['ingredients'][number]) => ({
-			id: ing.productCache?.id || ing.customIngredient?.id || '',
-			name: ing.productCache?.productName || ing.customIngredient?.name || 'Ingrediente desconocido',
-			type: ing.productCache ? 'product' : 'custom',
-			quantity: ing.quantity,
-			calories: ing.productCache?.calories || ing.customIngredient?.calories || 0,
-			protein: ing.productCache?.protein || ing.customIngredient?.protein || 0,
-			fat: ing.productCache?.fat || ing.customIngredient?.fat || 0,
-			carbs: ing.productCache?.carbs || ing.customIngredient?.carbs || 0
-		}))
-	);
-	let searchTerm = $state('');
-	let searchResults = $state<{ id: string; name: string; type: 'custom' | 'product' }[]>([]);
+	type SearchResult = {
+		id: string;
+		name: string;
+		source: 'local' | 'off';
+		type: 'custom' | 'product';
+		imageUrl: string | null;
+	};
+	// Inicializar estado con los datos de la receta
+	let title = $state(data.recipe.title);
+	let description = $state(data.recipe.description ?? '');
+	let steps = $state(data.recipe.steps);
+	const initialIngredients = data.recipe.ingredients
+	.map((ing): IngredientWithDetails | null => {
+		const quantity = ing.quantity;
+		if (ing.customIngredient) {
+			return {
+				id: ing.customIngredient.id,
+				type: 'custom',
+				quantity,
+				name: ing.customIngredient.name,
+				calories: ing.customIngredient.calories ?? 0,
+				protein: ing.customIngredient.protein ?? 0,
+				fat: ing.customIngredient.fat ?? 0,
+				carbs: ing.customIngredient.carbs ?? 0
+			};
+		}
+		if (ing.product) {
+			return {
+				id: ing.product.id,
+				type: 'product',
+				quantity,
+				name: ing.product.name,
+				calories: ing.product.calories ?? 0,
+				protein: ing.product.protein ?? 0,
+				fat: ing.product.fat ?? 0,
+				carbs: ing.product.carbs ?? 0
+			};
+		}
+		return null;
+	})
+	.filter((ing): ing is IngredientWithDetails => ing !== null);
+	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
+	let searchResults = $state<SearchResult[]>([]);
 	let isSearching = $state(false);
-	let showResults = $state(false);
-	// Justificación: Se reemplaza `debounce` por `AbortController`.
-	// Esto crea un patrón de búsqueda más robusto y testeable. Cada nueva búsqueda
-	// cancela la anterior, evitando condiciones de carrera y haciendo que la llamada
-	// a la API sea determinista en los tests.
-	let searchController: AbortController | null = null;
-	async function handleSearch(event: Event) {
-		if (searchController) {
-			searchController.abort();
-		}
-		searchController = new AbortController();
-		const signal = searchController.signal;
-		// Justificación: Se lee el valor directamente del evento del DOM.
-		// Esto evita la condición de carrera donde el estado reactivo `searchTerm`
-		// podría no estar actualizado cuando se ejecuta el manejador.
-		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
-		if (currentSearchTerm.length < 3) {
+	let open = $state(false);
+	let inputValue = $state('');
+	let searchTerm = $state('');
+	$effect(() => {
+		let eventSource: EventSource | null = null;
+		if (searchTerm.length < 3) {
 			searchResults = [];
-			showResults = false;
-			return;
-		}
-		isSearching = true;
-		try {
-			const response = await fetch(`/api/ingredients/search?q=${currentSearchTerm}`, { signal });
-			if (response.ok) {
-				searchResults = await response.json();
-				showResults = true;
-			}
-		} catch (error) {
-			// El AbortError es esperado cuando se cancela una petición, no es un error real.
-			if (error instanceof DOMException && error.name === 'AbortError') {
-				return;
-			}
-			console.error('Error searching ingredients:', error);
-		} finally {
 			isSearching = false;
+		} else {
+			isSearching = true;
+			searchResults = [];
+			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource.addEventListener('message', (e) => {
+				const newResults = JSON.parse(e.data);
+				searchResults = [...searchResults, ...newResults];
+			});
+			eventSource.addEventListener('stream_error', (e) => {
+				const errorData = JSON.parse((e as MessageEvent).data);
+				console.error('Error de stream recibido:', errorData);
+			});
+			eventSource.onerror = (err) => {
+				console.error('Error en la conexión de EventSource:', err);
+				isSearching = false;
+				eventSource?.close();
+			};
+			eventSource.addEventListener('close', () => {
+				isSearching = false;
+				eventSource?.close();
+			});
 		}
-	}
-	async function addIngredient(result: { id: string; name: string; type: 'custom' | 'product' }) {
+		// Función de limpieza de $effect
+		return () => {
+			eventSource?.close();
+		};
+	});
+	async function addIngredient(result: SearchResult) {
 		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
 		try {
 			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
@@ -2061,9 +2207,10 @@ describe('ingredientService', () => {
 		} catch (error) {
 			console.error('Error adding ingredient:', error);
 		} finally {
-			searchTerm = '';
+			open = false;
 			searchResults = [];
-			showResults = false;
+			searchTerm = '';
+			inputValue = '';
 		}
 	}
 	function removeIngredient(index: number) {
@@ -2083,7 +2230,7 @@ describe('ingredientService', () => {
 			ingredients: ingredients.map(({ id, quantity, type }) => ({ id, quantity, type }))
 		};
 		try {
-			const response = await fetch(`/api/recipes/${recipe.id}`, {
+			const response = await fetch(`/api/recipes/${data.recipe.id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
@@ -2116,7 +2263,7 @@ describe('ingredientService', () => {
 				<Label for="title">Título</Label>
 				<Input id="title" bind:value={title} required />
 				{#if errors.title}
-					<p class="text-sm text-red-500">{errors.title._errors[0]}</p>
+				<p class="text-sm text-red-500">{errors.title._errors[0]}</p>
 				{/if}
 			</div>
 			<div class="space-y-2">
@@ -2127,116 +2274,130 @@ describe('ingredientService', () => {
 				<Label for="steps">Pasos</Label>
 				<Textarea id="steps" bind:value={steps} rows={8} required />
 				{#if errors.steps}
-					<p class="text-sm text-red-500">{errors.steps._errors[0]}</p>
-				{/if}
-			</div>
-			<div class="space-y-2 relative">
-				<Label for="ingredient-search">Añadir Ingrediente</Label>
-				<Input
-					id="ingredient-search"
-					bind:value={searchTerm}
-					oninput={handleSearch}
-					onfocus={() => (showResults = true)}
-					placeholder="Buscar por nombre (ej. Pollo, Harina...)"
-				/>
-				{#if isSearching}
-					<p class="text-sm text-gray-500">Buscando...</p>
-				{/if}
-				{#if showResults && searchResults.length > 0}
-					<div class="absolute z-10 w-full bg-white border rounded-md shadow-lg mt-1">
-						<ul>
-							{#each searchResults as result (result.id + result.type)}
-								<li>
-									<button
-										type="button"
-										class="w-full text-left px-4 py-2 cursor-pointer hover:bg-gray-100"
-										onclick={() => addIngredient(result)}
-										onmousedown={(e) => e.preventDefault()}
-									>
-										{result.name}
-										<span class="text-xs text-gray-500">({result.type})</span>
-									</button>
-								</li>
-							{/each}
-						</ul>
-					</div>
+				<p class="text-sm text-red-500">{errors.steps._errors[0]}</p>
 				{/if}
 			</div>
 			<div class="space-y-2">
-				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
-							<TableHead class="w-[100px] text-right">Acciones</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each ingredients as ingredient, i}
-							<TableRow>
-								<TableCell>{ingredient.name}</TableCell>
-								<TableCell>
-									<Input
-										type="number"
-										bind:value={ingredient.quantity}
-										min="1"
-										class="w-full"
-									/>
-								</TableCell>
-								<TableCell class="text-right">
-									<Button
-										type="button"
-										variant="destructive"
-										size="sm"
-										onclick={() => removeIngredient(i)}
-									>
-										Quitar
-									</Button>
-								</TableCell>
-							</TableRow>
-						{/each}
-						{#if ingredients.length === 0}
-							<TableRow>
-								<TableCell colspan={3} class="text-center text-gray-500">
-									Añade ingredientes usando el buscador.
-								</TableCell>
-							</TableRow>
-						{/if}
-					</TableBody>
-				</Table>
+				<Label>Añadir Ingrediente</Label>
+				<Popover.Root bind:open>
+					<Popover.Trigger
+						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+						role="combobox"
+						aria-expanded={open}
+					>
+						<div class="flex items-center justify-between w-full">
+							{inputValue || 'Seleccionar ingrediente...'}
+							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						</div>
+					</Popover.Trigger>
+					<Popover.Content class="w-[--trigger-width] p-0">
+						<Command.Root filter={() => 1}>
+							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
+							<Command.List>
+								{#if searchResults.length > 0}
+								{#each searchResults as result (result.id + result.type)}
+								<Command.Item
+								value={result.name}
+								onSelect={() => {
+									inputValue = result.name;
+									addIngredient(result);
+								}}
+								class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+								>
+								<img
+								src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+								alt={result.name}
+								class="h-8 w-8 rounded-sm object-cover"
+								/>
+								<span>{result.name}</span>
+							</Command.Item>
+							{/each}
+							{:else}
+							<div class="p-4 text-sm text-center text-gray-500">
+								{#if isSearching}
+								Buscando...
+								{:else if searchTerm.length < 3}
+								Escribe al menos 3 caracteres para buscar...
+								{:else}
+								No se encontraron resultados.
+								{/if}
+							</div>
+							{/if}
+						</Command.List>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+		<div class="space-y-2">
+			<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+			<Table>
+				<TableHeader>
+					<TableRow>
+						<TableHead>Nombre</TableHead>
+						<TableHead class="w-[150px]">Cantidad (g)</TableHead>
+						<TableHead class="w-[100px] text-right">Acciones</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{#each ingredients as ingredient, i}
+					<TableRow>
+						<TableCell>{ingredient.name}</TableCell>
+						<TableCell>
+							<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
+						</TableCell>
+						<TableCell class="text-right">
+							<Button
+							type="button"
+							variant="destructive"
+							size="sm"
+							onclick={() => removeIngredient(i)}
+							>
+							Quitar
+						</Button>
+					</TableCell>
+				</TableRow>
+				{/each}
+				{#if ingredients.length === 0}
+				<TableRow>
+					<TableCell colspan={3} class="text-center text-gray-500">
+						Añade ingredientes usando el buscador.
+					</TableCell>
+				</TableRow>
+				{/if}
+			</TableBody>
+		</Table>
+	</div>
+	<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+		<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<div>
+				<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+				<p class="text-sm text-gray-600">Calorías (kcal)</p>
 			</div>
-			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
-				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
-				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
-					</div>
-				</div>
+			<div>
+				<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+				<p class="text-sm text-gray-600">Proteínas</p>
 			</div>
-			<div class="flex justify-end">
-				<Button type="submit" disabled={isSubmitting}>
-					{isSubmitting ? 'Actualizando...' : 'Actualizar Receta'}
-				</Button>
+			<div>
+				<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+				<p class="text-sm text-gray-600">Grasas</p>
 			</div>
-			{#if errors.general}
-				<p class="text-sm text-red-500 text-right">{errors.general}</p>
-			{/if}
-		</form>
-	</CardContent>
+			<div>
+				<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+				<p class="text-sm text-gray-600">Carbohidratos</p>
+			</div>
+		</div>
+	</div>
+	<div class="flex justify-end">
+		<Button type="submit" disabled={isSubmitting}>
+			{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+		</Button>
+	</div>
+	{#if errors.general}
+	<p class="text-sm text-red-500 text-right">{errors.general}</p>
+	{/if}
+</form>
+</CardContent>
 </Card>
 
 // --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
@@ -2317,6 +2478,145 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	}
 };
 
+// --- Ruta: src/routes/api/products/[id]/+server.ts ---
+// Ruta: src/routes/api/products/[id]/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { productService } from '$lib/server/services/productService';
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+	if (!id) {
+		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
+	}
+	try {
+		await productService.deleteById(id);
+		return new Response(null, { status: 204 }); // No Content
+	} catch (error) {
+		console.error(`Error deleting product ${id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/search/api.spec.ts ---
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { GET } from './+server';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import { json } from '@sveltejs/kit';
+// Mockear los módulos externos
+vi.mock('$lib/server/services/ingredientService', () => ({
+	ingredientService: {
+		searchByName: vi.fn()
+	}
+}));
+vi.mock('@sveltejs/kit', async () => {
+	const actual = await vi.importActual('@sveltejs/kit');
+	return {
+		...actual,
+		json: vi.fn((data) => data) // Mock simple que devuelve los datos
+	};
+});
+describe('API Endpoint: /api/ingredients/search', () => {
+	const mockSearchByName = vi.mocked(ingredientService.searchByName);
+	const mockJsonResponse = vi.mocked(json);
+	beforeEach(() => {
+		vi.resetAllMocks();
+	});
+	it('debe devolver resultados locales del ingredientService', async () => {
+		// Arrange
+		const mockLocalResults = {
+			customIngredients: [{ id: 'custom1', name: 'Tomate de la huerta' }],
+			cachedProducts: [{ id: 'prod1', name: 'Tomate Frito (Mercadona)', imageUrl: 'url_image' }]
+		};
+		mockSearchByName.mockResolvedValue(mockLocalResults);
+		const mockFetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: () => Promise.resolve({ products: [] })
+		});
+		const request = { url: new URL('http://localhost/api/ingredients/search?q=tomate') };
+		// Act
+		const result = await GET({ url: request.url, fetch: mockFetch } as any);
+		// Assert
+		expect(mockSearchByName).toHaveBeenCalledWith('tomate');
+		expect(result).toContainEqual({
+			id: 'custom1',
+			name: 'Tomate de la huerta',
+			source: 'local',
+			imageUrl: null
+		});
+		expect(result).toContainEqual({
+			id: 'prod1',
+			name: 'Tomate Frito (Mercadona)',
+			source: 'local',
+			imageUrl: 'url_image'
+		});
+	});
+	it('debe llamar a la API de Open Food Facts con " Mercadona" añadido a la query', async () => {
+		// Arrange
+		mockSearchByName.mockResolvedValue({ customIngredients: [], cachedProducts: [] });
+		const mockFetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: () => Promise.resolve({ products: [] })
+		});
+		const request = { url: new URL('http://localhost/api/ingredients/search?q=queso') };
+		// Act
+		await GET({ url: request.url, fetch: mockFetch } as any);
+		// Assert
+		expect(mockFetch).toHaveBeenCalledOnce();
+		const fetchUrl = mockFetch.mock.calls[0][0] as string;
+		expect(fetchUrl).toContain('search_terms=queso%20Mercadona');
+	});
+	it('debe unificar resultados y eliminar duplicados dando prioridad a los locales', async () => {
+		// Arrange
+		const mockLocalResults = {
+			customIngredients: [],
+			cachedProducts: [{ id: '12345', name: 'Producto Local Repetido', imageUrl: null }]
+		};
+		mockSearchByName.mockResolvedValue(mockLocalResults);
+		const mockOffResponse = {
+			products: [
+				{ code: '12345', product_name: 'Producto OFF Repetido', image_front_small_url: 'url1' },
+				{ code: '67890', product_name: 'Producto OFF Único', image_front_small_url: 'url2' }
+			]
+		};
+		const mockFetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: () => Promise.resolve(mockOffResponse)
+		});
+		const request = { url: new URL('http://localhost/api/ingredients/search?q=producto') };
+		// Act
+		const result = await GET({ url: request.url, fetch: mockFetch } as any);
+		// Assert
+		expect(result).toHaveLength(2);
+		// Comprueba que el resultado local está presente
+		expect(result).toContainEqual({
+			id: '12345',
+			name: 'Producto Local Repetido',
+			source: 'local',
+			imageUrl: null
+		});
+		// Comprueba que el resultado único de OFF está presente
+		expect(result).toContainEqual({
+			id: '67890',
+			name: 'Producto OFF Único',
+			source: 'off',
+			imageUrl: 'url2'
+		});
+		// Comprueba que el resultado duplicado de OFF NO está presente
+		expect(result.find((r) => r.id === '12345' && r.source === 'off')).toBeUndefined();
+	});
+	it('debe devolver un error 400 si no se proporciona el parámetro "q"', async () => {
+		// Arrange
+		const request = { url: new URL('http://localhost/api/ingredients/search') };
+		const mockFetch = vi.fn();
+		// Act
+		await GET({ url: request.url, fetch: mockFetch } as any);
+		// Assert
+		expect(mockJsonResponse).toHaveBeenCalledWith(
+			{ error: 'Query parameter "q" is required' },
+			{ status: 400 }
+		);
+	});
+});
+
 // --- Ruta: src/routes/api/ingredients/search/+server.ts ---
 import { ingredientService } from '$lib/server/services/ingredientService';
 import { json } from '@sveltejs/kit';
@@ -2327,50 +2627,114 @@ type OffProduct = {
 	product_name: string;
 	image_front_small_url?: string;
 };
-export const GET: RequestHandler = async ({ url, fetch }) => {
+export const GET: RequestHandler = ({ url, fetch }) => {
 	const query = url.searchParams.get('q');
 	if (!query) {
 		return json({ error: 'Query parameter "q" is required' }, { status: 400 });
 	}
-	// 1. Búsqueda local y externa en paralelo para mayor eficiencia
-	const localSearchPromise = ingredientService.searchByName(query);
-	const offQuery = `${query} Mercadona`;
-	const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-		offQuery
-	)}&search_simple=1&action=process&json=1&page_size=20`; // Limitar a 20 resultados
-	const offSearchPromise = fetch(offUrl).then((res) => res.json()) as Promise<{ products: OffProduct[] }>;
-	const [{ customIngredients, cachedProducts }, offResponse] = await Promise.all([
-		localSearchPromise,
-		offSearchPromise
-	]);
-	// 2. Mapear resultados locales a un formato estándar
-	const localResults = [
-		...customIngredients.map((i) => ({
-			id: i.id,
-			name: i.name,
-			source: 'local' as const,
-			imageUrl: null
-		})),
-		...cachedProducts.map((p) => ({
-			id: p.id,
-			name: p.name,
-			source: 'local' as const,
-			imageUrl: p.imageUrl
-		}))
-	];
-	const localIds = new Set(localResults.map((r) => r.id));
-	// 3. Mapear resultados de OFF, excluyendo los que ya tenemos en local
-	const offResults = offResponse.products
-		.filter((p) => p.code && !localIds.has(p.code)) // Excluir duplicados y productos sin código
-		.map((p) => ({
-			id: p.code,
-			name: p.product_name,
-			source: 'off' as const,
-			imageUrl: p.image_front_small_url || null
-		}));
-	// 4. Combinar y devolver
-	const finalResults = [...localResults, ...offResults];
-	return json(finalResults);
+	const stream = new ReadableStream({
+		async start(controller) {
+			const localIds = new Set<string>();
+			type SearchResult = {
+				id: string;
+				name: string;
+				source: 'local' | 'off';
+				type: 'custom' | 'product';
+				imageUrl: string | null;
+			};
+			// Función para enviar eventos con nombre al stream
+			const sendEvent = (event: string, data: object) => {
+				controller.enqueue(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+			};
+			try {
+				// 1. Búsqueda local (rápida)
+				const { customIngredients, cachedProducts } = await ingredientService.searchByName(query);
+				const localResults: SearchResult[] = [
+					...customIngredients.map(
+						(i) =>
+							({
+								id: i.id,
+								name: i.name,
+								source: 'local',
+								type: 'custom',
+								imageUrl: null
+							}) as const
+					),
+					...cachedProducts.map(
+						(p) =>
+							({
+								id: p.id,
+								name: p.name,
+								source: 'local',
+								type: 'product',
+								imageUrl: p.imageUrl
+							}) as const
+					)
+				];
+				if (localResults.length > 0) {
+					localResults.forEach((r) => localIds.add(r.id));
+					sendEvent('message', localResults);
+				}
+				// 2. Búsquedas externas (lentas)
+				const brands = ['Hacendado', 'Mercadona'];
+				const offSearchPromises = brands.map((brand) => {
+					const offQuery = `${query} ${brand}`;
+					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+						offQuery
+					)}&search_simple=1&action=process&json=1&page_size=10`;
+					return fetch(offUrl)
+						.then(async (res) => {
+							if (!res.ok) throw new Error(`API returned status ${res.status}`);
+							return res.json() as Promise<{ products: OffProduct[] }>;
+						})
+						.then((response) => {
+							const offProducts = response.products || [];
+							const uniqueOffProducts: SearchResult[] = offProducts
+								.filter((p) => p.code && !localIds.has(p.code))
+								.map((p) => {
+									localIds.add(p.code);
+									return {
+										id: p.code,
+										name: p.product_name,
+										source: 'off' as const,
+										type: 'product' as const,
+										imageUrl: p.image_front_small_url || null
+									};
+								});
+							if (uniqueOffProducts.length > 0) {
+								sendEvent('message', uniqueOffProducts);
+							}
+						})
+						.catch((err) => {
+							// Lanzar el error para que Promise.allSettled lo capture
+							throw new Error(`Failed to fetch from ${brand}: ${err.message}`);
+						});
+				});
+				const results = await Promise.allSettled(offSearchPromises);
+				results.forEach((result) => {
+					if (result.status === 'rejected') {
+						console.error('A fetch promise was rejected:', result.reason);
+						sendEvent('stream_error', { source: 'off-api', message: result.reason.message });
+					}
+				});
+			} catch (error) {
+				console.error('[Search Stream Error]', error);
+				const errorMessage = error instanceof Error ? error.message : 'Unknown stream error';
+				sendEvent('stream_error', { source: 'server', message: errorMessage });
+			} finally {
+				// Notificar al cliente que el stream ha finalizado
+				sendEvent('close', { message: 'Stream closed' });
+				controller.close();
+			}
+		}
+	});
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		}
+	});
 };
 
 // --- Ruta: src/routes/api/ingredients/[id]/+server.ts ---
@@ -2419,7 +2783,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 
 // --- Ruta: src/routes/admin/ingredientes/off/+page.svelte ---
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	type SearchResult = {
@@ -2431,26 +2795,51 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	let searchTerm = '';
 	let results: SearchResult[] = [];
 	let isLoading = false;
-	async function handleSearch() {
+	let searchAttempted = false; // Para mostrar el mensaje de "no resultados"
+	let eventSource: EventSource | null = null;
+	function handleSearch() {
 		if (searchTerm.length < 3) {
 			results = [];
+			searchAttempted = false;
 			return;
 		}
+		results = [];
 		isLoading = true;
-		try {
-			const response = await fetch(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
-			if (response.ok) {
-				results = await response.json();
-			}
-		} catch (error) {
-			console.error('Error en la búsqueda:', error);
-		} finally {
-			isLoading = false;
+		searchAttempted = true;
+		if (eventSource) {
+			eventSource.close();
 		}
+		eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+		eventSource.addEventListener('message', (event) => {
+			const newResults = JSON.parse(event.data);
+			results = [...results, ...newResults];
+		});
+		// Escucha los errores de aplicación enviados explícitamente por el servidor
+		eventSource.addEventListener('stream_error', (event) => {
+			// Este es un MessageEvent, por lo que podemos castearlo y leer `data`
+			const errorData = JSON.parse((event as MessageEvent).data);
+			console.error('Error de stream recibido:', errorData);
+		});
+		// Escucha los errores de conexión genéricos
+		eventSource.onerror = (err) => {
+			// Este es un Event genérico, no tiene `data`. Solo indica fallo en la conexión.
+			console.error('Error en la conexión de EventSource. La conexión se ha cerrado.', err);
+			isLoading = false;
+			eventSource?.close();
+		};
+		eventSource.addEventListener('close', () => {
+			isLoading = false;
+			eventSource?.close();
+		});
 	}
 </script>
 <div class="space-y-8 p-4 md:p-8">
-	<h1 class="text-2xl font-bold">Añadir Ingredientes desde Open Food Facts</h1>
+	<div class="flex justify-between items-center">
+		<h1 class="text-2xl font-bold">Añadir Ingredientes desde Open Food Facts</h1>
+		<a href="/admin/ingredientes" class={buttonVariants({ variant: 'outline' })}>
+			Volver al listado
+		</a>
+	</div>
 	<form on:submit|preventDefault={handleSearch} class="flex items-center gap-2">
 		<Input
 		bind:value={searchTerm}
@@ -2462,9 +2851,9 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		</Button>
 	</form>
 	{#if results.length > 0}
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
 		{#each results as result (result.id)}
-		<Card>
+		<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
 			<CardHeader>
 				<img
 				src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
@@ -2473,11 +2862,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 				/>
 			</CardHeader>
 			<CardContent class="flex flex-col justify-between space-y-4">
-				<CardTitle class="text-base">{result.name}</CardTitle>
-				<CardDescription>
-					ID: {result.id} <br />
-					Origen: <span class="font-semibold">{result.source === 'off' ? 'Open Food Facts' : 'Local'}</span>
-				</CardDescription>
+				<CardTitle class="text-sm">{result.name}</CardTitle>
 				{#if result.source === 'off'}
 				<form method="POST" action="?/add">
 					<input type="hidden" name="productId" value={result.id} />
@@ -2489,6 +2874,10 @@ export const DELETE: RequestHandler = async ({ params }) => {
 			</CardContent>
 		</Card>
 		{/each}
+	</div>
+	{:else if !isLoading && searchAttempted}
+	<div class="text-center text-gray-500 py-8">
+		<p>No se encontraron resultados para tu búsqueda.</p>
 	</div>
 	{/if}
 </div>
@@ -2552,6 +2941,70 @@ export {
 	Root,
 	//
 	Root as Textarea,
+};
+
+// --- Ruta: src/lib/components/ui/popover/popover-trigger.svelte ---
+<script lang="ts">
+	import { cn } from "$lib/utils.js";
+	import { Popover as PopoverPrimitive } from "bits-ui";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: PopoverPrimitive.TriggerProps = $props();
+</script>
+<PopoverPrimitive.Trigger
+	bind:ref
+	data-slot="popover-trigger"
+	class={cn("", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/popover/popover-content.svelte ---
+<script lang="ts">
+	import { cn } from "$lib/utils.js";
+	import { Popover as PopoverPrimitive } from "bits-ui";
+	let {
+		ref = $bindable(null),
+		class: className,
+		sideOffset = 4,
+		align = "center",
+		portalProps,
+		...restProps
+	}: PopoverPrimitive.ContentProps & {
+		portalProps?: PopoverPrimitive.PortalProps;
+	} = $props();
+</script>
+<PopoverPrimitive.Portal {...portalProps}>
+	<PopoverPrimitive.Content
+		bind:ref
+		data-slot="popover-content"
+		{sideOffset}
+		{align}
+		class={cn(
+			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-popover-content-transform-origin) outline-hidden z-50 w-72 rounded-md border p-4 shadow-md",
+			className
+		)}
+		{...restProps}
+	/>
+</PopoverPrimitive.Portal>
+
+// --- Ruta: src/lib/components/ui/popover/index.ts ---
+import { Popover as PopoverPrimitive } from "bits-ui";
+import Content from "./popover-content.svelte";
+import Trigger from "./popover-trigger.svelte";
+const Root = PopoverPrimitive.Root;
+const Close = PopoverPrimitive.Close;
+export {
+	Root,
+	Content,
+	Trigger,
+	Close,
+	//
+	Root as Popover,
+	Content as PopoverContent,
+	Trigger as PopoverTrigger,
+	Close as PopoverClose,
 };
 
 // --- Ruta: src/lib/components/ui/table/table.svelte ---
@@ -2752,70 +3205,6 @@ export {
 	Head as TableHead,
 	Header as TableHeader,
 	Row as TableRow,
-};
-
-// --- Ruta: src/lib/components/ui/popover/popover-trigger.svelte ---
-<script lang="ts">
-	import { cn } from "$lib/utils.js";
-	import { Popover as PopoverPrimitive } from "bits-ui";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: PopoverPrimitive.TriggerProps = $props();
-</script>
-<PopoverPrimitive.Trigger
-	bind:ref
-	data-slot="popover-trigger"
-	class={cn("", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/popover/popover-content.svelte ---
-<script lang="ts">
-	import { cn } from "$lib/utils.js";
-	import { Popover as PopoverPrimitive } from "bits-ui";
-	let {
-		ref = $bindable(null),
-		class: className,
-		sideOffset = 4,
-		align = "center",
-		portalProps,
-		...restProps
-	}: PopoverPrimitive.ContentProps & {
-		portalProps?: PopoverPrimitive.PortalProps;
-	} = $props();
-</script>
-<PopoverPrimitive.Portal {...portalProps}>
-	<PopoverPrimitive.Content
-		bind:ref
-		data-slot="popover-content"
-		{sideOffset}
-		{align}
-		class={cn(
-			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-popover-content-transform-origin) outline-hidden z-50 w-72 rounded-md border p-4 shadow-md",
-			className
-		)}
-		{...restProps}
-	/>
-</PopoverPrimitive.Portal>
-
-// --- Ruta: src/lib/components/ui/popover/index.ts ---
-import { Popover as PopoverPrimitive } from "bits-ui";
-import Content from "./popover-content.svelte";
-import Trigger from "./popover-trigger.svelte";
-const Root = PopoverPrimitive.Root;
-const Close = PopoverPrimitive.Close;
-export {
-	Root,
-	Content,
-	Trigger,
-	Close,
-	//
-	Root as Popover,
-	Content as PopoverContent,
-	Trigger as PopoverTrigger,
-	Close as PopoverClose,
 };
 
 // --- Ruta: src/lib/components/ui/label/label.svelte ---
@@ -3656,6 +4045,7 @@ export const GET: RequestHandler = async ({ params }) => {
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import prisma from '$lib/server/prisma';
+import { productService } from '$lib/server/services/productService';
 // Justificación: Este endpoint centraliza la obtención de datos nutricionales
 // para cualquier tipo de ingrediente. El frontend lo necesita para poder
 // calcular la información nutricional en tiempo real al crear/editar una receta.
@@ -3673,9 +4063,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			});
 		} else {
 			// Para productos, el 'id' es el código de barras.
-			ingredientData = await prisma.productCache.findUnique({
-				where: { id }
-			});
+			// Usamos el productService que ya tiene la lógica de caché y fallback a OFF.
+			ingredientData = await productService.findByBarcode(id);
 		}
 		if (!ingredientData) {
 			return json({ message: 'Ingrediente no encontrado.' }, { status: 404 });
