@@ -20,6 +20,7 @@
 	type SearchResult = {
 		id: string;
 		name: string;
+		source: 'local' | 'off';
 		type: 'custom' | 'product';
 		imageUrl: string | null;
 	};
@@ -29,81 +30,81 @@
 	let description = $state(data.recipe.description ?? '');
 	let steps = $state(data.recipe.steps);
 	const initialIngredients = data.recipe.ingredients
-		.map((ing): IngredientWithDetails | null => {
-			const quantity = ing.quantity;
-			if (ing.customIngredient) {
-				return {
-					id: ing.customIngredient.id,
-					type: 'custom',
-					quantity,
-					name: ing.customIngredient.name,
-					calories: ing.customIngredient.calories ?? 0,
-					protein: ing.customIngredient.protein ?? 0,
-					fat: ing.customIngredient.fat ?? 0,
-					carbs: ing.customIngredient.carbs ?? 0
-				};
-			}
-			if (ing.product) {
-				return {
-					id: ing.product.id,
-					type: 'product',
-					quantity,
-					name: ing.product.name,
-					calories: ing.product.calories ?? 0,
-					protein: ing.product.protein ?? 0,
-					fat: ing.product.fat ?? 0,
-					carbs: ing.product.carbs ?? 0
-				};
-			}
-			return null;
-		})
-		.filter((ing): ing is IngredientWithDetails => ing !== null);
+	.map((ing): IngredientWithDetails | null => {
+		const quantity = ing.quantity;
+		if (ing.customIngredient) {
+			return {
+				id: ing.customIngredient.id,
+				type: 'custom',
+				quantity,
+				name: ing.customIngredient.name,
+				calories: ing.customIngredient.calories ?? 0,
+				protein: ing.customIngredient.protein ?? 0,
+				fat: ing.customIngredient.fat ?? 0,
+				carbs: ing.customIngredient.carbs ?? 0
+			};
+		}
+		if (ing.product) {
+			return {
+				id: ing.product.id,
+				type: 'product',
+				quantity,
+				name: ing.product.name,
+				calories: ing.product.calories ?? 0,
+				protein: ing.product.protein ?? 0,
+				fat: ing.product.fat ?? 0,
+				carbs: ing.product.carbs ?? 0
+			};
+		}
+		return null;
+	})
+	.filter((ing): ing is IngredientWithDetails => ing !== null);
 	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
 	
 	let searchResults = $state<SearchResult[]>([]);
 	let isSearching = $state(false);
 	let open = $state(false);
 	let inputValue = $state('');
+	let searchTerm = $state('');
 	
-	let eventSource: EventSource | null = null;
-
-	function handleSearch(event: Event) {
-		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
-
-		if (eventSource) {
-			eventSource.close();
-		}
-		searchResults = [];
-
-		if (currentSearchTerm.length < 2) {
+	$effect(() => {
+		let eventSource: EventSource | null = null;
+		
+		if (searchTerm.length < 3) {
+			searchResults = [];
 			isSearching = false;
-			return;
+		} else {
+			isSearching = true;
+			searchResults = [];
+			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			
+			eventSource.addEventListener('message', (e) => {
+				const newResults = JSON.parse(e.data);
+				searchResults = [...searchResults, ...newResults];
+			});
+			
+			eventSource.addEventListener('stream_error', (e) => {
+				const errorData = JSON.parse((e as MessageEvent).data);
+				console.error('Error de stream recibido:', errorData);
+			});
+			
+			eventSource.onerror = (err) => {
+				console.error('Error en la conexión de EventSource:', err);
+				isSearching = false;
+				eventSource?.close();
+			};
+			
+			eventSource.addEventListener('close', () => {
+				isSearching = false;
+				eventSource?.close();
+			});
 		}
-
-		isSearching = true;
-		eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(currentSearchTerm)}`);
-
-		eventSource.addEventListener('message', (e) => {
-			const newResults = JSON.parse(e.data);
-			searchResults = [...searchResults, ...newResults];
-		});
-
-		eventSource.addEventListener('stream_error', (e) => {
-			const errorData = JSON.parse((e as MessageEvent).data);
-			console.error('Error de stream recibido:', errorData);
-		});
-
-		eventSource.onerror = (err) => {
-			console.error('Error en la conexión de EventSource:', err);
-			isSearching = false;
+		
+		// Función de limpieza de $effect
+		return () => {
 			eventSource?.close();
 		};
-
-		eventSource.addEventListener('close', () => {
-			isSearching = false;
-			eventSource?.close();
-		});
-	}
+	});
 	
 	async function addIngredient(result: SearchResult) {
 		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
@@ -126,11 +127,8 @@
 		} finally {
 			open = false;
 			searchResults = [];
+			searchTerm = '';
 			inputValue = '';
-			if (eventSource) {
-				eventSource.close();
-				isSearching = false;
-			}
 		}
 	}
 	
@@ -209,40 +207,49 @@
 			<div class="space-y-2">
 				<Label>Añadir Ingrediente</Label>
 				<Popover.Root bind:open>
-					<Popover.Trigger class="w-full">
-						<Button variant="outline" role="combobox" aria-expanded={open} class="w-full justify-between">
+					<Popover.Trigger
+						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+						role="combobox"
+						aria-expanded={open}
+					>
+						<div class="flex items-center justify-between w-full">
 							{inputValue || 'Seleccionar ingrediente...'}
 							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-						</Button>
+						</div>
 					</Popover.Trigger>
 					<Popover.Content class="w-[--trigger-width] p-0">
-						<Command.Root>
-							<Command.Input oninput={handleSearch} placeholder="Buscar ingrediente..." />
+						<Command.Root filter={() => 1}>
+							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
 							<Command.List>
+								{#if searchResults.length > 0}
+								{#each searchResults as result (result.id + result.type)}
+								<Command.Item
+								value={result.name}
+								onSelect={() => {
+									inputValue = result.name;
+									addIngredient(result);
+								}}
+								class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+								>
+								<img
+								src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+								alt={result.name}
+								class="h-8 w-8 rounded-sm object-cover"
+								/>
+								<span>{result.name}</span>
+							</Command.Item>
+							{/each}
+							{:else}
+							<div class="p-4 text-sm text-center text-gray-500">
 								{#if isSearching}
-								<Command.Item>Buscando...</Command.Item>
-								{:else if searchResults.length === 0}
-								<Command.Empty>Ningún ingrediente encontrado.</Command.Empty>
+								Buscando...
+								{:else if searchTerm.length < 3}
+								Escribe al menos 3 caracteres para buscar...
+								{:else}
+								No se encontraron resultados.
 								{/if}
-								<Command.Group>
-									{#each searchResults as result (result.id + result.type)}
-									<Command.Item
-									value={result.name}
-									onSelect={() => {
-										inputValue = result.name;
-										addIngredient(result);
-									}}
-									class="flex items-center gap-2"
-									>
-									<img
-									src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
-									alt={result.name}
-									class="h-8 w-8 rounded-sm object-cover"
-									/>
-									<span>{result.name}</span>
-								</Command.Item>
-								{/each}
-							</Command.Group>
+							</div>
+							{/if}
 						</Command.List>
 					</Command.Root>
 				</Popover.Content>

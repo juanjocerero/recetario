@@ -24,6 +24,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 				id: string;
 				name: string;
 				source: 'local' | 'off';
+				type: 'custom' | 'product';
 				imageUrl: string | null;
 			};
 
@@ -36,8 +37,26 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 				// 1. Búsqueda local (rápida)
 				const { customIngredients, cachedProducts } = await ingredientService.searchByName(query);
 				const localResults: SearchResult[] = [
-					...customIngredients.map((i) => ({ id: i.id, name: i.name, source: 'local', imageUrl: null })),
-					...cachedProducts.map((p) => ({ id: p.id, name: p.name, source: 'local', imageUrl: p.imageUrl }))
+					...customIngredients.map(
+						(i) =>
+							({
+								id: i.id,
+								name: i.name,
+								source: 'local',
+								type: 'custom',
+								imageUrl: null
+							}) as const
+					),
+					...cachedProducts.map(
+						(p) =>
+							({
+								id: p.id,
+								name: p.name,
+								source: 'local',
+								type: 'product',
+								imageUrl: p.imageUrl
+							}) as const
+					)
 				];
 
 				if (localResults.length > 0) {
@@ -52,31 +71,32 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
 						offQuery
 					)}&search_simple=1&action=process&json=1&page_size=10`;
-					
+
 					return fetch(offUrl)
 						.then(async (res) => {
 							if (!res.ok) throw new Error(`API returned status ${res.status}`);
 							return res.json() as Promise<{ products: OffProduct[] }>;
 						})
-						.then(response => {
+						.then((response) => {
 							const offProducts = response.products || [];
 							const uniqueOffProducts: SearchResult[] = offProducts
-								.filter(p => p.code && !localIds.has(p.code))
-								.map(p => {
+								.filter((p) => p.code && !localIds.has(p.code))
+								.map((p) => {
 									localIds.add(p.code);
 									return {
 										id: p.code,
 										name: p.product_name,
-										source: 'off',
+										source: 'off' as const,
+										type: 'product' as const,
 										imageUrl: p.image_front_small_url || null
 									};
 								});
-							
+
 							if (uniqueOffProducts.length > 0) {
 								sendEvent('message', uniqueOffProducts);
 							}
 						})
-						.catch(err => {
+						.catch((err) => {
 							console.error(`Error fetching ${brand}:`, err);
 							sendEvent('stream_error', { source: brand, message: err.message });
 						});

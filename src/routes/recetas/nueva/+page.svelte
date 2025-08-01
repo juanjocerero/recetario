@@ -17,6 +17,7 @@
 	type SearchResult = {
 		id: string;
 		name: string;
+		source: 'local' | 'off';
 		type: 'custom' | 'product';
 		imageUrl: string | null;
 	};
@@ -30,46 +31,46 @@
 	let isSearching = $state(false);
 	let open = $state(false);
 	let inputValue = $state('');
-	
-	let eventSource: EventSource | null = null;
+	let searchTerm = $state('');
 
-	function handleSearch(event: Event) {
-		const currentSearchTerm = (event.currentTarget as HTMLInputElement).value;
+	$effect(() => {
+		let eventSource: EventSource | null = null;
 
-		if (eventSource) {
-			eventSource.close();
-		}
-		searchResults = [];
-
-		if (currentSearchTerm.length < 2) {
+		if (searchTerm.length < 3) {
+			searchResults = [];
 			isSearching = false;
-			return;
+		} else {
+			isSearching = true;
+			searchResults = [];
+			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+
+			eventSource.addEventListener('message', (e) => {
+				const newResults = JSON.parse(e.data);
+				searchResults = [...searchResults, ...newResults];
+			});
+
+			eventSource.addEventListener('stream_error', (e) => {
+				const errorData = JSON.parse((e as MessageEvent).data);
+				console.error('Error de stream recibido:', errorData);
+			});
+
+			eventSource.onerror = (err) => {
+				console.error('Error en la conexión de EventSource:', err);
+				isSearching = false;
+				eventSource?.close();
+			};
+
+			eventSource.addEventListener('close', () => {
+				isSearching = false;
+				eventSource?.close();
+			});
 		}
 
-		isSearching = true;
-		eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(currentSearchTerm)}`);
-
-		eventSource.addEventListener('message', (e) => {
-			const newResults = JSON.parse(e.data);
-			searchResults = [...searchResults, ...newResults];
-		});
-
-		eventSource.addEventListener('stream_error', (e) => {
-			const errorData = JSON.parse((e as MessageEvent).data);
-			console.error('Error de stream recibido:', errorData);
-		});
-
-		eventSource.onerror = (err) => {
-			console.error('Error en la conexión de EventSource:', err);
-			isSearching = false;
+		// Función de limpieza de $effect: se ejecuta cuando searchTerm cambia
+		return () => {
 			eventSource?.close();
 		};
-
-		eventSource.addEventListener('close', () => {
-			isSearching = false;
-			eventSource?.close();
-		});
-	}
+	});
 	
 	async function addIngredient(result: SearchResult) {
 		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
@@ -92,10 +93,7 @@
 		} finally {
 			open = false;
 			searchResults = [];
-			if (eventSource) {
-				eventSource.close();
-				isSearching = false;
-			}
+			searchTerm = ''; // Limpiar el término de búsqueda
 		}
 	}
 	
@@ -174,42 +172,51 @@
 			<div class="space-y-2">
 				<Label>Añadir Ingrediente</Label>
 				<Popover.Root bind:open>
-					<Popover.Trigger class="w-full">
-						<Button variant="outline" role="combobox" aria-expanded={open} class="w-full justify-between">
+					<Popover.Trigger
+						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+						role="combobox"
+						aria-expanded={open}
+					>
+						<div class="flex items-center justify-between w-full">
 							{inputValue || 'Seleccionar ingrediente...'}
 							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-						</Button>
+						</div>
 					</Popover.Trigger>
 					<Popover.Content class="w-[--trigger-width] p-0">
-						<Command.Root>
-							<Command.Input oninput={handleSearch} placeholder="Buscar ingrediente..." />
+						<Command.Root filter={() => 1}>
+							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
 							<Command.List>
-								{#if isSearching}
-								<Command.Item>Buscando...</Command.Item>
-								{:else if searchResults.length === 0}
-								<Command.Empty>Ningún ingrediente encontrado.</Command.Empty>
-								{/if}
-								<Command.Group>
+								{#if searchResults.length > 0}
 									{#each searchResults as result (result.id + result.type)}
-									<Command.Item
-										value={result.name}
-										onSelect={() => {
-											inputValue = result.name;
-											addIngredient(result);
-										}}
-										class="flex items-center gap-2"
-									>
-										<img
-											src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
-											alt={result.name}
-											class="h-8 w-8 rounded-sm object-cover"
-										/>
-										<span>{result.name}</span>
-									</Command.Item>
-								{/each}
-							</Command.Group>
-						</Command.List>
-					</Command.Root>
+										<Command.Item
+											value={result.name}
+											onSelect={() => {
+												inputValue = result.name;
+												addIngredient(result);
+											}}
+											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+										>
+											<img
+												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+												alt={result.name}
+												class="h-8 w-8 rounded-sm object-cover"
+											/>
+											<span>{result.name}</span>
+										</Command.Item>
+									{/each}
+								{:else}
+									<div class="p-4 text-sm text-center text-gray-500">
+										{#if isSearching}
+											Buscando...
+										{:else if searchTerm.length < 3}
+											Escribe al menos 3 caracteres para buscar...
+										{:else}
+											No se encontraron resultados.
+										{/if}
+									</div>
+								{/if}
+							</Command.List>
+						</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
 		</div>
