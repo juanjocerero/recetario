@@ -2,6 +2,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import prisma from '$lib/server/prisma';
+import { productService } from '$lib/server/services/productService';
 
 // Justificación: Este endpoint centraliza la obtención de datos nutricionales
 // para cualquier tipo de ingrediente. El frontend lo necesita para poder
@@ -22,9 +23,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			});
 		} else {
 			// Para productos, el 'id' es el código de barras.
-			ingredientData = await prisma.productCache.findUnique({
-				where: { id }
-			});
+			// Usamos el productService que ya tiene la lógica de caché y fallback a OFF.
+			ingredientData = await productService.findByBarcode(id);
 		}
 
 		if (!ingredientData) {

@@ -3,7 +3,7 @@ import type { CustomIngredient, Product } from '@prisma/client';
 import prisma from '$lib/server/prisma';
 // Justificación: Importamos el 'const' IngredientSchema para la validación en tiempo de ejecución
 // y el 'type' Ingredient para las anotaciones de tipo estáticas, cumpliendo con verbatimModuleSyntax.
-import { IngredientSchema, type Ingredient } from '$lib/schemas/ingredientSchema';
+import { type Ingredient } from '$lib/schemas/ingredientSchema';
 import { normalizeText } from '$lib/utils';
 
 // Justificación: La capa de servicio abstrae la lógica de negocio y el acceso a datos.
@@ -46,6 +46,25 @@ export const ingredientService = {
 		return await prisma.customIngredient.findMany({
 			orderBy: { name: 'asc' }
 		});
+	},
+
+	/**
+	 * Obtiene todos los ingredientes (personalizados y cacheados) en una lista unificada.
+	 */
+	async getAllUnified() {
+		const customIngredients = await prisma.customIngredient.findMany({
+			orderBy: { name: 'asc' }
+		});
+		const cachedProducts = await prisma.product.findMany({
+			orderBy: { name: 'asc' }
+		});
+
+		const unifiedList = [
+			...customIngredients.map((i) => ({ ...i, source: 'custom' as const })),
+			...cachedProducts.map((p) => ({ ...p, source: 'product' as const }))
+		];
+
+		return unifiedList.sort((a, b) => a.name.localeCompare(b.name));
 	},
 
 	/**

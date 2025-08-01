@@ -11,7 +11,8 @@ type OpenFoodFactsProduct = {
 	brands?: string;
 	image_url?: string;
 	nutriments: {
-		energy_kcal_100g?: number;
+		'energy-kcal_100g'?: number; // Variante con guion
+		energy_kcal_100g?: number; // Variante con guion bajo
 		fat_100g?: number;
 		proteins_100g?: number;
 		carbohydrates_100g?: number;
@@ -56,6 +57,9 @@ export const productService = {
 			}
 
 			const productFromApi = response.product;
+			const calories =
+				productFromApi.nutriments['energy-kcal_100g'] ??
+				productFromApi.nutriments.energy_kcal_100g;
 
 			// 1. Normalizar datos de la API a nuestro esquema
 			const normalizedProduct = {
@@ -65,7 +69,7 @@ export const productService = {
 				normalizedName: normalizeText(productFromApi.product_name),
 				brand: productFromApi.brands,
 				imageUrl: productFromApi.image_url,
-				calories: productFromApi.nutriments.energy_kcal_100g,
+				calories: calories,
 				fat: productFromApi.nutriments.fat_100g,
 				protein: productFromApi.nutriments.proteins_100g,
 				carbs: productFromApi.nutriments.carbohydrates_100g,

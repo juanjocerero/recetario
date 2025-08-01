@@ -78,7 +78,7 @@ export const recipeService = {
 					data: {
 						recipeId: newRecipe.id,
 						quantity: ingredient.quantity,
-						productCacheId: ingredient.type === 'product' ? ingredient.id : null,
+						productId: ingredient.type === 'product' ? ingredient.id : null,
 						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
 					}
 				});
@@ -123,7 +123,7 @@ export const recipeService = {
 					data: {
 						recipeId: id,
 						quantity: ingredient.quantity,
-						productCacheId: ingredient.type === 'product' ? ingredient.id : null,
+						productId: ingredient.type === 'product' ? ingredient.id : null,
 						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
 					}
 				});

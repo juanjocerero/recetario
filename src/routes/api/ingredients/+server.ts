@@ -7,7 +7,7 @@ import { formatZodError } from '$lib/server/zodErrors';
 
 export const GET: RequestHandler = async () => {
 	try {
-		const ingredients = await ingredientService.getAll();
+		const ingredients = await ingredientService.getAllUnified();
 		return json(ingredients);
 	} catch (error) {
 		console.error('Error fetching ingredients:', error);

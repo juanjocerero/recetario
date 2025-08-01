@@ -97,12 +97,18 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 							}
 						})
 						.catch((err) => {
-							console.error(`Error fetching ${brand}:`, err);
-							sendEvent('stream_error', { source: brand, message: err.message });
+							// Lanzar el error para que Promise.allSettled lo capture
+							throw new Error(`Failed to fetch from ${brand}: ${err.message}`);
 						});
 				});
 
-				await Promise.all(offSearchPromises);
+				const results = await Promise.allSettled(offSearchPromises);
+				results.forEach((result) => {
+					if (result.status === 'rejected') {
+						console.error('A fetch promise was rejected:', result.reason);
+						sendEvent('stream_error', { source: 'off-api', message: result.reason.message });
+					}
+				});
 
 			} catch (error) {
 				console.error('[Search Stream Error]', error);

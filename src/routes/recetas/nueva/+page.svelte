@@ -94,6 +94,7 @@
 			open = false;
 			searchResults = [];
 			searchTerm = ''; // Limpiar el término de búsqueda
+			inputValue = ''; // Limpiar el texto visible en el botón
 		}
 	}
 	
