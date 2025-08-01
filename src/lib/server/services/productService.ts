@@ -30,13 +30,13 @@ type OpenFoodFactsResponse = {
 export const productService = {
 	/**
 	 * Busca un producto por su código de barras.
-	 * Primero intenta encontrarlo en la caché local (ProductCache).
+	 * Primero intenta encontrarlo en la caché local (tabla Product).
 	 * Si no lo encuentra, lo busca en la API de Open Food Facts,
 	 * lo guarda en la caché y luego lo devuelve.
 	 * @param barcode - El código de barras del producto a buscar.
 	 */
 	async findByBarcode(barcode: string) {
-		const cachedProduct = await prisma.productCache.findUnique({
+		const cachedProduct = await prisma.product.findUnique({
 			where: { id: barcode }
 		});
 
@@ -60,9 +60,9 @@ export const productService = {
 			// 1. Normalizar datos de la API a nuestro esquema
 			const normalizedProduct = {
 				id: productFromApi.code,
-				productName: productFromApi.product_name,
+				name: productFromApi.product_name,
 				// Justificación: Se genera el nombre normalizado para la búsqueda.
-				normalizedProductName: normalizeText(productFromApi.product_name),
+				normalizedName: normalizeText(productFromApi.product_name),
 				brand: productFromApi.brands,
 				imageUrl: productFromApi.image_url,
 				calories: productFromApi.nutriments.energy_kcal_100g,
@@ -76,8 +76,8 @@ export const productService = {
 			};
 
 			// 2. Guardar en caché para futuras peticiones
-			console.log(`[Cache] WRITING product: ${normalizedProduct.productName}`);
-			const newCachedProduct = await prisma.productCache.create({
+			console.log(`[Cache] WRITING product: ${normalizedProduct.name}`);
+			const newCachedProduct = await prisma.product.create({
 				data: normalizedProduct
 			});
 
