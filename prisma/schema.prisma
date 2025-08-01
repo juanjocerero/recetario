@@ -43,7 +43,23 @@ model Recipe {
   title       String
   description String?
   steps       String
+  // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.
+  // Es opcional para permitir recetas sin imagen o para usar la imagen de una URL de referencia.
+  imageUrl    String?
   ingredients RecipeIngredient[]
+  // Justificación (Paso 1.1): Relación uno-a-muchos para almacenar las URLs de referencia de la receta.
+  urls        RecipeUrl[]
+}
+
+// Justificación (Paso 1.1): Nuevo modelo para almacenar las URLs de referencia asociadas a una receta.
+// Esto sigue las buenas prácticas de normalización de bases de datos.
+model RecipeUrl {
+  id       String @id @default(cuid())
+  url      String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId String
+
+  @@unique([recipeId, url])
 }
 
 model RecipeIngredient {

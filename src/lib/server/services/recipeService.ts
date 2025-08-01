@@ -1,8 +1,10 @@
 // Ruta: src/lib/server/services/recipeService.ts
 import prisma from '$lib/server/prisma';
+import type { Prisma } from '@prisma/client';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
 
 import { productService } from './productService';
+import { imageService } from './imageService';
 
 // Justificación: La capa de servicio para recetas abstrae toda la lógica de negocio
 // y el acceso a la base de datos (Prisma) para las operaciones CRUD.
@@ -14,7 +16,8 @@ const recipeInclude = {
 			product: true,
 			customIngredient: true
 		}
-	}
+	},
+	urls: true
 };
 
 /**
@@ -27,14 +30,12 @@ async function ensureProductsAreCached(ingredients: RecipeData['ingredients']) {
 		.filter((ing) => ing.type === 'product')
 		.map((ing) => productService.findByBarcode(ing.id));
 
-	// Justificación (Promise.all): Se ejecutan todas las verificaciones de caché
-	// en paralelo para mejorar el rendimiento, en lugar de una por una en secuencia.
 	await Promise.all(productCachePromises);
 }
 
 export const recipeService = {
 	/**
-	 * Obtiene todas las recetas con sus ingredientes.
+	 * Obtiene todas las recetas con sus ingredientes y URLs.
 	 */
 	async getAll() {
 		return await prisma.recipe.findMany({
@@ -44,7 +45,7 @@ export const recipeService = {
 	},
 
 	/**
-	 * Obtiene una receta por su ID, incluyendo todos sus ingredientes.
+	 * Obtiene una receta por su ID, incluyendo todos sus ingredientes y URLs.
 	 * @param id - El ID de la receta.
 	 */
 	async getById(id: string) {
@@ -59,18 +60,27 @@ export const recipeService = {
 	 * @param data - Datos de la receta validados por Zod.
 	 */
 	async create(data: RecipeData) {
-		const { title, description, steps, ingredients } = data;
+		const { title, description, steps, ingredients, urls, imageUrl: directImageUrl } = data;
 
-		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
 		await ensureProductsAreCached(ingredients);
 
-		// Paso 2: Proceder con la creación de la receta en una transacción.
-		// Justificación (transacción): Se usa $transaction para asegurar la atomicidad.
-		// O se crea la receta Y todos sus ingredientes, o no se crea nada.
-		// Esto previene que queden datos huérfanos si una de las operaciones falla.
-		return await prisma.$transaction(async (tx) => {
+		// Corrección: Se declara explícitamente el tipo para aceptar string, null y undefined.
+		let finalImageUrl: string | null | undefined = directImageUrl;
+		if (!finalImageUrl && urls && urls.length > 0) {
+			finalImageUrl = await imageService.getImageFromUrl(urls[0]);
+		}
+
+		return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
 			const newRecipe = await tx.recipe.create({
-				data: { title, description, steps }
+				data: {
+					title,
+					description,
+					steps,
+					imageUrl: finalImageUrl,
+					urls: {
+						create: urls?.map((url: string) => ({ url }))
+					}
+				}
 			});
 
 			for (const ingredient of ingredients) {
@@ -84,7 +94,6 @@ export const recipeService = {
 				});
 			}
 
-			// Devolvemos la receta completa con sus ingredientes recién creados.
 			return await tx.recipe.findUnique({
 				where: { id: newRecipe.id },
 				include: recipeInclude
@@ -98,26 +107,28 @@ export const recipeService = {
 	 * @param data - Datos de la receta validados por Zod.
 	 */
 	async update(id: string, data: RecipeData) {
-		const { title, description, steps, ingredients } = data;
+		const { title, description, steps, ingredients, urls, imageUrl: directImageUrl } = data;
 
-		// Paso 1: Asegurar que todos los productos de OFF están en nuestra caché.
 		await ensureProductsAreCached(ingredients);
 
-		// Paso 2: Proceder con la actualización de la receta en una transacción.
-		return await prisma.$transaction(async (tx) => {
-			// 1. Actualizar los datos básicos de la receta.
+		// Corrección: Se declara explícitamente el tipo para aceptar string, null y undefined.
+		let finalImageUrl: string | null | undefined = directImageUrl;
+		if (!finalImageUrl && urls && urls.length > 0) {
+			finalImageUrl = await imageService.getImageFromUrl(urls[0]);
+		}
+
+		return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
 			await tx.recipe.update({
 				where: { id },
-				data: { title, description, steps }
+				data: {
+					title,
+					description,
+					steps,
+					imageUrl: finalImageUrl
+				}
 			});
 
-			// 2. Eliminar todos los ingredientes antiguos. Es la forma más simple y robusta
-			// de manejar actualizaciones, eliminaciones y adiciones de ingredientes.
-			await tx.recipeIngredient.deleteMany({
-				where: { recipeId: id }
-			});
-
-			// 3. Crear los nuevos ingredientes asociados a la receta.
+			await tx.recipeIngredient.deleteMany({ where: { recipeId: id } });
 			for (const ingredient of ingredients) {
 				await tx.recipeIngredient.create({
 					data: {
@@ -129,7 +140,13 @@ export const recipeService = {
 				});
 			}
 
-			// Devolvemos la receta actualizada completa.
+			await tx.recipeUrl.deleteMany({ where: { recipeId: id } });
+			if (urls && urls.length > 0) {
+				await tx.recipeUrl.createMany({
+					data: urls.map((url: string) => ({ recipeId: id, url }))
+				});
+			}
+
 			return await tx.recipe.findUnique({
 				where: { id },
 				include: recipeInclude
@@ -138,7 +155,7 @@ export const recipeService = {
 	},
 
 	/**
-	 * Elimina una receta. La cascada se encarga de los ingredientes.
+	 * Elimina una receta. La cascada se encarga de los ingredientes y URLs.
 	 * @param id - El ID de la receta a eliminar.
 	 */
 	async deleteById(id: string) {

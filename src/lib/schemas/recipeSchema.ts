@@ -17,7 +17,13 @@ export const RecipeSchema = z.object({
 	steps: z.string().min(1, { message: 'Debe haber al menos un paso.' }),
 	ingredients: z
 		.array(RecipeIngredientSchema)
-		.min(1, { message: 'La receta debe tener al menos un ingrediente.' })
+		.min(1, { message: 'La receta debe tener al menos un ingrediente.' }),
+	// Justificación (Paso 3.1): Añadimos la validación para la URL de la imagen.
+	// Debe ser una cadena opcional que puede ser un data URL.
+	imageUrl: z.string().optional(),
+	// Justificación (Paso 3.1): Añadimos la validación para las URLs de referencia.
+	// Debe ser un array de strings que sean URLs válidas.
+	urls: z.array(z.string().url({ message: 'La URL no es válida.' })).optional()
 });
 
 // Exportamos los tipos inferidos para usarlos en el código sin tener que
