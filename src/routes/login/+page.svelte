@@ -37,7 +37,7 @@
 			>
 				<div class="space-y-2">
 					<Label for="user">Usuario</Label>
-					<Input id="user" name="user" type="text" placeholder="admin" required />
+					<Input id="user" name="user" type="text" required />
 				</div>
 				<div class="space-y-2">
 					<Label for="password">Contraseña</Label>

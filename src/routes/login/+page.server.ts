@@ -23,7 +23,7 @@ export const actions: Actions = {
 			return fail(500, { message: 'Error de configuración en el servidor' });
 		}
 
-		const isAdminUser = user === 'admin';
+		const isAdminUser = user === 'juanjocerero';
 		const isPasswordValid = await comparePasswords(password, env.ADMIN_PASSWORD_HASH);
 
 		if (!isAdminUser || !isPasswordValid) {
