@@ -14,6 +14,7 @@
 	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
+	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -140,15 +141,6 @@
 		ingredients.splice(index, 1);
 	}
 
-	// --- Gestión de URLs de referencia ---
-	function addUrlField() {
-		urls.push('');
-	}
-
-	function removeUrlField(index: number) {
-		urls.splice(index, 1);
-	}
-
 	// --- Gestión de subida de imagen ---
 	function handleImageUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -223,23 +215,7 @@
 
 			<div class="space-y-2">
 				<Label>URLs de Referencia</Label>
-				{#each urls as url, i}
-					<div class="flex items-center gap-2">
-						<Input
-							type="url"
-							placeholder="https://ejemplo.com/receta"
-							bind:value={urls[i]}
-							class="flex-grow"
-						/>
-						<Button type="button" variant="ghost" size="icon" onclick={() => removeUrlField(i)}>
-							<Trash2 class="h-4 w-4" />
-						</Button>
-					</div>
-				{/each}
-				<Button type="button" variant="outline" size="sm" onclick={addUrlField}>
-					Añadir URL
-				</Button>
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				<UrlImageFetcher bind:urls bind:imageUrl />
 				{#if form?.errors?.urls}
 					<p class="text-sm text-red-500">{form.errors.urls}</p>
 				{/if}

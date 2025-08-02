@@ -1,5 +1,5 @@
 // Ruta: src/lib/server/services/productService.spec.ts
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import prisma from '$lib/server/prisma';
 import ky from 'ky';
 import { productService } from './productService';
@@ -52,6 +52,12 @@ type OpenFoodFactsResponse = {
 describe('productService', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
+		// Justificación: Silenciamos console.log para mantener la salida del test limpia.
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		vi.mocked(console.log).mockRestore();
 	});
 
 	const barcode = '123456789';

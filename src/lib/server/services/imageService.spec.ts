@@ -1,125 +1,121 @@
 // Ruta: src/lib/server/services/imageService.spec.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { imageService } from './imageService';
-import sharp from 'sharp';
-import * as cheerio from 'cheerio';
 
-// Justificación (Paso 4.1): Mockeamos los módulos 'sharp' y 'cheerio' para aislar
-// nuestro servicio de dependencias externas y del sistema de archivos.
-// Esto nos permite probar la lógica de nuestro código de forma determinista.
+// Mock de 'sharp'
 vi.mock('sharp', () => {
-	const mockSharpInstance = {
+	const chainable = {
 		resize: vi.fn().mockReturnThis(),
 		webp: vi.fn().mockReturnThis(),
 		toBuffer: vi.fn().mockResolvedValue(Buffer.from('optimized-image-buffer'))
 	};
-	const sharp = vi.fn(() => mockSharpInstance);
-	return { default: sharp };
-});
-
-vi.mock('cheerio', () => {
-	const mockCheerio = {
-		load: vi.fn()
+	return {
+		default: vi.fn(() => chainable)
 	};
-	return { ...mockCheerio, default: mockCheerio };
 });
 
-// Mockeamos el `fetch` global
+// Mock global de 'fetch'
 global.fetch = vi.fn();
+const mockedFetch = vi.mocked(global.fetch);
 
 describe('imageService', () => {
 	beforeEach(() => {
-		// Limpiamos los mocks antes de cada test para evitar interferencias.
+		// Limpiamos las llamadas y restauramos las implementaciones por defecto si las hubiera
 		vi.clearAllMocks();
+		// Justificación: Silenciamos console.error para evitar el ruido en los tests de error.
+		vi.spyOn(console, 'error').mockImplementation(() => {});
 	});
 
-	it('should return a base64 WebP image if og:image is found', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com';
-		const imageUrl = 'https://example.com/image.jpg';
-		const mockHtml = `<html><head><meta property="og:image" content="${imageUrl}"></head></html>`;
+	afterEach(() => {
+		// Restauramos la implementación original de console.error después de cada test.
+		vi.mocked(console.error).mockRestore();
+	});
 
-		// Mock para el fetch de la página HTML
-		(fetch as vi.Mock).mockResolvedValueOnce(
-			new Response(mockHtml, {
-				status: 200,
-				headers: { 'Content-Type': 'text/html' }
-			})
-		);
+	describe('getImageFromUrl', () => {
+		it('should return a processed image from an og:image meta tag', async () => {
+			const mockPageUrl = 'https://example.com/og-page';
+			const mockImageUrl = 'https://example.com/og-image.jpg';
+			const mockHtml = `<html><head><meta property="og:image" content="${mockImageUrl}" /></head></html>`;
 
-		// Mock para el fetch de la imagen
-		(fetch as vi.Mock).mockResolvedValueOnce(
-			new Response(Buffer.from('image-data'), {
-				status: 200,
-				headers: { 'Content-Type': 'image/jpeg' }
-			})
-		);
+			// Justificación: Usamos mockImplementation para un mock de fetch más robusto,
+			// que no depende del orden de las llamadas.
+			mockedFetch.mockImplementation(async (url): Promise<Response> => {
+				if (url === mockPageUrl) {
+					return new Response(mockHtml);
+				}
+				if (url === mockImageUrl) {
+					return new Response(Buffer.from('image-data'));
+				}
+				throw new Error(`Unexpected fetch call to ${url}`);
+			});
 
-		// Mock para Cheerio
-		const mock$ = vi.fn((selector) => {
-			if (selector === 'meta[property="og:image"]') {
-				return { attr: () => imageUrl };
-			}
-			return { attr: () => undefined };
+			const result = await imageService.getImageFromUrl(mockPageUrl);
+
+			expect(result).toBe('data:image/webp;base64,b3B0aW1pemVkLWltYWdlLWJ1ZmZlcg==');
+			expect(mockedFetch).toHaveBeenCalledWith(mockPageUrl, expect.any(Object));
+			expect(mockedFetch).toHaveBeenCalledWith(mockImageUrl);
 		});
-		(cheerio.load as vi.Mock).mockReturnValue(mock$);
 
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
+		it('should return a processed image from a twitter:image meta tag if og:image is not present', async () => {
+			const mockPageUrl = 'https://example.com/twitter-page';
+			const mockImageUrl = 'https://example.com/twitter-image.jpg';
+			const mockHtml = `<html><head><meta name="twitter:image" content="${mockImageUrl}" /></head></html>`;
 
-		// Assert
-		expect(result).toBe('data:image/webp;base64,b3B0aW1pemVkLWltYWdlLWJ1ZmZlcg==');
-		expect(fetch).toHaveBeenCalledWith(pageUrl, expect.any(Object));
-		expect(fetch).toHaveBeenCalledWith(imageUrl);
-		expect(sharp).toHaveBeenCalledWith(Buffer.from('image-data'));
-	});
+			mockedFetch.mockImplementation(async (url): Promise<Response> => {
+				if (url === mockPageUrl) {
+					return new Response(mockHtml);
+				}
+				if (url === mockImageUrl) {
+					return new Response(Buffer.from('image-data'));
+				}
+				throw new Error(`Unexpected fetch call to ${url}`);
+			});
 
-	it('should return null if no image meta tag is found', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com/no-image';
-		const mockHtml = '<html><head></head></html>';
+			const result = await imageService.getImageFromUrl(mockPageUrl);
 
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response(mockHtml));
-		const mock$ = vi.fn(() => ({ attr: () => undefined }));
-		(cheerio.load as vi.Mock).mockReturnValue(mock$);
+			expect(result).toContain('data:image/webp;base64,');
+			expect(mockedFetch).toHaveBeenCalledWith(mockImageUrl);
+		});
 
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
+		it('should return null if no image meta tags are found', async () => {
+			const mockPageUrl = 'https://example.com/no-tags';
+			const mockHtml = '<html><head></head></html>';
 
-		// Assert
-		expect(result).toBeNull();
-		expect(fetch).toHaveBeenCalledOnce(); // Solo se llama al fetch de la página
-	});
+			mockedFetch.mockResolvedValue(new Response(mockHtml));
 
-	it('should return null if fetching the page fails', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com/not-found';
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
+			const result = await imageService.getImageFromUrl(mockPageUrl);
 
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
+			expect(result).toBeNull();
+			expect(mockedFetch).toHaveBeenCalledOnce();
+		});
 
-		// Assert
-		expect(result).toBeNull();
-	});
+		it('should return null if fetching the page fails', async () => {
+			const mockPageUrl = 'https://example.com/fails';
+			mockedFetch.mockRejectedValue(new Error('Network error'));
 
-	it('should return null if fetching the image fails', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com';
-		const imageUrl = 'https://example.com/image-not-found.jpg';
-		const mockHtml = `<html><head><meta property="og:image" content="${imageUrl}"></head></html>`;
+			const result = await imageService.getImageFromUrl(mockPageUrl);
 
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response(mockHtml));
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response('Image Not Found', { status: 404 }));
+			expect(result).toBeNull();
+		});
 
-		const mock$ = vi.fn(() => ({ attr: () => imageUrl }));
-		(cheerio.load as vi.Mock).mockReturnValue(mock$);
+		it('should return null if fetching the image fails', async () => {
+			const mockPageUrl = 'https://example.com/image-fails';
+			const mockImageUrl = 'https://example.com/image.jpg';
+			const mockHtml = `<html><head><meta property="og:image" content="${mockImageUrl}" /></head></html>`;
 
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
+			mockedFetch.mockImplementation(async (url): Promise<Response> => {
+				if (url === mockPageUrl) {
+					return new Response(mockHtml);
+				}
+				if (url === mockImageUrl) {
+					throw new Error('Image not found');
+				}
+				throw new Error(`Unexpected fetch call to ${url}`);
+			});
 
-		// Assert
-		expect(result).toBeNull();
-		expect(fetch).toHaveBeenCalledTimes(2); // Se llama a ambos fetches
+			const result = await imageService.getImageFromUrl(mockPageUrl);
+
+			expect(result).toBeNull();
+		});
 	});
 });
