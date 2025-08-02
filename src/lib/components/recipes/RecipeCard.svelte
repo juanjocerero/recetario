@@ -94,19 +94,15 @@
 			{#if isAdmin}
 				<div class="absolute top-2 right-2">
 					<DropdownMenu>
-						<DropdownMenuTrigger>
-							<Button
-								variant="ghost"
-								size="icon"
-								class="bg-background/60 hover:bg-background/80 backdrop-blur-sm rounded-full h-8 w-8"
-								onclick={(e: MouseEvent) => {
-									e.stopPropagation();
-									e.preventDefault();
-								}}
-								aria-label="Abrir menú de acciones para {recipe.title}"
-							>
-								<MoreVertical class="h-4 w-4" />
-							</Button>
+						<DropdownMenuTrigger
+							class="bg-background/60 hover:bg-background/80 backdrop-blur-sm rounded-full h-8 w-8 inline-flex items-center justify-center"
+							onclick={(e: MouseEvent) => {
+								e.stopPropagation();
+								e.preventDefault();
+							}}
+							aria-label="Abrir menú de acciones para {recipe.title}"
+						>
+							<MoreVertical class="h-4 w-4" />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							class="w-48"
