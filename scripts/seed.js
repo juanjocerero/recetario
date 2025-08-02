@@ -33,7 +33,7 @@ async function main() {
 	console.log(`${ingredients.length} ingredientes creados.`);
 
 	console.log('Creando 15 recetas de prueba...');
-	for (let i = 0; i < 15; i++) {
+	for (let i = 0; i < 150; i++) {
 		// Justificación: Se construye un título combinando métodos fiables de faker
 		// para evitar el que causaba el bug (`faker.food.dish()`).
 		const baseTitle = `${faker.food.adjective()} ${faker.food.meat()}`;
