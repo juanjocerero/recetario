@@ -21,6 +21,7 @@ export type MacroFilter = {
 
 export type AdvancedSearchFilters = {
 	ingredients?: string[];
+	unit?: 'grams' | 'percent'; // La unidad es clave
 	calories?: MacroFilter;
 	protein?: MacroFilter;
 	carbs?: MacroFilter;
@@ -156,8 +157,10 @@ export const recipeService = {
 	},
 
 	async findAdvanced(filters: AdvancedSearchFilters) {
-		const { ingredients, calories, protein, carbs, fat, sortBy, limit, offset } = filters;
+		const { ingredients, unit, calories, protein, carbs, fat, sortBy, limit, offset } = filters;
 
+		// Justificación: La cláusula WITH ahora calcula tanto los totales en gramos como
+		// los porcentajes de macronutrientes. Se usa NULLIF para evitar la división por cero.
 		const withClause = Prisma.sql`
 			WITH "RecipeTotals" AS (
 				SELECT
@@ -170,79 +173,98 @@ export const recipeService = {
 				LEFT JOIN "Product" p ON ri."productId" = p.id
 				LEFT JOIN "CustomIngredient" ci ON ri."customIngredientId" = ci.id
 				GROUP BY ri."recipeId"
+			),
+			"RecipePercentages" AS (
+				SELECT
+					"recipeId",
+					"totalCalories",
+					"totalProtein",
+					"totalCarbs",
+					"totalFat",
+					"totalProtein" * 4 * 100.0 / NULLIF("totalCalories", 0) AS "percentProtein",
+					"totalCarbs" * 4 * 100.0 / NULLIF("totalCalories", 0) AS "percentCarbs",
+					"totalFat" * 9 * 100.0 / NULLIF("totalCalories", 0) AS "percentFat"
+				FROM "RecipeTotals"
 			)
 		`;
 
 		const selectClause = Prisma.sql`
 			SELECT r.id, r.title, r.imageUrl
 			FROM "Recipe" r
-			JOIN "RecipeTotals" rt ON r.id = rt."recipeId"
+			JOIN "RecipePercentages" rt ON r.id = rt."recipeId"
 		`;
 
 		const whereConditions: Prisma.Sql[] = [];
 
 		if (ingredients && ingredients.length > 0) {
-			whereConditions.push(Prisma.sql`
-				r.id IN (
-					SELECT "recipeId"
-					FROM "RecipeIngredient"
-					WHERE "customIngredientId" IN (${Prisma.join(ingredients)})
-					GROUP BY "recipeId"
-					HAVING COUNT(DISTINCT "customIngredientId") = ${ingredients.length}
-				)
-			`);
+			const productIds: string[] = [];
+			const customIngredientIds: string[] = [];
+			ingredients.forEach((id) => {
+				if (id.startsWith('product-')) productIds.push(id.replace('product-', ''));
+				else if (id.startsWith('custom-')) customIngredientIds.push(id.replace('custom-', ''));
+			});
+
+			const totalIngredientsToMatch = productIds.length + customIngredientIds.length;
+			if (totalIngredientsToMatch > 0) {
+				const ingredientConditions: Prisma.Sql[] = [];
+				if (productIds.length > 0) {
+					ingredientConditions.push(Prisma.sql`ri."productId" IN (${Prisma.join(productIds)})`);
+				}
+				if (customIngredientIds.length > 0) {
+					ingredientConditions.push(Prisma.sql`ri."customIngredientId" IN (${Prisma.join(customIngredientIds)})`);
+				}
+				whereConditions.push(Prisma.sql`
+					r.id IN (
+						SELECT "recipeId" FROM "RecipeIngredient" ri
+						WHERE ${Prisma.join(ingredientConditions, ' OR ')}
+						GROUP BY "recipeId" HAVING COUNT(*) = ${totalIngredientsToMatch}
+					)
+				`);
+			}
 		}
 
-		// Justificación: Se comprueba explícitamente contra `null` y `undefined` para permitir
-		// filtros con el valor `0`, que es un valor "falsy" en JavaScript.
 		if (calories?.min != null) whereConditions.push(Prisma.sql`rt."totalCalories" >= ${calories.min}`);
 		if (calories?.max != null) whereConditions.push(Prisma.sql`rt."totalCalories" <= ${calories.max}`);
-		if (protein?.min != null) whereConditions.push(Prisma.sql`rt."totalProtein" >= ${protein.min}`);
-		if (protein?.max != null) whereConditions.push(Prisma.sql`rt."totalProtein" <= ${protein.max}`);
-		if (carbs?.min != null) whereConditions.push(Prisma.sql`rt."totalCarbs" >= ${carbs.min}`);
-		if (carbs?.max != null) whereConditions.push(Prisma.sql`rt."totalCarbs" <= ${carbs.max}`);
-		if (fat?.min != null) whereConditions.push(Prisma.sql`rt."totalFat" >= ${fat.min}`);
-		if (fat?.max != null) whereConditions.push(Prisma.sql`rt."totalFat" <= ${fat.max}`);
 
-		const whereClause =
-			whereConditions.length > 0 ? Prisma.sql`WHERE ${Prisma.join(whereConditions, ' AND ')}` : Prisma.empty;
+		// Justificación: Se aplica el filtro de macros a las columnas de gramos o de porcentajes
+		// basándose en el parámetro `unit` enviado desde el frontend.
+		if (unit === 'percent') {
+			if (protein?.min != null) whereConditions.push(Prisma.sql`rt."percentProtein" >= ${protein.min}`);
+			if (protein?.max != null) whereConditions.push(Prisma.sql`rt."percentProtein" <= ${protein.max}`);
+			if (carbs?.min != null) whereConditions.push(Prisma.sql`rt."percentCarbs" >= ${carbs.min}`);
+			if (carbs?.max != null) whereConditions.push(Prisma.sql`rt."percentCarbs" <= ${carbs.max}`);
+			if (fat?.min != null) whereConditions.push(Prisma.sql`rt."percentFat" >= ${fat.min}`);
+			if (fat?.max != null) whereConditions.push(Prisma.sql`rt."percentFat" <= ${fat.max}`);
+		} else { // 'grams' es el default
+			if (protein?.min != null) whereConditions.push(Prisma.sql`rt."totalProtein" >= ${protein.min}`);
+			if (protein?.max != null) whereConditions.push(Prisma.sql`rt."totalProtein" <= ${protein.max}`);
+			if (carbs?.min != null) whereConditions.push(Prisma.sql`rt."totalCarbs" >= ${carbs.min}`);
+			if (carbs?.max != null) whereConditions.push(Prisma.sql`rt."totalCarbs" <= ${carbs.max}`);
+			if (fat?.min != null) whereConditions.push(Prisma.sql`rt."totalFat" >= ${fat.min}`);
+			if (fat?.max != null) whereConditions.push(Prisma.sql`rt."totalFat" <= ${fat.max}`);
+		}
+
+		const whereClause = whereConditions.length > 0 ? Prisma.sql`WHERE ${Prisma.join(whereConditions, ' AND ')}` : Prisma.empty;
 
 		let orderByClause: Prisma.Sql;
 		switch (sortBy) {
-			case 'calories_asc':
-				orderByClause = Prisma.sql`ORDER BY rt."totalCalories" ASC`;
-				break;
-			case 'calories_desc':
-				orderByClause = Prisma.sql`ORDER BY rt."totalCalories" DESC`;
-				break;
+			case 'calories_asc': orderByClause = Prisma.sql`ORDER BY rt."totalCalories" ASC`; break;
+			case 'calories_desc': orderByClause = Prisma.sql`ORDER BY rt."totalCalories" DESC`; break;
 			case 'protein_desc':
-				orderByClause = Prisma.sql`ORDER BY rt."totalProtein" DESC`;
+				orderByClause = unit === 'percent'
+					? Prisma.sql`ORDER BY rt."percentProtein" DESC`
+					: Prisma.sql`ORDER BY rt."totalProtein" DESC`;
 				break;
-			default:
-				orderByClause = Prisma.sql`ORDER BY r.title ASC`;
+			default: orderByClause = Prisma.sql`ORDER BY r.title ASC`;
 		}
 
 		const paginationClause = Prisma.sql`LIMIT ${limit} OFFSET ${offset}`;
 
-		// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
-		console.log('[DEBUG] Filtros recibidos:', JSON.stringify(filters, null, 2));
-		// --- FIN DE CÓDIGO DE DEPURACIÓN ---
-
-		const fullQuery = Prisma.sql`
-			${withClause}
-			${selectClause}
-			${whereClause}
-			${orderByClause}
-			${paginationClause}
-		`;
-
-		// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
-		console.log('[DEBUG] Consulta SQL generada:', fullQuery);
-		// --- FIN DE CÓDIGO DE DEPURACIÓN ---
+		const fullQuery = Prisma.sql`${withClause} ${selectClause} ${whereClause} ${orderByClause} ${paginationClause}`;
 
 		const result = await prisma.$queryRaw<RawRecipeQueryResult[]>(fullQuery);
-
 		const recipeIds = result.map((r) => r.id);
+
 		if (recipeIds.length === 0) return [];
 
 		const recipesInOrder = await prisma.recipe.findMany({
@@ -250,6 +272,7 @@ export const recipeService = {
 			include: recipeInclude
 		});
 
-		return recipeIds.map(id => recipesInOrder.find(r => r.id === id)).filter(Boolean);
+		// Reordena los resultados completos según el orden de la consulta paginada
+		return recipeIds.map(id => recipesInOrder.find(r => r.id === id)).filter(Boolean) as any[];
 	}
 };

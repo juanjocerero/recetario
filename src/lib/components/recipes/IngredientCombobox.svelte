@@ -53,11 +53,6 @@
 				});
 				const allResults: Ingredient[] = await response.json();
 
-				// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
-				console.log('[DEBUG] Resultados de la API:', allResults);
-				console.log('[DEBUG] IDs ya seleccionados:', selectedIds);
-				// --- FIN DE CÓDIGO DE DEPURACIÓN ---
-
 				// Justificación: Se muta el array en lugar de reasignarlo. Esto asegura
 				// que Svelte 5 detecte el cambio de forma robusta.
 				searchResults.length = 0; // Limpia el array

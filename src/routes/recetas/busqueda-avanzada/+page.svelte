@@ -1,57 +1,87 @@
 <!--
 // Fichero: src/routes/recetas/busqueda-avanzada/+page.svelte
-// --- VERSIÓN FINAL CON CORRECCIÓN DE BUCLE REACTIVO Y HTML COMPLETO ---
+// --- VERSIÓN FINAL CON CORRECCIÓN DE GUARDA ---
 -->
 <script lang="ts">
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
 	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
-	import type { MacroFilterValues } from '$lib/components/recipes/MacroFilters.svelte';
+	import type {
+		GramFilters,
+		PercentFilters,
+		FilterUnit
+	} from '$lib/components/recipes/MacroFilters.svelte';
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import X from 'lucide-svelte/icons/x';
-	import { useDebounce } from '$lib/runes/useDebounce.svelte';
 
 	type Ingredient = { id: string; name: string; type: 'product' | 'custom' };
 	type Recipe = any;
 
-	// --- ESTADO DESACOPLADO ---
+	// --- ESTADO CRUDO (RAW STATE) DESACOPLADO ---
 	let selectedIngredients = $state<Ingredient[]>([]);
-	let macroFilters = $state<MacroFilterValues>({
-		unit: 'grams',
-		calories: {},
-		protein: {},
-		carbs: {},
-		fat: {}
-	});
+	let unit = $state<FilterUnit>('grams');
+	let gramFilters = $state<GramFilters>({ calories: {}, protein: {}, carbs: {}, fat: {} });
+	let percentFilters = $state<PercentFilters>({ protein: {}, carbs: {}, fat: {} });
 	let sortBy = $state('title_asc');
 
-	// --- ESTADO DE RESULTADOS ---
+	// --- ESTADO DERIVADO ---
+	const searchFilters = $derived(() => {
+		// LOGGING DE VERIFICACIÓN
+		console.log('[DEBUG] $derived searchFilters se está recalculando...');
+
+		const baseFilters = {
+			ingredients: selectedIngredients.map((i) => i.id),
+			sortBy: sortBy,
+			unit: unit
+		};
+
+		if (unit === 'grams') {
+			return { ...baseFilters, ...gramFilters };
+		} else {
+			const { calories, ...rest } = gramFilters; // Excluye calorías en modo %
+			return { ...baseFilters, ...percentFilters };
+		}
+	});
+
+	// --- ESTADO DE RESULTADOS Y CONTROL DE UI ---
 	let recipes = $state<Recipe[]>([]);
 	let isLoading = $state(false);
 	let hasMore = $state(true);
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController;
 
-	// --- ESTADO DERIVADO ---
-	const searchFilters = $derived({
-		ingredients: selectedIngredients.map((i) => i.id),
-		unit: macroFilters.unit,
-		calories: macroFilters.calories,
-		protein: macroFilters.protein,
-		carbs: macroFilters.carbs,
-		fat: macroFilters.fat,
-		sortBy: sortBy
-	});
-
-	const debouncedFilters = useDebounce(() => searchFilters, 350);
-
 	// --- LÓGICA DE BÚSQUEDA Y CARGA ---
-	async function fetchRecipes(isNewSearch = false) {
+	async function fetchRecipes(isNewSearch = false, filters?: ReturnType<typeof searchFilters>) {
+		const currentFilters = filters;
+		if (!currentFilters) return;
+
+		// Justificación: Se reemplaza `some(Boolean)` por `some(v => v != null)` para
+		// que el número 0 sea considerado un filtro válido. `Boolean(0)` es `false`,
+		// lo que causaba que la guarda de la búsqueda fallara incorrectamente.
+		const hasGramFilters =
+			Object.values(gramFilters.calories).some((v) => v != null) ||
+			Object.values(gramFilters.protein).some((v) => v != null) ||
+			Object.values(gramFilters.carbs).some((v) => v != null) ||
+			Object.values(gramFilters.fat).some((v) => v != null);
+
+		const hasPercentFilters =
+			Object.values(percentFilters.protein).some((v) => v != null) ||
+			Object.values(percentFilters.carbs).some((v) => v != null) ||
+			Object.values(percentFilters.fat).some((v) => v != null);
+
+		const hasMacroFilters = unit === 'grams' ? hasGramFilters : hasPercentFilters;
+
+		if (currentFilters.ingredients.length === 0 && !hasMacroFilters) {
+			recipes = [];
+			hasMore = false;
+			return;
+		}
+
 		if (isLoading && !isNewSearch) return;
 		isLoading = true;
 
 		const offset = isNewSearch ? 0 : recipes.length;
-		const currentFilters = debouncedFilters();
 
 		if (isNewSearch) {
 			controller?.abort();
@@ -60,10 +90,11 @@
 		const signal = controller?.signal;
 
 		try {
+			const body = { ...currentFilters, offset };
 			const response = await fetch('/api/recipes/search', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ...currentFilters, offset }),
+				body: JSON.stringify(body),
 				signal
 			});
 			const result = await response.json();
@@ -77,9 +108,7 @@
 			}
 			hasMore = result.hasMore;
 		} catch (error) {
-			if (error instanceof DOMException && error.name === 'AbortError') {
-				return;
-			}
+			if (error instanceof DOMException && error.name === 'AbortError') return;
 			console.error('Error en la búsqueda:', error);
 		} finally {
 			if (!signal?.aborted) {
@@ -88,18 +117,23 @@
 		}
 	}
 
-	// Efecto para la búsqueda inicial / por cambio de filtros
+	// --- EFECTOS DE BÚSQUEDA ---
 	$effect(() => {
-		debouncedFilters(); // Dependencia
-		fetchRecipes(true);
+		const filters = searchFilters();
+		const timerId = setTimeout(() => {
+			fetchRecipes(true, filters);
+		}, 350);
+
+		return () => {
+			clearTimeout(timerId);
+		};
 	});
 
-	// Efecto para el scroll infinito
 	$effect(() => {
 		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
 			if (entries[0].isIntersecting && hasMore && !isLoading) {
-				fetchRecipes(false); // Carga la siguiente página
+				fetchRecipes(false, searchFilters());
 			}
 		});
 		observer.observe(sentinel);
@@ -119,11 +153,13 @@
 </script>
 
 <div class="container mx-auto p-4 md:p-8">
-	<header class="mb-8">
-		<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
-		<p class="text-muted-foreground">
-			Filtra por ingredientes, macronutrientes y más.
-		</p>
+	<header class="mb-8 flex items-center justify-between">
+		<div>
+			<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
+			<p class="text-muted-foreground">
+				Filtra por ingredientes, macronutrientes y más.
+			</p>
+		</div>
 	</header>
 
 	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -150,7 +186,7 @@
 					</div>
 				</div>
 				<hr />
-				<MacroFilters bind:value={macroFilters} />
+				<MacroFilters bind:unit bind:gramFilters bind:percentFilters />
 			</div>
 		</aside>
 
