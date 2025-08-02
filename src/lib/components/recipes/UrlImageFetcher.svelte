@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
-	import { Trash2, Loader, CheckCircle2, TriangleAlert } from 'lucide-svelte';
+	import { Trash2, Loader, BadgeCheck, TriangleAlert } from 'lucide-svelte';
 
 	type $Props = {
 		urls: string[];
@@ -83,7 +83,7 @@
 					{#if urlStates[i]?.status === 'loading'}
 						<Loader class="h-5 w-5 animate-spin text-gray-400" />
 					{:else if urlStates[i]?.status === 'success'}
-						<CheckCircle2 class="h-5 w-5 text-green-500" />
+						<BadgeCheck class="h-5 w-5 text-green-500" />
 					{:else if urlStates[i]?.status === 'error'}
 						<TriangleAlert class="h-5 w-5 text-red-500" />
 					{/if}
