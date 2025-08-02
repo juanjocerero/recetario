@@ -77,7 +77,11 @@ export const ingredientService = {
 		const normalizedName = normalizeText(data.name);
 		return await prisma.customIngredient.create({
 			data: {
-				...data,
+				name: data.name,
+				calories: data.calories,
+				fat: data.fat,
+				protein: data.protein,
+				carbs: data.carbs,
 				normalizedName
 			}
 		});
