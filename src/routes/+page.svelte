@@ -51,7 +51,7 @@
 		</Button>
 	</header>
 
-	<main class="column-count-1 md:column-count-2 lg:column-count-3 xl:column-count-4 gap-4">
+	<main class="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4">
 		{#if data.recipes.length > 0}
 			{#each data.recipes as recipe (recipe.id)}
 				<div class="mb-4 break-inside-avoid">

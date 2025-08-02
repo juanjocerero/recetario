@@ -127,11 +127,10 @@
 
 		<Card.Header>
 			<Card.Title class="text-lg">{recipe.title}</Card.Title>
-			<Card.Description>{totals.totalCalories.toFixed(0)} kcal</Card.Description>
+			<Card.Description class="py-2">{totals.totalCalories.toFixed(0)} kcal</Card.Description>
 		</Card.Header>
 
 		<Card.Content class="flex-grow">
-			<div class="mb-2 text-xs font-medium text-muted-foreground">Macronutrientes</div>
 			<div class="flex h-2 w-full overflow-hidden rounded-full bg-muted">
 				<div
 					class="bg-blue-500"
@@ -150,9 +149,18 @@
 				></div>
 			</div>
 			<div class="mt-2 flex justify-between text-xs text-muted-foreground">
-				<span class="flex items-center"><span class="mr-1 h-2 w-2 rounded-full bg-blue-500"></span>P</span>
-				<span class="flex items-center"><span class="mr-1 h-2 w-2 rounded-full bg-green-500"></span>C</span>
-				<span class="flex items-center"><span class="mr-1 h-2 w-2 rounded-full bg-red-500"></span>G</span>
+				<span class="flex items-center">
+					<span class="mr-1.5 h-2 w-2 rounded-full bg-blue-500"></span>
+					P ({totals.totalProtein.toFixed(1)})
+				</span>
+				<span class="flex items-center">
+					<span class="mr-1.5 h-2 w-2 rounded-full bg-green-500"></span>
+					C ({totals.totalCarbs.toFixed(1)})
+				</span>
+				<span class="flex items-center">
+					<span class="mr-1.5 h-2 w-2 rounded-full bg-red-500"></span>
+					G ({totals.totalFat.toFixed(1)})
+				</span>
 			</div>
 		</Card.Content>
 	</a>
