@@ -18,6 +18,10 @@ export const ingredientService = {
 	async searchByName(query: string): Promise<{ customIngredients: CustomIngredient[], cachedProducts: Product[] }> {
 		const normalizedQuery = normalizeText(query);
 
+		// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
+		console.log(`[DEBUG] Buscando ingredientes con query normalizado: "${normalizedQuery}"`);
+		// --- FIN DE CÓDIGO DE DEPURACIÓN ---
+
 		const customIngredients = await prisma.customIngredient.findMany({
 			where: {
 				normalizedName: {
@@ -33,6 +37,11 @@ export const ingredientService = {
 				}
 			}
 		});
+
+		// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
+		console.log(`[DEBUG] Encontrados ${customIngredients.length} ingredientes custom.`);
+		console.log(`[DEBUG] Encontrados ${cachedProducts.length} productos en caché.`);
+		// --- FIN DE CÓDIGO DE DEPURACIÓN ---
 
 		return {
 			customIngredients,

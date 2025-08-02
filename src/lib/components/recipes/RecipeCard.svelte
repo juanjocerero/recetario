@@ -14,7 +14,7 @@
 		DropdownMenuItem,
 		DropdownMenuSeparator,
 		DropdownMenuTrigger
-	} from '$lib/components/ui/dropdown-menu/index.js';
+	} from '$lib/components/ui/dropdown-menu';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import MoreVertical from 'lucide-svelte/icons/more-vertical';
 

@@ -16,8 +16,8 @@ Thumbs.db
 # Env
 .env
 .env.*
-!.env.example
 !.env.test
+!.env.example
 
 # Vite
 vite.config.js.timestamp-*
@@ -26,4 +26,3 @@ vite.config.ts.timestamp-*
 # Resultados de tests
 playwright-report
 package-lock.json
-prisma/dev.db

@@ -1,6 +1,6 @@
 <!--
 // Fichero: src/routes/+page.svelte
-// --- VERSIÓN FINAL CON PATRONES AVANZADOS DE SVELTE 5 ---
+// --- VERSIÓN FINAL CON ABORTCONTROLLER ---
 -->
 <script lang="ts">
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
@@ -10,18 +10,19 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import Plus from 'lucide-svelte/icons/plus';
 	import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal';
-	import { useDebounce } from '$lib/runes/useDebounce.svelte';
 
 	const RECIPES_PER_PAGE = 50;
 
 	let { data } = $props();
 	type Recipe = (typeof data.recipes)[number];
 
-	// --- ESTADO REACTIVO (Svelte 5) ---
+	// --- ESTADO REACTIVO ---
 	let recipes = $state(data.recipes);
 	let searchQuery = $state('');
 	let isLoading = $state(false);
 	let hasMore = $state(data.hasMore);
+	let sentinel: HTMLDivElement | undefined = $state();
+	let controller: AbortController;
 
 	let selectedRecipe = $state<Recipe | null>(null);
 	let isEditDialogOpen = $state(false);
@@ -30,65 +31,62 @@
 	const isAdmin = $derived(!!data.user?.isAdmin);
 
 	// --- LÓGICA DE CARGA Y BÚSQUEDA ---
-	let sentinel: HTMLDivElement | undefined = $state();
-
-	// Justificación (Debounce Moderno): Se utiliza nuestra utilidad `useDebounce` para
-	// crear una señal reactiva que solo se actualiza 300ms después de que el usuario
-	// deja de escribir, optimizando las peticiones a la API.
-	const debouncedSearchQuery = useDebounce(() => searchQuery, 300);
-
-	async function fetchRecipes(isSearch = false) {
-		if (isLoading) return;
+	async function fetchRecipes(isNewSearch = false) {
+		if (isLoading && !isNewSearch) return;
 		isLoading = true;
 
-		const offset = isSearch ? 0 : recipes.length;
-		const query = isSearch ? debouncedSearchQuery() : searchQuery;
-		const url = `/api/recipes?q=${encodeURIComponent(query)}&limit=${RECIPES_PER_PAGE}&offset=${offset}`;
+		const offset = isNewSearch ? 0 : recipes.length;
+
+		// Justificación: Se usa AbortController para la búsqueda simple, manteniendo
+		// la consistencia con la búsqueda avanzada y previniendo race conditions.
+		if (isNewSearch) {
+			controller?.abort();
+			controller = new AbortController();
+		}
+		const signal = controller?.signal;
+
+		const url = `/api/recipes?q=${encodeURIComponent(searchQuery)}&limit=${RECIPES_PER_PAGE}&offset=${offset}`;
 
 		try {
-			const response = await fetch(url);
+			const response = await fetch(url, { signal });
 			const result = await response.json();
 
-			if (isSearch) {
+			if (signal?.aborted) return;
+
+			if (isNewSearch) {
 				recipes = result.recipes;
 			} else {
 				recipes.push(...result.recipes);
 			}
 			hasMore = result.hasMore;
 		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				return;
+			}
 			console.error('Error al cargar recetas:', error);
 		} finally {
-			isLoading = false;
+			if (!signal?.aborted) {
+				isLoading = false;
+			}
 		}
 	}
 
-	// Justificación (Búsqueda con $effect): Este efecto se ejecuta automáticamente
-	// cada vez que la señal `debouncedSearchQuery` cambia. Es la forma idiomática
-	// en Svelte 5 de reaccionar a cambios de estado para ejecutar lógica asíncrona.
 	$effect(() => {
-		// Para evitar una llamada inicial innecesaria, registramos el valor.
-		const query = debouncedSearchQuery();
-		fetchRecipes(true);
+		searchQuery; // Dependencia del efecto
+		const handler = setTimeout(() => {
+			fetchRecipes(true);
+		}, 300); // Se mantiene un pequeño debounce aquí para no lanzar búsquedas en cada letra
+		return () => clearTimeout(handler);
 	});
 
-	// Justificación (Scroll Infinito con $effect): Se usa `$effect` para manejar el
-	// ciclo de vida del IntersectionObserver. Es más robusto que `onMount` porque
-	// su función de limpieza se ejecuta automáticamente, previniendo memory leaks.
 	$effect(() => {
 		if (!sentinel) return;
-
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (entries[0].isIntersecting && hasMore && !isLoading) {
-					fetchRecipes();
-				}
-			},
-			{ threshold: 1.0 }
-		);
-
+		const observer = new IntersectionObserver((entries) => {
+			if (entries[0].isIntersecting && hasMore && !isLoading) {
+				fetchRecipes();
+			}
+		});
 		observer.observe(sentinel);
-
-		// La función de limpieza del efecto se encarga de desconectar el observador.
 		return () => observer.disconnect();
 	});
 
@@ -131,9 +129,9 @@
 	</main>
 
 	{#if hasMore}
-		<div bind:this={sentinel} class="h-10 text-center text-muted-foreground">
+		<div bind:this={sentinel} class="h-10 flex justify-center items-center text-muted-foreground">
 			{#if isLoading}
-				Cargando más recetas...
+				<span>Cargando...</span>
 			{/if}
 		</div>
 	{/if}
