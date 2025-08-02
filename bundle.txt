@@ -1,7 +1,7 @@
 /* --- Bundle de Código Generado ---
  * Modo: full
- * Ficheros Incluidos: 111
- * Fecha: 2025-08-01T19:03:57.417Z
+ * Ficheros Incluidos: 114
+ * Fecha: 2025-08-02T11:15:32.405Z
  */
 
 // --- Ruta: vitest.config.ts ---
@@ -249,6 +249,22 @@ bun.lockb
 // --- Ruta: .npmrc ---
 engine-strict=true
 
+// --- Ruta: scripts/hash-password.js ---
+// Ruta: scripts/hash-password.js
+// Uso: node scripts/hash-password.js 'tu_contraseña_aqui'
+import { hash } from 'bcryptjs';
+const password = process.argv[2];
+if (!password) {
+	console.error('Por favor, proporciona una contraseña como argumento.');
+	process.exit(1);
+}
+const SALT_ROUNDS = 10;
+hash(password, SALT_ROUNDS).then((hash) => {
+	console.log('Contraseña:', password);
+	console.log('Hash:', hash);
+	console.log('\nCopia este hash en tu fichero .env como ADMIN_PASSWORD_HASH');
+});
+
 // --- Ruta: src/demo.spec.ts ---
 import { describe, it, expect } from 'vitest';
 describe('sum test', () => {
@@ -284,22 +300,6 @@ declare global {
 	}
 }
 export {};
-
-// --- Ruta: scripts/hash-password.js ---
-// Ruta: scripts/hash-password.js
-// Uso: node scripts/hash-password.js 'tu_contraseña_aqui'
-import { hash } from 'bcryptjs';
-const password = process.argv[2];
-if (!password) {
-	console.error('Por favor, proporciona una contraseña como argumento.');
-	process.exit(1);
-}
-const SALT_ROUNDS = 10;
-hash(password, SALT_ROUNDS).then((hash) => {
-	console.log('Contraseña:', password);
-	console.log('Hash:', hash);
-	console.log('\nCopia este hash en tu fichero .env como ADMIN_PASSWORD_HASH');
-});
 
 // --- Ruta: prisma/schema.prisma ---
 // Ruta: prisma/schema.prisma
@@ -520,103 +520,91 @@ describe('calculateNutritionalInfo', () => {
 # It should be added in your version-control system (e.g., Git)
 provider = "sqlite"
 
-// --- Ruta: src/routes/login/+page.svelte ---
-<!-- Ruta: src/routes/login/+page.svelte -->
-<script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { ActionData } from './$types';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	export let form: ActionData;
-	let loading = false;
-</script>
-<div class="flex min-h-screen items-center justify-center bg-muted/40">
-	<Card.Root class="w-full max-w-sm">
-		<Card.Header class="space-y-1 text-center">
-			<Card.Title class="text-2xl font-bold">Admin Login</Card.Title>
-			<Card.Description>Introduce tus credenciales para acceder al panel</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			<!-- Justificación (form action y enhance): Se usa un <form> estándar con un `action`
-			que apunta a la acción por defecto de esta misma página (`?/default`).
-			`use:enhance` intercepta el envío, lo hace vía fetch, y maneja el resultado
-			(actualizar `form`, redirigir, etc.) de forma automática y robusta. -->
-			<form
-				method="POST"
-				action="?/login"
-				use:enhance={() => {
-					loading = true;
-					return async ({ update }) => {
-						await update();
-						loading = false;
-					};
-				}}
-				class="space-y-4"
-			>
-				<div class="space-y-2">
-					<Label for="user">Usuario</Label>
-					<Input id="user" name="user" type="text" placeholder="admin" required />
-				</div>
-				<div class="space-y-2">
-					<Label for="password">Contraseña</Label>
-					<Input id="password" name="password" type="password" required />
-				</div>
-				{#if form?.message}
-					<p class="text-sm font-medium text-destructive">{form.message}</p>
-				{/if}
-				<Button type="submit" class="w-full" disabled={loading}>
-					{loading ? 'Entrando...' : 'Entrar'}
-				</Button>
-			</form>
-		</Card.Content>
-	</Card.Root>
-</div>
-
-// --- Ruta: src/routes/login/+page.server.ts ---
-// Ruta: src/routes/login/+page.server.ts
-import { type Actions, fail, redirect } from '@sveltejs/kit';
-import { comparePasswords, createSessionToken } from '$lib/server/auth';
-import { env } from '$env/dynamic/private';
-// Justificación: Se define una 'action' de SvelteKit en lugar de un endpoint de API.
-// Esto integra el manejo del formulario directamente con el ciclo de vida de la página,
-// lo que es más robusto y la forma idiomática de manejar envíos de formularios en SvelteKit.
-export const actions: Actions = {
-	login: async ({ request, cookies }) => {
-		const data = await request.formData();
-		const user = data.get('user');
-		const password = data.get('password');
-		// 1. Validación de entrada
-		if (!user || !password || typeof user !== 'string' || typeof password !== 'string') {
-			return fail(400, { message: 'Usuario y contraseña son requeridos' });
+// --- Ruta: src/lib/server/zodErrors.ts ---
+// Ruta: src/lib/server/zodErrors.ts
+import type { ZodError } from 'zod';
+/**
+ * Crea una respuesta de fallo estandarizada para las acciones de formulario de SvelteKit.
+ * Garantiza que el objeto devuelto siempre tenga la misma estructura.
+ *
+ * @param message - El mensaje de error general que se mostrará al usuario.
+ * @param error - (Opcional) Un error de Zod. Si se proporciona, se formateará
+ *                y se añadirá al campo `errors`.
+ * @returns Un objeto consistente para ser usado con `fail()`.
+ */
+export function createFailResponse(message: string, error?: ZodError) {
+	const response: { message: string; errors: Record<string, string | undefined> } = {
+		message,
+		errors: {}
+	};
+	if (error) {
+		for (const issue of error.issues) {
+			if (issue.path.length > 0) {
+				const field = issue.path.join('.');
+				if (!response.errors[field]) {
+					response.errors[field] = issue.message;
+				}
+			}
 		}
-		// 2. Verificación de credenciales
-		if (!env.ADMIN_PASSWORD_HASH) {
-			console.error('La variable de entorno ADMIN_PASSWORD_HASH no está configurada.');
-			return fail(500, { message: 'Error de configuración en el servidor' });
-		}
-		const isAdminUser = user === 'admin';
-		const isPasswordValid = await comparePasswords(password, env.ADMIN_PASSWORD_HASH);
-		if (!isAdminUser || !isPasswordValid) {
-			return fail(401, { message: 'Credenciales inválidas' });
-		}
-		// 3. Creación del token y establecimiento de la cookie
-		const token = await createSessionToken({ sub: 'admin' });
-		cookies.set('session', token, {
-			path: '/',
-			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
-			sameSite: 'strict',
-			maxAge: 60 * 60 * 24 // 1 día
-		});
-		// 4. Redirección
-		// Justificación (redirect): En lugar de devolver un JSON, una 'action' exitosa
-		// puede lanzar una redirección. SvelteKit la gestionará correctamente,
-		// tanto en el lado del servidor como en el cliente (si se usa `enhance`).
-		throw redirect(303, '/admin/ingredientes');
 	}
-};
+	return response;
+}
+
+// --- Ruta: src/lib/server/prisma.ts ---
+// Ruta: src/lib/server/prisma.ts
+import { PrismaClient } from '@prisma/client';
+// Justificación: Se sigue el patrón singleton recomendado por Prisma
+// para evitar crear múltiples conexiones a la base de datos en entornos
+// serverless o durante el hot-reloading en desarrollo.
+// La importación desde '@prisma/client' funciona porque `npx prisma generate`
+// redirige este alias a la implementación generada en `node_modules/.prisma/client`.
+const prisma = new PrismaClient();
+export default prisma;
+
+// --- Ruta: src/lib/server/auth.ts ---
+// Ruta: src/lib/server/auth.ts
+import { SignJWT, jwtVerify } from 'jose';
+import { hash, compare } from 'bcryptjs';
+import { env } from '$env/dynamic/private';
+// Justificación (bcrypt): Usamos bcrypt para hashear contraseñas. Es un algoritmo
+// adaptativo y lento por diseño, lo que lo hace resistente a ataques de fuerza bruta.
+const SALT_ROUNDS = 10; // Número de rondas de salting. 10 es un buen equilibrio.
+export async function hashPassword(password: string) {
+	return await hash(password, SALT_ROUNDS);
+}
+export async function comparePasswords(password: string, hash: string) {
+	return await compare(password, hash);
+}
+// Justificación (JWT en Cookie): Usamos JSON Web Tokens (JWT) para gestionar sesiones.
+// El token se firma en el servidor con un secreto y se envía al cliente en una cookie
+// HttpOnly, lo que previene el acceso desde JavaScript (ataques XSS).
+// Justificación: Se comprueba que la variable de entorno crítica exista al iniciar.
+// Si no, es un error de configuración del servidor y la aplicación no debe arrancar.
+if (!env.SESSION_SECRET) {
+	throw new Error(
+		'La variable de entorno SESSION_SECRET no está configurada. La aplicación no puede iniciarse de forma segura.'
+	);
+}
+const secret = new TextEncoder().encode(env.SESSION_SECRET);
+const algorithm = 'HS256'; // Algoritmo de firma
+export async function createSessionToken(payload: { sub: string; [key: string]: unknown }) {
+	return await new SignJWT(payload)
+		.setProtectedHeader({ alg: algorithm })
+		.setExpirationTime('24h') // El token expira en 24 horas
+		.setIssuedAt()
+		.setSubject(payload.sub)
+		.sign(secret);
+}
+export async function verifySessionToken(token: string) {
+	try {
+		const { payload } = await jwtVerify(token, secret, {
+			algorithms: [algorithm]
+		});
+		return payload;
+	} catch (error) {
+		return null; // El token es inválido o ha expirado
+	}
+}
 
 // --- Ruta: src/lib/schemas/recipeSchema.ts ---
 // Ruta: src/lib/schemas/recipeSchema.ts
@@ -817,91 +805,103 @@ CREATE TABLE "RecipeIngredient" (
 -- CreateIndex
 CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 
-// --- Ruta: src/lib/server/zodErrors.ts ---
-// Ruta: src/lib/server/zodErrors.ts
-import type { ZodError } from 'zod';
-/**
- * Crea una respuesta de fallo estandarizada para las acciones de formulario de SvelteKit.
- * Garantiza que el objeto devuelto siempre tenga la misma estructura.
- *
- * @param message - El mensaje de error general que se mostrará al usuario.
- * @param error - (Opcional) Un error de Zod. Si se proporciona, se formateará
- *                y se añadirá al campo `errors`.
- * @returns Un objeto consistente para ser usado con `fail()`.
- */
-export function createFailResponse(message: string, error?: ZodError) {
-	const response: { message: string; errors: Record<string, string | undefined> } = {
-		message,
-		errors: {}
-	};
-	if (error) {
-		for (const issue of error.issues) {
-			if (issue.path.length > 0) {
-				const field = issue.path.join('.');
-				if (!response.errors[field]) {
-					response.errors[field] = issue.message;
-				}
-			}
-		}
-	}
-	return response;
-}
+// --- Ruta: src/routes/login/+page.svelte ---
+<!-- Ruta: src/routes/login/+page.svelte -->
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import type { ActionData } from './$types';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	export let form: ActionData;
+	let loading = false;
+</script>
+<div class="flex min-h-screen items-center justify-center bg-muted/40">
+	<Card.Root class="w-full max-w-sm">
+		<Card.Header class="space-y-1 text-center">
+			<Card.Title class="text-2xl font-bold">Admin Login</Card.Title>
+			<Card.Description>Introduce tus credenciales para acceder al panel</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<!-- Justificación (form action y enhance): Se usa un <form> estándar con un `action`
+			que apunta a la acción por defecto de esta misma página (`?/default`).
+			`use:enhance` intercepta el envío, lo hace vía fetch, y maneja el resultado
+			(actualizar `form`, redirigir, etc.) de forma automática y robusta. -->
+			<form
+				method="POST"
+				action="?/login"
+				use:enhance={() => {
+					loading = true;
+					return async ({ update }) => {
+						await update();
+						loading = false;
+					};
+				}}
+				class="space-y-4"
+			>
+				<div class="space-y-2">
+					<Label for="user">Usuario</Label>
+					<Input id="user" name="user" type="text" placeholder="admin" required />
+				</div>
+				<div class="space-y-2">
+					<Label for="password">Contraseña</Label>
+					<Input id="password" name="password" type="password" required />
+				</div>
+				{#if form?.message}
+					<p class="text-sm font-medium text-destructive">{form.message}</p>
+				{/if}
+				<Button type="submit" class="w-full" disabled={loading}>
+					{loading ? 'Entrando...' : 'Entrar'}
+				</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
+</div>
 
-// --- Ruta: src/lib/server/prisma.ts ---
-// Ruta: src/lib/server/prisma.ts
-import { PrismaClient } from '@prisma/client';
-// Justificación: Se sigue el patrón singleton recomendado por Prisma
-// para evitar crear múltiples conexiones a la base de datos en entornos
-// serverless o durante el hot-reloading en desarrollo.
-// La importación desde '@prisma/client' funciona porque `npx prisma generate`
-// redirige este alias a la implementación generada en `node_modules/.prisma/client`.
-const prisma = new PrismaClient();
-export default prisma;
-
-// --- Ruta: src/lib/server/auth.ts ---
-// Ruta: src/lib/server/auth.ts
-import { SignJWT, jwtVerify } from 'jose';
-import { hash, compare } from 'bcryptjs';
+// --- Ruta: src/routes/login/+page.server.ts ---
+// Ruta: src/routes/login/+page.server.ts
+import { type Actions, fail, redirect } from '@sveltejs/kit';
+import { comparePasswords, createSessionToken } from '$lib/server/auth';
 import { env } from '$env/dynamic/private';
-// Justificación (bcrypt): Usamos bcrypt para hashear contraseñas. Es un algoritmo
-// adaptativo y lento por diseño, lo que lo hace resistente a ataques de fuerza bruta.
-const SALT_ROUNDS = 10; // Número de rondas de salting. 10 es un buen equilibrio.
-export async function hashPassword(password: string) {
-	return await hash(password, SALT_ROUNDS);
-}
-export async function comparePasswords(password: string, hash: string) {
-	return await compare(password, hash);
-}
-// Justificación (JWT en Cookie): Usamos JSON Web Tokens (JWT) para gestionar sesiones.
-// El token se firma en el servidor con un secreto y se envía al cliente en una cookie
-// HttpOnly, lo que previene el acceso desde JavaScript (ataques XSS).
-// Justificación: Se comprueba que la variable de entorno crítica exista al iniciar.
-// Si no, es un error de configuración del servidor y la aplicación no debe arrancar.
-if (!env.SESSION_SECRET) {
-	throw new Error(
-		'La variable de entorno SESSION_SECRET no está configurada. La aplicación no puede iniciarse de forma segura.'
-	);
-}
-const secret = new TextEncoder().encode(env.SESSION_SECRET);
-const algorithm = 'HS256'; // Algoritmo de firma
-export async function createSessionToken(payload: { sub: string; [key: string]: unknown }) {
-	return await new SignJWT(payload)
-		.setProtectedHeader({ alg: algorithm })
-		.setExpirationTime('24h') // El token expira en 24 horas
-		.setIssuedAt()
-		.setSubject(payload.sub)
-		.sign(secret);
-}
-export async function verifySessionToken(token: string) {
-	try {
-		const { payload } = await jwtVerify(token, secret, {
-			algorithms: [algorithm]
+// Justificación: Se define una 'action' de SvelteKit en lugar de un endpoint de API.
+// Esto integra el manejo del formulario directamente con el ciclo de vida de la página,
+// lo que es más robusto y la forma idiomática de manejar envíos de formularios en SvelteKit.
+export const actions: Actions = {
+	login: async ({ request, cookies }) => {
+		const data = await request.formData();
+		const user = data.get('user');
+		const password = data.get('password');
+		// 1. Validación de entrada
+		if (!user || !password || typeof user !== 'string' || typeof password !== 'string') {
+			return fail(400, { message: 'Usuario y contraseña son requeridos' });
+		}
+		// 2. Verificación de credenciales
+		if (!env.ADMIN_PASSWORD_HASH) {
+			console.error('La variable de entorno ADMIN_PASSWORD_HASH no está configurada.');
+			return fail(500, { message: 'Error de configuración en el servidor' });
+		}
+		const isAdminUser = user === 'admin';
+		const isPasswordValid = await comparePasswords(password, env.ADMIN_PASSWORD_HASH);
+		if (!isAdminUser || !isPasswordValid) {
+			return fail(401, { message: 'Credenciales inválidas' });
+		}
+		// 3. Creación del token y establecimiento de la cookie
+		const token = await createSessionToken({ sub: 'admin' });
+		cookies.set('session', token, {
+			path: '/',
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 60 * 60 * 24 // 1 día
 		});
-		return payload;
-	} catch (error) {
-		return null; // El token es inválido o ha expirado
+		// 4. Redirección
+		// Justificación (redirect): En lugar de devolver un JSON, una 'action' exitosa
+		// puede lanzar una redirección. SvelteKit la gestionará correctamente,
+		// tanto en el lado del servidor como en el cliente (si se usa `enhance`).
+		throw redirect(303, '/admin/ingredientes');
 	}
-}
+};
 
 // --- Ruta: src/routes/recetas/nueva/+page.svelte ---
 <!-- Ruta: src/routes/recetas/nueva/+page.svelte -->
@@ -919,6 +919,7 @@ export async function verifySessionToken(token: string) {
 	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import type { ActionData } from './$types';
+	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 	let { form }: { form: ActionData } = $props();
 	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
 	type SearchResult = {
@@ -998,13 +999,6 @@ export async function verifySessionToken(token: string) {
 	function removeIngredient(index: number) {
 		ingredients.splice(index, 1);
 	}
-	// --- Gestión de URLs de referencia ---
-	function addUrlField() {
-		urls.push('');
-	}
-	function removeUrlField(index: number) {
-		urls.splice(index, 1);
-	}
 	// --- Gestión de subida de imagen ---
 	function handleImageUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -1074,22 +1068,7 @@ export async function verifySessionToken(token: string) {
 			</div>
 			<div class="space-y-2">
 				<Label>URLs de Referencia</Label>
-				{#each urls as url, i}
-					<div class="flex items-center gap-2">
-						<Input
-							type="url"
-							placeholder="https://ejemplo.com/receta"
-							bind:value={urls[i]}
-							class="flex-grow"
-						/>
-						<Button type="button" variant="ghost" size="icon" onclick={() => removeUrlField(i)}>
-							<Trash2 class="h-4 w-4" />
-						</Button>
-					</div>
-				{/each}
-				<Button type="button" variant="outline" size="sm" onclick={addUrlField}>
-					Añadir URL
-				</Button>
+				<UrlImageFetcher bind:urls bind:imageUrl />
 				{#if form?.errors?.urls}
 					<p class="text-sm text-red-500">{form.errors.urls}</p>
 				{/if}
@@ -1275,249 +1254,6 @@ export const actions: Actions = {
 			const response = createFailResponse('No se pudo crear la receta en el servidor.');
 			return fail(500, response);
 		}
-	}
-};
-
-// --- Ruta: src/routes/recetas/[id]/+page.svelte ---
-<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
-<script lang="ts">
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow
-	} from '$lib/components/ui/table';
-	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
-	import type { PageData } from './$types';
-	import { Button } from '$lib/components/ui/button';
-	const { data } = $props<PageData>();
-	const { recipe } = data;
-	const ingredientsList = $derived(
-		recipe.ingredients
-			.map((ing) => {
-				const details = ing.product ?? ing.customIngredient;
-				if (!details) return null;
-				return {
-					name: details.name,
-					quantity: ing.quantity,
-					calories: details.calories ?? 0,
-					protein: details.protein ?? 0,
-					fat: details.fat ?? 0,
-					carbs: details.carbs ?? 0
-				};
-			})
-			.filter((i): i is NonNullable<typeof i> => i !== null)
-	);
-	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
-</script>
-<div class="max-w-4xl mx-auto my-8 space-y-8">
-	<header class="space-y-4">
-		<div class="flex justify-between items-start">
-			<div class="flex-1">
-				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
-				{#if recipe.description}
-					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
-				{/if}
-			</div>
-			<a href="/recetas/{recipe.id}/editar">
-				<Button variant="outline">Editar</Button>
-			</a>
-		</div>
-		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
-		{#if recipe.imageUrl}
-			<div class="w-full aspect-video rounded-lg overflow-hidden">
-				<img
-					src={recipe.imageUrl}
-					alt="Foto de {recipe.title}"
-					class="w-full h-full object-cover"
-				/>
-			</div>
-		{/if}
-	</header>
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-		<div class="md:col-span-2 space-y-8">
-			<!-- Pasos -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Preparación</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div class="prose max-w-none whitespace-pre-wrap">
-						{recipe.steps}
-					</div>
-				</CardContent>
-			</Card>
-			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
-			{#if recipe.urls && recipe.urls.length > 0}
-				<Card>
-					<CardHeader>
-						<CardTitle>Referencias</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ul class="list-disc pl-5 space-y-2">
-							{#each recipe.urls as ref}
-								<li>
-									<a
-										href={ref.url}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="text-blue-600 hover:underline"
-									>
-										{ref.url}
-									</a>
-								</li>
-							{/each}
-						</ul>
-					</CardContent>
-				</Card>
-			{/if}
-		</div>
-		<div class="space-y-8">
-			<!-- Información Nutricional -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Información Nutricional</CardTitle>
-					<CardDescription>Valores totales para la receta.</CardDescription>
-				</CardHeader>
-				<CardContent class="grid grid-cols-2 gap-4">
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
-					</div>
-				</CardContent>
-			</Card>
-			<!-- Ingredientes -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Ingredientes</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Nombre</TableHead>
-								<TableHead class="text-right">Cantidad</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{#each ingredientsList as ingredient}
-								<TableRow>
-									<TableCell class="font-medium">{ingredient.name}</TableCell>
-									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
-								</TableRow>
-							{/each}
-						</TableBody>
-					</Table>
-				</CardContent>
-			</Card>
-		</div>
-	</div>
-</div>
-
-// --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
-// Ruta: src/routes/recetas/[id]/+page.server.ts
-import { error } from '@sveltejs/kit';
-import { recipeService } from '$lib/server/services/recipeService';
-import type { PageServerLoad } from './$types';
-// Justificación: La función `load` del servidor es ideal para cargar los datos
-// de una receta específica antes de que la página se renderice.
-// Esto asegura que los datos estén disponibles inmediatamente y mejora el SEO.
-export const load: PageServerLoad = async ({ params }) => {
-	const recipe = await recipeService.getById(params.id);
-	if (!recipe) {
-		throw error(404, 'Receta no encontrada');
-	}
-	return {
-		recipe
-	};
-};
-
-// --- Ruta: src/routes/api/recipes/+server.ts ---
-// Ruta: src/routes/api/recipes/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { recipeService } from '$lib/server/services/recipeService';
-import { RecipeSchema } from '$lib/schemas/recipeSchema';
-import { ZodError } from 'zod';
-// Justificación: Se importa la nueva utilidad unificada.
-import { createFailResponse } from '$lib/server/zodErrors';
-/**
- * Maneja las peticiones GET para obtener todas las recetas.
- */
-export const GET: RequestHandler = async () => {
-	try {
-		const recipes = await recipeService.getAll();
-		return json(recipes);
-	} catch (error) {
-		console.error('Error fetching recipes:', error);
-		return json(createFailResponse('Error interno del servidor'), { status: 500 });
-	}
-};
-/**
- * Maneja las peticiones POST para crear una nueva receta.
- */
-export const POST: RequestHandler = async ({ request }) => {
-	try {
-		const body = await request.json();
-		const validatedData = RecipeSchema.parse(body);
-		const newRecipe = await recipeService.create(validatedData);
-		return json(newRecipe, { status: 201 }); // 201 Created
-	} catch (error) {
-		if (error instanceof ZodError) {
-			return json(createFailResponse('La validación falló', error), { status: 400 });
-		}
-		console.error('Error creating recipe:', error);
-		return json(createFailResponse('Error interno del servidor'), { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/ingredients/+server.ts ---
-// Ruta: src/routes/api/ingredients/+server.ts
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { ingredientService } from '$lib/server/services/ingredientService';
-import { IngredientSchema } from '$lib/schemas/ingredientSchema';
-import { ZodError } from 'zod';
-// Justificación: Se importa la nueva utilidad unificada.
-import { createFailResponse } from '$lib/server/zodErrors';
-export const GET: RequestHandler = async () => {
-	try {
-		const ingredients = await ingredientService.getAllUnified();
-		return json(ingredients);
-	} catch (error) {
-		console.error('Error fetching ingredients:', error);
-		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
-		return json(createFailResponse('Error interno del servidor'), { status: 500 });
-	}
-};
-export const POST: RequestHandler = async ({ request }) => {
-	try {
-		const body = await request.json();
-		const validatedData = IngredientSchema.parse(body);
-		const newIngredient = await ingredientService.create(validatedData);
-		return json(newIngredient, { status: 201 });
-	} catch (error) {
-		if (error instanceof ZodError) {
-			// Justificación: Se usa la nueva utilidad para el error de validación.
-			return json(createFailResponse('La validación falló', error), { status: 400 });
-		}
-		console.error('Error creating ingredient:', error);
-		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
-		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
 
@@ -1845,100 +1581,174 @@ export const actions: Actions = {
 	}
 };
 
-// --- Ruta: src/lib/components/admin/SyncDialog.svelte ---
-<!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
+// --- Ruta: src/routes/recetas/[id]/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
 <script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
-	import { CircleDashed } from 'lucide-svelte';
-	// Justificación: Este componente ahora solo se encarga de mostrar el *contenido* del diálogo.
-	// El control de apertura/cierre y el disparador se gestionan en la página padre,
-	// siguiendo las convenciones del proyecto y de Svelte 5.
-	type $Props = {
-		state: 'idle' | 'loading' | 'success' | 'error';
-		result: {
-			updatedIngredients: string[];
-			failedIngredients: { id: string; name: string; reason: string }[];
-		} | null;
-	};
-	let { state, result }: $Props = $props();
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Table,
+		TableBody,
+		TableCell,
+		TableHead,
+		TableHeader,
+		TableRow
+	} from '$lib/components/ui/table';
+	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
+	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button';
+	const { data } = $props<PageData>();
+	const { recipe } = data;
+	const ingredientsList = $derived(
+		recipe.ingredients
+			.map((ing) => {
+				const details = ing.product ?? ing.customIngredient;
+				if (!details) return null;
+				return {
+					name: details.name,
+					quantity: ing.quantity,
+					calories: details.calories ?? 0,
+					protein: details.protein ?? 0,
+					fat: details.fat ?? 0,
+					carbs: details.carbs ?? 0
+				};
+			})
+			.filter((i): i is NonNullable<typeof i> => i !== null)
+	);
+	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
 </script>
-<Dialog.Content class="sm:max-w-[625px]">
-	{#if state === 'loading'}
-		<div class="flex flex-col items-center justify-center p-8">
-			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
-			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
-			<p class="text-sm text-muted-foreground">
-				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
-			</p>
-		</div>
-	{:else if state === 'success' && result}
-		<Dialog.Header>
-			<Dialog.Title>Sincronización Completada</Dialog.Title>
-			<Dialog.Description>
-				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
-				{#if result.failedIngredients.length > 0}
-					Hubo <strong>{result.failedIngredients.length}</strong> errores.
+<div class="max-w-4xl mx-auto my-8 space-y-8">
+	<header class="space-y-4">
+		<div class="flex justify-between items-start">
+			<div class="flex-1">
+				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
+				{#if recipe.description}
+					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
 				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
-		<div class="max-h-[400px] overflow-y-auto">
-			{#if result.updatedIngredients.length > 0}
-				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each result.updatedIngredients as name}
-							<TableRow>
-								<TableCell>{name}</TableCell>
-							</TableRow>
-						{/each}
-					</TableBody>
-				</Table>
-			{/if}
-			{#if result.failedIngredients.length > 0}
-				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-							<TableHead>Motivo del Error</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each result.failedIngredients as failure}
-							<TableRow>
-								<TableCell>{failure.name} ({failure.id})</TableCell>
-								<TableCell>{failure.reason}</TableCell>
-							</TableRow>
-						{/each}
-					</TableBody>
-				</Table>
+			</div>
+			<a href="/recetas/{recipe.id}/editar">
+				<Button variant="outline">Editar</Button>
+			</a>
+		</div>
+		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
+		{#if recipe.imageUrl}
+			<div class="w-full aspect-video rounded-lg overflow-hidden">
+				<img
+					src={recipe.imageUrl}
+					alt="Foto de {recipe.title}"
+					class="w-full h-full object-cover"
+				/>
+			</div>
+		{/if}
+	</header>
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+		<div class="md:col-span-2 space-y-8">
+			<!-- Pasos -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Preparación</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div class="prose max-w-none whitespace-pre-wrap">
+						{recipe.steps}
+					</div>
+				</CardContent>
+			</Card>
+			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
+			{#if recipe.urls && recipe.urls.length > 0}
+				<Card>
+					<CardHeader>
+						<CardTitle>Referencias</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ul class="list-disc pl-5 space-y-2">
+							{#each recipe.urls as ref}
+								<li>
+									<a
+										href={ref.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-blue-600 hover:underline"
+									>
+										{ref.url}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</CardContent>
+				</Card>
 			{/if}
 		</div>
-		<Dialog.Footer>
-			<!-- Justificación: Se usa Dialog.Close directamente estilizado como un botón,
-			     evitando la complejidad y errores de 'asChild'. -->
-			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
-		</Dialog.Footer>
-	{:else if state === 'error'}
-		<Dialog.Header>
-			<Dialog.Title>Error en la Sincronización</Dialog.Title>
-			<Dialog.Description>
-				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
-				de nuevo más tarde.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
-		</Dialog.Footer>
-	{/if}
-</Dialog.Content>
+		<div class="space-y-8">
+			<!-- Información Nutricional -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Información Nutricional</CardTitle>
+					<CardDescription>Valores totales para la receta.</CardDescription>
+				</CardHeader>
+				<CardContent class="grid grid-cols-2 gap-4">
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</CardContent>
+			</Card>
+			<!-- Ingredientes -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Ingredientes</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Nombre</TableHead>
+								<TableHead class="text-right">Cantidad</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{#each ingredientsList as ingredient}
+								<TableRow>
+									<TableCell class="font-medium">{ingredient.name}</TableCell>
+									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
+								</TableRow>
+							{/each}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
+		</div>
+	</div>
+</div>
+
+// --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/+page.server.ts
+import { error } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { PageServerLoad } from './$types';
+// Justificación: La función `load` del servidor es ideal para cargar los datos
+// de una receta específica antes de que la página se renderice.
+// Esto asegura que los datos estén disponibles inmediatamente y mejora el SEO.
+export const load: PageServerLoad = async ({ params }) => {
+	const recipe = await recipeService.getById(params.id);
+	if (!recipe) {
+		throw error(404, 'Receta no encontrada');
+	}
+	return {
+		recipe
+	};
+};
 
 // --- Ruta: src/lib/server/services/recipeService.ts ---
 // Ruta: src/lib/server/services/recipeService.ts
@@ -2283,7 +2093,7 @@ export const productService = {
 
 // --- Ruta: src/lib/server/services/productService.spec.ts ---
 // Ruta: src/lib/server/services/productService.spec.ts
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import prisma from '$lib/server/prisma';
 import ky from 'ky';
 import { productService } from './productService';
@@ -2329,6 +2139,11 @@ type OpenFoodFactsResponse = {
 describe('productService', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
+		// Justificación: Silenciamos console.log para mantener la salida del test limpia.
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+	});
+	afterEach(() => {
+		vi.mocked(console.log).mockRestore();
 	});
 	const barcode = '123456789';
 	const cachedProduct: Product = {
@@ -2490,7 +2305,11 @@ export const ingredientService = {
 		const normalizedName = normalizeText(data.name);
 		return await prisma.customIngredient.create({
 			data: {
-				...data,
+				name: data.name,
+				calories: data.calories,
+				fat: data.fat,
+				protein: data.protein,
+				carbs: data.carbs,
 				normalizedName
 			}
 		});
@@ -2901,108 +2720,2095 @@ export const imageService = {
 
 // --- Ruta: src/lib/server/services/imageService.spec.ts ---
 // Ruta: src/lib/server/services/imageService.spec.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { imageService } from './imageService';
-import sharp from 'sharp';
-import * as cheerio from 'cheerio';
-// Justificación (Paso 4.1): Mockeamos los módulos 'sharp' y 'cheerio' para aislar
-// nuestro servicio de dependencias externas y del sistema de archivos.
-// Esto nos permite probar la lógica de nuestro código de forma determinista.
+// Mock de 'sharp'
 vi.mock('sharp', () => {
-	const mockSharpInstance = {
+	const chainable = {
 		resize: vi.fn().mockReturnThis(),
 		webp: vi.fn().mockReturnThis(),
 		toBuffer: vi.fn().mockResolvedValue(Buffer.from('optimized-image-buffer'))
 	};
-	const sharp = vi.fn(() => mockSharpInstance);
-	return { default: sharp };
-});
-vi.mock('cheerio', () => {
-	const mockCheerio = {
-		load: vi.fn()
+	return {
+		default: vi.fn(() => chainable)
 	};
-	return { ...mockCheerio, default: mockCheerio };
 });
-// Mockeamos el `fetch` global
+// Mock global de 'fetch'
 global.fetch = vi.fn();
+const mockedFetch = vi.mocked(global.fetch);
 describe('imageService', () => {
 	beforeEach(() => {
-		// Limpiamos los mocks antes de cada test para evitar interferencias.
+		// Limpiamos las llamadas y restauramos las implementaciones por defecto si las hubiera
 		vi.clearAllMocks();
+		// Justificación: Silenciamos console.error para evitar el ruido en los tests de error.
+		vi.spyOn(console, 'error').mockImplementation(() => {});
 	});
-	it('should return a base64 WebP image if og:image is found', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com';
-		const imageUrl = 'https://example.com/image.jpg';
-		const mockHtml = `<html><head><meta property="og:image" content="${imageUrl}"></head></html>`;
-		// Mock para el fetch de la página HTML
-		(fetch as vi.Mock).mockResolvedValueOnce(
-			new Response(mockHtml, {
-				status: 200,
-				headers: { 'Content-Type': 'text/html' }
-			})
-		);
-		// Mock para el fetch de la imagen
-		(fetch as vi.Mock).mockResolvedValueOnce(
-			new Response(Buffer.from('image-data'), {
-				status: 200,
-				headers: { 'Content-Type': 'image/jpeg' }
-			})
-		);
-		// Mock para Cheerio
-		const mock$ = vi.fn((selector) => {
-			if (selector === 'meta[property="og:image"]') {
-				return { attr: () => imageUrl };
-			}
-			return { attr: () => undefined };
+	afterEach(() => {
+		// Restauramos la implementación original de console.error después de cada test.
+		vi.mocked(console.error).mockRestore();
+	});
+	describe('getImageFromUrl', () => {
+		it('should return a processed image from an og:image meta tag', async () => {
+			const mockPageUrl = 'https://example.com/og-page';
+			const mockImageUrl = 'https://example.com/og-image.jpg';
+			const mockHtml = `<html><head><meta property="og:image" content="${mockImageUrl}" /></head></html>`;
+			// Justificación: Usamos mockImplementation para un mock de fetch más robusto,
+			// que no depende del orden de las llamadas.
+			mockedFetch.mockImplementation(async (url): Promise<Response> => {
+				if (url === mockPageUrl) {
+					return new Response(mockHtml);
+				}
+				if (url === mockImageUrl) {
+					return new Response(Buffer.from('image-data'));
+				}
+				throw new Error(`Unexpected fetch call to ${url}`);
+			});
+			const result = await imageService.getImageFromUrl(mockPageUrl);
+			expect(result).toBe('data:image/webp;base64,b3B0aW1pemVkLWltYWdlLWJ1ZmZlcg==');
+			expect(mockedFetch).toHaveBeenCalledWith(mockPageUrl, expect.any(Object));
+			expect(mockedFetch).toHaveBeenCalledWith(mockImageUrl);
 		});
-		(cheerio.load as vi.Mock).mockReturnValue(mock$);
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
-		// Assert
-		expect(result).toBe('data:image/webp;base64,b3B0aW1pemVkLWltYWdlLWJ1ZmZlcg==');
-		expect(fetch).toHaveBeenCalledWith(pageUrl, expect.any(Object));
-		expect(fetch).toHaveBeenCalledWith(imageUrl);
-		expect(sharp).toHaveBeenCalledWith(Buffer.from('image-data'));
-	});
-	it('should return null if no image meta tag is found', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com/no-image';
-		const mockHtml = '<html><head></head></html>';
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response(mockHtml));
-		const mock$ = vi.fn(() => ({ attr: () => undefined }));
-		(cheerio.load as vi.Mock).mockReturnValue(mock$);
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
-		// Assert
-		expect(result).toBeNull();
-		expect(fetch).toHaveBeenCalledOnce(); // Solo se llama al fetch de la página
-	});
-	it('should return null if fetching the page fails', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com/not-found';
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
-		// Assert
-		expect(result).toBeNull();
-	});
-	it('should return null if fetching the image fails', async () => {
-		// Arrange
-		const pageUrl = 'https://example.com';
-		const imageUrl = 'https://example.com/image-not-found.jpg';
-		const mockHtml = `<html><head><meta property="og:image" content="${imageUrl}"></head></html>`;
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response(mockHtml));
-		(fetch as vi.Mock).mockResolvedValueOnce(new Response('Image Not Found', { status: 404 }));
-		const mock$ = vi.fn(() => ({ attr: () => imageUrl }));
-		(cheerio.load as vi.Mock).mockReturnValue(mock$);
-		// Act
-		const result = await imageService.getImageFromUrl(pageUrl);
-		// Assert
-		expect(result).toBeNull();
-		expect(fetch).toHaveBeenCalledTimes(2); // Se llama a ambos fetches
+		it('should return a processed image from a twitter:image meta tag if og:image is not present', async () => {
+			const mockPageUrl = 'https://example.com/twitter-page';
+			const mockImageUrl = 'https://example.com/twitter-image.jpg';
+			const mockHtml = `<html><head><meta name="twitter:image" content="${mockImageUrl}" /></head></html>`;
+			mockedFetch.mockImplementation(async (url): Promise<Response> => {
+				if (url === mockPageUrl) {
+					return new Response(mockHtml);
+				}
+				if (url === mockImageUrl) {
+					return new Response(Buffer.from('image-data'));
+				}
+				throw new Error(`Unexpected fetch call to ${url}`);
+			});
+			const result = await imageService.getImageFromUrl(mockPageUrl);
+			expect(result).toContain('data:image/webp;base64,');
+			expect(mockedFetch).toHaveBeenCalledWith(mockImageUrl);
+		});
+		it('should return null if no image meta tags are found', async () => {
+			const mockPageUrl = 'https://example.com/no-tags';
+			const mockHtml = '<html><head></head></html>';
+			mockedFetch.mockResolvedValue(new Response(mockHtml));
+			const result = await imageService.getImageFromUrl(mockPageUrl);
+			expect(result).toBeNull();
+			expect(mockedFetch).toHaveBeenCalledOnce();
+		});
+		it('should return null if fetching the page fails', async () => {
+			const mockPageUrl = 'https://example.com/fails';
+			mockedFetch.mockRejectedValue(new Error('Network error'));
+			const result = await imageService.getImageFromUrl(mockPageUrl);
+			expect(result).toBeNull();
+		});
+		it('should return null if fetching the image fails', async () => {
+			const mockPageUrl = 'https://example.com/image-fails';
+			const mockImageUrl = 'https://example.com/image.jpg';
+			const mockHtml = `<html><head><meta property="og:image" content="${mockImageUrl}" /></head></html>`;
+			mockedFetch.mockImplementation(async (url): Promise<Response> => {
+				if (url === mockPageUrl) {
+					return new Response(mockHtml);
+				}
+				if (url === mockImageUrl) {
+					throw new Error('Image not found');
+				}
+				throw new Error(`Unexpected fetch call to ${url}`);
+			});
+			const result = await imageService.getImageFromUrl(mockPageUrl);
+			expect(result).toBeNull();
+		});
 	});
 });
+
+// --- Ruta: src/lib/components/admin/SyncDialog.svelte ---
+<!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
+<script lang="ts">
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { CircleDashed } from 'lucide-svelte';
+	// Justificación: Este componente ahora solo se encarga de mostrar el *contenido* del diálogo.
+	// El control de apertura/cierre y el disparador se gestionan en la página padre,
+	// siguiendo las convenciones del proyecto y de Svelte 5.
+	type $Props = {
+		state: 'idle' | 'loading' | 'success' | 'error';
+		result: {
+			updatedIngredients: string[];
+			failedIngredients: { id: string; name: string; reason: string }[];
+		} | null;
+	};
+	let { state, result }: $Props = $props();
+</script>
+<Dialog.Content class="sm:max-w-[625px]">
+	{#if state === 'loading'}
+		<div class="flex flex-col items-center justify-center p-8">
+			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
+			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
+			<p class="text-sm text-muted-foreground">
+				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
+			</p>
+		</div>
+	{:else if state === 'success' && result}
+		<Dialog.Header>
+			<Dialog.Title>Sincronización Completada</Dialog.Title>
+			<Dialog.Description>
+				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
+				{#if result.failedIngredients.length > 0}
+					Hubo <strong>{result.failedIngredients.length}</strong> errores.
+				{/if}
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="max-h-[400px] overflow-y-auto">
+			{#if result.updatedIngredients.length > 0}
+				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.updatedIngredients as name}
+							<TableRow>
+								<TableCell>{name}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+			{#if result.failedIngredients.length > 0}
+				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead>Motivo del Error</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.failedIngredients as failure}
+							<TableRow>
+								<TableCell>{failure.name} ({failure.id})</TableCell>
+								<TableCell>{failure.reason}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<!-- Justificación: Se usa Dialog.Close directamente estilizado como un botón,
+			     evitando la complejidad y errores de 'asChild'. -->
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{:else if state === 'error'}
+		<Dialog.Header>
+			<Dialog.Title>Error en la Sincronización</Dialog.Title>
+			<Dialog.Description>
+				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
+				de nuevo más tarde.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer>
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{/if}
+</Dialog.Content>
+
+// --- Ruta: src/lib/components/recipes/UrlImageFetcher.svelte ---
+<!-- Ruta: src/lib/components/recipes/UrlImageFetcher.svelte -->
+<script lang="ts">
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+	import { Trash2, Loader, CheckCircle2, TriangleAlert } from 'lucide-svelte';
+	type $Props = {
+		urls: string[];
+		imageUrl: string;
+	};
+	let { urls = $bindable(), imageUrl = $bindable() }: $Props = $props();
+	// Estado para cada URL individual
+	let urlStates = $state(
+		urls.map(() => ({
+			status: 'idle' as 'idle' | 'loading' | 'success' | 'error',
+			message: ''
+		}))
+	);
+	function addUrlField() {
+		urls.push('');
+		urlStates.push({ status: 'idle', message: '' });
+	}
+	function removeUrlField(index: number) {
+		urls.splice(index, 1);
+		urlStates.splice(index, 1);
+	}
+	// Justificación (Paso 3): Esta función se dispara cuando el usuario deja de editar
+	// un campo de URL. Llama a nuestro endpoint de scraping y actualiza el estado
+	// de esa URL específica para mostrar feedback (spinner, tick, error).
+	async function handleUrlBlur(index: number) {
+		const url = urls[index];
+		if (!url || !url.startsWith('http')) {
+			urlStates[index] = { status: 'idle', message: '' };
+			return;
+		}
+		// Solo buscamos imagen si no hay ya una imagen principal definida.
+		if (imageUrl) return;
+		urlStates[index] = { status: 'loading', message: '' };
+		try {
+			const response = await fetch('/api/scrape-image', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url })
+			});
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Error desconocido');
+			}
+			const data = await response.json();
+			imageUrl = data.imageUrl; // Actualizamos la imagen principal de la receta
+			urlStates[index] = { status: 'success', message: 'Imagen encontrada' };
+		} catch (error) {
+			urlStates[index] = {
+				status: 'error',
+				message: error instanceof Error ? error.message : 'No se pudo obtener la imagen'
+			};
+		}
+	}
+</script>
+<div class="space-y-2">
+	{#each urls as _, i}
+		<div class="flex items-center gap-2">
+			<div class="relative flex-grow">
+				<Input
+					type="url"
+					placeholder="https://ejemplo.com/receta"
+					bind:value={urls[i]}
+					onblur={() => handleUrlBlur(i)}
+					class="pr-10"
+				/>
+				<div class="absolute inset-y-0 right-0 flex items-center pr-3">
+					{#if urlStates[i]?.status === 'loading'}
+						<Loader class="h-5 w-5 animate-spin text-gray-400" />
+					{:else if urlStates[i]?.status === 'success'}
+						<CheckCircle2 class="h-5 w-5 text-green-500" />
+					{:else if urlStates[i]?.status === 'error'}
+						<TriangleAlert class="h-5 w-5 text-red-500" />
+					{/if}
+				</div>
+			</div>
+			<Button type="button" variant="ghost" size="icon" onclick={() => removeUrlField(i)}>
+				<Trash2 class="h-4 w-4" />
+			</Button>
+		</div>
+		{#if urlStates[i]?.status === 'error'}
+			<p class="text-sm text-red-500 ml-1">{urlStates[i].message}</p>
+		{/if}
+	{/each}
+	<Button type="button" variant="outline" size="sm" onclick={addUrlField}>
+		Añadir URL
+	</Button>
+</div>
+
+// --- Ruta: src/routes/api/recipes/+server.ts ---
+// Ruta: src/routes/api/recipes/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { ZodError } from 'zod';
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
+/**
+ * Maneja las peticiones GET para obtener todas las recetas.
+ */
+export const GET: RequestHandler = async () => {
+	try {
+		const recipes = await recipeService.getAll();
+		return json(recipes);
+	} catch (error) {
+		console.error('Error fetching recipes:', error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+/**
+ * Maneja las peticiones POST para crear una nueva receta.
+ */
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json();
+		const validatedData = RecipeSchema.parse(body);
+		const newRecipe = await recipeService.create(validatedData);
+		return json(newRecipe, { status: 201 }); // 201 Created
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(createFailResponse('La validación falló', error), { status: 400 });
+		}
+		console.error('Error creating recipe:', error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/scrape-image/api.spec.ts ---
+// Ruta: src/routes/api/scrape-image/api.spec.ts
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { POST } from './+server';
+import { imageService } from '$lib/server/services/imageService';
+// Mock del imageService
+vi.mock('$lib/server/services/imageService', () => ({
+	imageService: {
+		getImageFromUrl: vi.fn()
+	}
+}));
+// Mock de SvelteKit 'error'
+vi.mock('@sveltejs/kit', async (importOriginal) => {
+	const original = await importOriginal<typeof import('@sveltejs/kit')>();
+	return {
+		...original,
+		error: vi.fn((status, message) => ({ status, message }))
+	};
+});
+describe('POST /api/scrape-image', () => {
+	beforeEach(() => {
+		vi.resetAllMocks();
+		// Justificación: Silenciamos console.error para evitar el ruido en los tests de error.
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+	});
+	afterEach(() => {
+		// Restauramos la implementación original de console.error después de cada test.
+		vi.mocked(console.error).mockRestore();
+	});
+	it('should return a 200 response with the image URL on success', async () => {
+		const mockImageUrl = 'data:image/webp;base64,mock-image-data';
+		vi.mocked(imageService.getImageFromUrl).mockResolvedValue(mockImageUrl);
+		const request = new Request('http://localhost/api/scrape-image', {
+			method: 'POST',
+			body: JSON.stringify({ url: 'https://example.com' })
+		});
+		// Justificación: Usamos `Parameters<typeof POST>[0]` para obtener el tipo exacto
+		// del evento que espera la función POST. El `as unknown as` es necesario porque
+		// nuestro objeto mock `{ request }` no implementa la interfaz completa de RequestEvent.
+		const response = await POST({ request } as unknown as Parameters<typeof POST>[0]);
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body).toEqual({ imageUrl: mockImageUrl });
+		expect(imageService.getImageFromUrl).toHaveBeenCalledWith('https://example.com');
+	});
+	it('should throw a 400 error for an invalid URL', async () => {
+		const request = new Request('http://localhost/api/scrape-image', {
+			method: 'POST',
+			body: JSON.stringify({ url: 'invalid-url' })
+		});
+		await expect(POST({ request } as unknown as Parameters<typeof POST>[0])).rejects.toEqual({
+			status: 400,
+			message: 'URL no válida'
+		});
+	});
+	it('should throw a 404 error if no image is found', async () => {
+		vi.mocked(imageService.getImageFromUrl).mockResolvedValue(null);
+		const request = new Request('http://localhost/api/scrape-image', {
+			method: 'POST',
+			body: JSON.stringify({ url: 'https://example.com/no-image' })
+		});
+		await expect(POST({ request } as unknown as Parameters<typeof POST>[0])).rejects.toEqual({
+			status: 404,
+			message: 'No se pudo encontrar una imagen en la URL proporcionada'
+		});
+	});
+	it('should throw a 500 error for internal server errors', async () => {
+		vi.mocked(imageService.getImageFromUrl).mockRejectedValue(new Error('Internal processing error'));
+		const request = new Request('http://localhost/api/scrape-image', {
+			method: 'POST',
+			body: JSON.stringify({ url: 'https://example.com/error-page' })
+		});
+		await expect(POST({ request } as unknown as Parameters<typeof POST>[0])).rejects.toEqual({
+			status: 500,
+			message: 'Error interno al procesar la imagen'
+		});
+	});
+});
+
+// --- Ruta: src/routes/api/scrape-image/+server.ts ---
+// Ruta: src/routes/api/scrape-image/+server.ts
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { imageService } from '$lib/server/services/imageService';
+// Justificación (Paso 1): Creamos un endpoint POST dedicado para el scraping de imágenes.
+// Esto permite al frontend solicitar la extracción de una imagen de forma asíncrona
+// sin exponer directamente la lógica del servidor.
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const { url } = await request.json();
+		// Justificación: Validamos que la URL sea una URL HTTP/HTTPS válida
+		// antes de procesarla para evitar errores y posibles abusos.
+		if (!url || !url.startsWith('http')) {
+			throw error(400, 'URL no válida');
+		}
+		const imageUrl = await imageService.getImageFromUrl(url);
+		if (!imageUrl) {
+			// Si no se encuentra imagen, devolvemos un 404 específico.
+			throw error(404, 'No se pudo encontrar una imagen en la URL proporcionada');
+		}
+		return json({ imageUrl });
+	} catch (e) {
+		// Manejo de errores centralizado. Si es un error de SvelteKit (o un objeto con forma de error), lo relanzamos.
+		// Si no, devolvemos un error 500 genérico.
+		if (typeof e === 'object' && e !== null && 'status' in e) {
+			throw e;
+		}
+		console.error('Error scraping image:', e);
+		throw error(500, 'Error interno al procesar la imagen');
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/+server.ts ---
+// Ruta: src/routes/api/ingredients/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import { IngredientSchema } from '$lib/schemas/ingredientSchema';
+import { ZodError } from 'zod';
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
+export const GET: RequestHandler = async () => {
+	try {
+		const ingredients = await ingredientService.getAllUnified();
+		return json(ingredients);
+	} catch (error) {
+		console.error('Error fetching ingredients:', error);
+		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json();
+		const validatedData = IngredientSchema.parse(body);
+		const newIngredient = await ingredientService.create(validatedData);
+		return json(newIngredient, { status: 201 });
+	} catch (error) {
+		if (error instanceof ZodError) {
+			// Justificación: Se usa la nueva utilidad para el error de validación.
+			return json(createFailResponse('La validación falló', error), { status: 400 });
+		}
+		console.error('Error creating ingredient:', error);
+		// Justificación: Se usa la nueva utilidad para unificar la respuesta de error.
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/admin/ingredientes/off/+page.svelte ---
+<script lang="ts">
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	type SearchResult = {
+		id: string;
+		name: string;
+		source: 'local' | 'off';
+		imageUrl: string | null;
+	};
+	let searchTerm = '';
+	let results: SearchResult[] = [];
+	let isLoading = false;
+	let searchAttempted = false; // Para mostrar el mensaje de "no resultados"
+	let eventSource: EventSource | null = null;
+	function handleSearch() {
+		if (searchTerm.length < 3) {
+			results = [];
+			searchAttempted = false;
+			return;
+		}
+		results = [];
+		isLoading = true;
+		searchAttempted = true;
+		if (eventSource) {
+			eventSource.close();
+		}
+		eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+		eventSource.addEventListener('message', (event) => {
+			const newResults = JSON.parse(event.data);
+			results = [...results, ...newResults];
+		});
+		// Escucha los errores de aplicación enviados explícitamente por el servidor
+		eventSource.addEventListener('stream_error', (event) => {
+			// Este es un MessageEvent, por lo que podemos castearlo y leer `data`
+			const errorData = JSON.parse((event as MessageEvent).data);
+			console.error('Error de stream recibido:', errorData);
+		});
+		// Escucha los errores de conexión genéricos
+		eventSource.onerror = (err) => {
+			// Este es un Event genérico, no tiene `data`. Solo indica fallo en la conexión.
+			console.error('Error en la conexión de EventSource. La conexión se ha cerrado.', err);
+			isLoading = false;
+			eventSource?.close();
+		};
+		eventSource.addEventListener('close', () => {
+			isLoading = false;
+			eventSource?.close();
+		});
+	}
+</script>
+<div class="space-y-8 p-4 md:p-8">
+	<div class="flex justify-between items-center">
+		<h1 class="text-2xl font-bold">Añadir Ingredientes desde Open Food Facts</h1>
+		<a href="/admin/ingredientes" class={buttonVariants({ variant: 'outline' })}>
+			Volver al listado
+		</a>
+	</div>
+	<form on:submit|preventDefault={handleSearch} class="flex items-center gap-2">
+		<Input
+		bind:value={searchTerm}
+		placeholder="Buscar por nombre (ej. tomate frito)..."
+		class="flex-grow"
+		/>
+		<Button type="submit" disabled={isLoading}>
+			{#if isLoading}Buscando...{:else}Buscar{/if}
+		</Button>
+	</form>
+	{#if results.length > 0}
+	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+		{#each results as result (result.id)}
+		<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
+			<CardHeader>
+				<img
+				src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
+				alt={result.name}
+				class="aspect-square w-full rounded-md object-cover"
+				/>
+			</CardHeader>
+			<CardContent class="flex flex-col justify-between space-y-4">
+				<CardTitle class="text-sm">{result.name}</CardTitle>
+				{#if result.source === 'off'}
+				<form method="POST" action="?/add">
+					<input type="hidden" name="productId" value={result.id} />
+					<Button type="submit" class="w-full">Añadir a la Base de Datos</Button>
+				</form>
+				{:else}
+				<Button class="w-full" disabled>Ya está en la Base de Datos</Button>
+				{/if}
+			</CardContent>
+		</Card>
+		{/each}
+	</div>
+	{:else if !isLoading && searchAttempted}
+	<div class="text-center text-gray-500 py-8">
+		<p>No se encontraron resultados para tu búsqueda.</p>
+	</div>
+	{/if}
+</div>
+
+// --- Ruta: src/routes/admin/ingredientes/off/+page.server.ts ---
+import { productService } from '$lib/server/services/productService';
+import { fail } from '@sveltejs/kit';
+import type { Actions } from './$types';
+export const actions: Actions = {
+	// Acción para añadir un producto de OFF a nuestra base de datos
+	add: async ({ request }) => {
+		const data = await request.formData();
+		const productId = data.get('productId') as string;
+		if (!productId) {
+			return fail(400, { success: false, error: 'Product ID no proporcionado' });
+		}
+		try {
+			const product = await productService.findByBarcode(productId);
+			if (!product) {
+				return fail(404, {
+					success: false,
+					error: `Producto con ID ${productId} no encontrado en Open Food Facts.`
+				});
+			}
+			return { success: true, product };
+		} catch (error) {
+			console.error(error);
+			return fail(500, {
+				success: false,
+				error: 'Error interno del servidor al intentar cachear el producto.'
+			});
+		}
+	}
+};
+
+// --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '$lib/components/ui/command';
+	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
+	import type { PageData, ActionData } from './$types';
+	import { enhance } from '$app/forms';
+	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	type SearchResult = {
+		id: string;
+		name: string;
+		source: 'local' | 'off';
+		type: 'custom' | 'product';
+		imageUrl: string | null;
+	};
+	// --- Estado del formulario ---
+	let title = $state(data.recipe.title);
+	let description = $state(data.recipe.description ?? '');
+	let steps = $state(data.recipe.steps);
+	let imageUrl = $state(data.recipe.imageUrl ?? '');
+	let urls = $state(data.recipe.urls.map((u) => u.url) ?? []);
+	const initialIngredients = data.recipe.ingredients
+		.map((ing): IngredientWithDetails | null => {
+			const quantity = ing.quantity;
+			if (ing.customIngredient) {
+				return {
+					id: ing.customIngredient.id,
+					type: 'custom',
+					quantity,
+					name: ing.customIngredient.name,
+					calories: ing.customIngredient.calories ?? 0,
+					protein: ing.customIngredient.protein ?? 0,
+					fat: ing.customIngredient.fat ?? 0,
+					carbs: ing.customIngredient.carbs ?? 0
+				};
+			}
+			if (ing.product) {
+				return {
+					id: ing.product.id,
+					type: 'product',
+					quantity,
+					name: ing.product.name,
+					calories: ing.product.calories ?? 0,
+					protein: ing.product.protein ?? 0,
+					fat: ing.product.fat ?? 0,
+					carbs: ing.product.carbs ?? 0
+				};
+			}
+			return null;
+		})
+		.filter((ing): ing is IngredientWithDetails => ing !== null);
+	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
+	// --- Estado del buscador de ingredientes ---
+	let searchResults = $state<SearchResult[]>([]);
+	let isSearching = $state(false);
+	let open = $state(false);
+	let inputValue = $state('');
+	let searchTerm = $state('');
+	$effect(() => {
+		let eventSource: EventSource | null = null;
+		if (searchTerm.length < 3) {
+			searchResults = [];
+			isSearching = false;
+		} else {
+			isSearching = true;
+			searchResults = [];
+			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource.addEventListener('message', (e) => {
+				const newResults = JSON.parse(e.data);
+				searchResults = [...searchResults, ...newResults];
+			});
+			eventSource.addEventListener('stream_error', (e) => {
+				const errorData = JSON.parse((e as MessageEvent).data);
+				console.error('Error de stream recibido:', errorData);
+			});
+			eventSource.onerror = (err) => {
+				console.error('Error en la conexión de EventSource:', err);
+				isSearching = false;
+				eventSource?.close();
+			};
+			eventSource.addEventListener('close', () => {
+				isSearching = false;
+				eventSource?.close();
+			});
+		}
+		return () => {
+			eventSource?.close();
+		};
+	});
+	async function addIngredient(result: SearchResult) {
+		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
+		try {
+			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			if (!response.ok) throw new Error('Failed to fetch ingredient details');
+			const details: CalculableIngredient = await response.json();
+			ingredients.push({
+				...result,
+				quantity: 100,
+				calories: details.calories,
+				protein: details.protein,
+				fat: details.fat,
+				carbs: details.carbs
+			});
+		} catch (error) {
+			console.error('Error adding ingredient:', error);
+		} finally {
+			open = false;
+			searchResults = [];
+			searchTerm = '';
+			inputValue = '';
+		}
+	}
+	function removeIngredient(index: number) {
+		ingredients.splice(index, 1);
+	}
+	// --- Gestión de subida de imagen ---
+	function handleImageUpload(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				imageUrl = e.target?.result as string;
+			};
+			reader.readAsDataURL(file);
+		}
+	}
+	// --- Cálculos y envío ---
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
+	let isSubmitting = $state(false);
+</script>
+<Card class="max-w-4xl mx-auto my-8">
+	<CardHeader>
+		<CardTitle>Editar Receta</CardTitle>
+	</CardHeader>
+	<CardContent>
+		<form
+			method="POST"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ result }) => {
+					if (result.type === 'success') {
+						await goto(`/recetas/${data.recipe.id}`);
+					}
+					isSubmitting = false;
+				};
+			}}
+			class="space-y-6"
+		>
+			<!-- Campos ocultos para enviar datos complejos -->
+			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
+			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input type="hidden" name="imageUrl" value={imageUrl} />
+			<!-- Campos del formulario -->
+			<div class="space-y-2">
+				<Label for="title">Título</Label>
+				<Input id="title" name="title" bind:value={title} required />
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				{#if form?.errors?.title}
+					<p class="text-sm text-red-500">{form.errors.title}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="description">Descripción (Opcional)</Label>
+				<Textarea id="description" name="description" bind:value={description} />
+			</div>
+			<div class="space-y-2">
+				<Label for="image">Imagen de la Receta</Label>
+				<div class="flex items-center gap-4">
+					{#if imageUrl}
+						<img
+							src={imageUrl}
+							alt="Previsualización de la receta"
+							class="h-24 w-24 rounded-md object-cover"
+						/>
+					{/if}
+					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
+				</div>
+				<p class="text-sm text-gray-500">
+					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
+				</p>
+			</div>
+			<div class="space-y-2">
+				<Label>URLs de Referencia</Label>
+				<UrlImageFetcher bind:urls bind:imageUrl />
+				{#if form?.errors?.urls}
+					<p class="text-sm text-red-500">{form.errors.urls}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="steps">Pasos</Label>
+				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				{#if form?.errors?.steps}
+					<p class="text-sm text-red-500">{form.errors.steps}</p>
+				{/if}
+			</div>
+			<!-- Buscador y tabla de ingredientes -->
+			<div class="space-y-2">
+				<Label>Añadir Ingrediente</Label>
+				<Popover.Root bind:open>
+					<Popover.Trigger
+						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+						role="combobox"
+						aria-expanded={open}
+					>
+						<div class="flex items-center justify-between w-full">
+							{inputValue || 'Seleccionar ingrediente...'}
+							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						</div>
+					</Popover.Trigger>
+					<Popover.Content class="w-[--trigger-width] p-0">
+						<Command.Root filter={() => 1}>
+							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
+							<Command.List>
+								{#if searchResults.length > 0}
+									{#each searchResults as result (result.id + result.type)}
+										<Command.Item
+											value={result.name}
+											onSelect={() => {
+												inputValue = result.name;
+												addIngredient(result);
+											}}
+											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+										>
+											<img
+												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+												alt={result.name}
+												class="h-8 w-8 rounded-sm object-cover"
+											/>
+											<span>{result.name}</span>
+										</Command.Item>
+									{/each}
+								{:else}
+									<div class="p-4 text-sm text-center text-gray-500">
+										{#if isSearching}
+											Buscando...
+										{:else if searchTerm.length < 3}
+											Escribe al menos 3 caracteres para buscar...
+										{:else}
+											No se encontraron resultados.
+										{/if}
+									</div>
+								{/if}
+							</Command.List>
+						</Command.Root>
+					</Popover.Content>
+				</Popover.Root>
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
+							<TableHead class="w-[100px] text-right">Acciones</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each ingredients as ingredient, i}
+							<TableRow>
+								<TableCell>{ingredient.name}</TableCell>
+								<TableCell>
+									<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
+								</TableCell>
+								<TableCell class="text-right">
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onclick={() => removeIngredient(i)}
+									>
+										Quitar
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+						{#if ingredients.length === 0}
+							<TableRow>
+								<TableCell colspan={3} class="text-center text-gray-500">
+									Añade ingredientes usando el buscador.
+								</TableCell>
+							</TableRow>
+						{/if}
+					</TableBody>
+				</Table>
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+				{#if form?.errors?.ingredients}
+					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
+				{/if}
+			</div>
+			<!-- Información nutricional -->
+			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</div>
+			</div>
+			<div class="flex justify-end">
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+				</Button>
+			</div>
+			{#if form?.message}
+				<p class="text-sm text-red-500 text-right">{form.message}</p>
+			{/if}
+		</form>
+	</CardContent>
+</Card>
+
+// --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/editar/+page.server.ts
+import { error, fail } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { PageServerLoad, Actions } from './$types';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+// Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
+import { createFailResponse } from '$lib/server/zodErrors';
+export const load: PageServerLoad = async ({ params }) => {
+	const recipe = await recipeService.getById(params.id);
+	if (!recipe) {
+		throw error(404, 'Receta no encontrada');
+	}
+	return {
+		recipe
+	};
+};
+export const actions: Actions = {
+	default: async ({ request, params }) => {
+		const formData = await request.formData();
+		const data = Object.fromEntries(formData.entries());
+		const dataToValidate = {
+			...data,
+			ingredients: JSON.parse(data.ingredients as string),
+			urls: JSON.parse(data.urls as string)
+		};
+		const validation = RecipeSchema.safeParse(dataToValidate);
+		if (!validation.success) {
+			// Justificación: Se usa la nueva utilidad para el fallo de validación.
+			const response = createFailResponse('La validación falló. Revisa los campos.', validation.error);
+			return fail(400, response);
+		}
+		try {
+			const updatedRecipe = await recipeService.update(params.id, validation.data);
+			return {
+				status: 200,
+				body: {
+					recipe: updatedRecipe
+				}
+			};
+		} catch (err) {
+			console.error(err);
+			// Justificación: Se usa la misma utilidad para el fallo del servidor,
+			// garantizando una estructura de respuesta 100% consistente.
+			const response = createFailResponse('No se pudo actualizar la receta.');
+			return fail(500, response);
+		}
+	}
+};
+
+// --- Ruta: src/lib/components/ui/textarea/textarea.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
+	import type { HTMLTextareaAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		value = $bindable(),
+		class: className,
+		...restProps
+	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
+</script>
+<textarea
+	bind:this={ref}
+	data-slot="textarea"
+	class={cn(
+		"border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 field-sizing-content shadow-xs flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+		className
+	)}
+	bind:value
+	{...restProps}
+></textarea>
+
+// --- Ruta: src/lib/components/ui/textarea/index.ts ---
+import Root from "./textarea.svelte";
+export {
+	Root,
+	//
+	Root as Textarea,
+};
+
+// --- Ruta: src/lib/components/ui/table/table.svelte ---
+<script lang="ts">
+	import type { HTMLTableAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLTableAttributes> = $props();
+</script>
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+	<table
+		bind:this={ref}
+		data-slot="table"
+		class={cn("w-full caption-bottom text-sm", className)}
+		{...restProps}
+	>
+		{@render children?.()}
+	</table>
+</div>
+
+// --- Ruta: src/lib/components/ui/table/table-row.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableRowElement>> = $props();
+</script>
+<tr
+	bind:this={ref}
+	data-slot="table-row"
+	class={cn(
+		"hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</tr>
+
+// --- Ruta: src/lib/components/ui/table/table-header.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
+</script>
+<thead
+	bind:this={ref}
+	data-slot="table-header"
+	class={cn("[&_tr]:border-b", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</thead>
+
+// --- Ruta: src/lib/components/ui/table/table-head.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLThAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLThAttributes> = $props();
+</script>
+<th
+	bind:this={ref}
+	data-slot="table-head"
+	class={cn(
+		"text-foreground h-10 whitespace-nowrap bg-clip-padding px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</th>
+
+// --- Ruta: src/lib/components/ui/table/table-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
+</script>
+<tfoot
+	bind:this={ref}
+	data-slot="table-footer"
+	class={cn("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</tfoot>
+
+// --- Ruta: src/lib/components/ui/table/table-cell.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLTdAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLTdAttributes> = $props();
+</script>
+<td
+	bind:this={ref}
+	data-slot="table-cell"
+	class={cn(
+		"whitespace-nowrap bg-clip-padding p-2 align-middle [&:has([role=checkbox])]:pr-0",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</td>
+
+// --- Ruta: src/lib/components/ui/table/table-caption.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLElement>> = $props();
+</script>
+<caption
+	bind:this={ref}
+	data-slot="table-caption"
+	class={cn("text-muted-foreground mt-4 text-sm", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</caption>
+
+// --- Ruta: src/lib/components/ui/table/table-body.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
+</script>
+<tbody
+	bind:this={ref}
+	data-slot="table-body"
+	class={cn("[&_tr:last-child]:border-0", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</tbody>
+
+// --- Ruta: src/lib/components/ui/table/index.ts ---
+import Root from "./table.svelte";
+import Body from "./table-body.svelte";
+import Caption from "./table-caption.svelte";
+import Cell from "./table-cell.svelte";
+import Footer from "./table-footer.svelte";
+import Head from "./table-head.svelte";
+import Header from "./table-header.svelte";
+import Row from "./table-row.svelte";
+export {
+	Root,
+	Body,
+	Caption,
+	Cell,
+	Footer,
+	Head,
+	Header,
+	Row,
+	//
+	Root as Table,
+	Body as TableBody,
+	Caption as TableCaption,
+	Cell as TableCell,
+	Footer as TableFooter,
+	Head as TableHead,
+	Header as TableHeader,
+	Row as TableRow,
+};
+
+// --- Ruta: src/lib/components/ui/popover/popover-trigger.svelte ---
+<script lang="ts">
+	import { cn } from "$lib/utils.js";
+	import { Popover as PopoverPrimitive } from "bits-ui";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: PopoverPrimitive.TriggerProps = $props();
+</script>
+<PopoverPrimitive.Trigger
+	bind:ref
+	data-slot="popover-trigger"
+	class={cn("", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/popover/popover-content.svelte ---
+<script lang="ts">
+	import { cn } from "$lib/utils.js";
+	import { Popover as PopoverPrimitive } from "bits-ui";
+	let {
+		ref = $bindable(null),
+		class: className,
+		sideOffset = 4,
+		align = "center",
+		portalProps,
+		...restProps
+	}: PopoverPrimitive.ContentProps & {
+		portalProps?: PopoverPrimitive.PortalProps;
+	} = $props();
+</script>
+<PopoverPrimitive.Portal {...portalProps}>
+	<PopoverPrimitive.Content
+		bind:ref
+		data-slot="popover-content"
+		{sideOffset}
+		{align}
+		class={cn(
+			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-popover-content-transform-origin) outline-hidden z-50 w-72 rounded-md border p-4 shadow-md",
+			className
+		)}
+		{...restProps}
+	/>
+</PopoverPrimitive.Portal>
+
+// --- Ruta: src/lib/components/ui/popover/index.ts ---
+import { Popover as PopoverPrimitive } from "bits-ui";
+import Content from "./popover-content.svelte";
+import Trigger from "./popover-trigger.svelte";
+const Root = PopoverPrimitive.Root;
+const Close = PopoverPrimitive.Close;
+export {
+	Root,
+	Content,
+	Trigger,
+	Close,
+	//
+	Root as Popover,
+	Content as PopoverContent,
+	Trigger as PopoverTrigger,
+	Close as PopoverClose,
+};
+
+// --- Ruta: src/lib/components/ui/label/label.svelte ---
+<script lang="ts">
+	import { Label as LabelPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: LabelPrimitive.RootProps = $props();
+</script>
+<LabelPrimitive.Root
+	bind:ref
+	data-slot="label"
+	class={cn(
+		"flex select-none items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/label/index.ts ---
+import Root from "./label.svelte";
+export {
+	Root,
+	//
+	Root as Label,
+};
+
+// --- Ruta: src/lib/components/ui/input/input.svelte ---
+<script lang="ts">
+	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	type InputType = Exclude<HTMLInputTypeAttribute, "file">;
+	type Props = WithElementRef<
+		Omit<HTMLInputAttributes, "type"> &
+			({ type: "file"; files?: FileList } | { type?: InputType; files?: undefined })
+	>;
+	let {
+		ref = $bindable(null),
+		value = $bindable(),
+		type,
+		files = $bindable(),
+		class: className,
+		...restProps
+	}: Props = $props();
+</script>
+{#if type === "file"}
+	<input
+		bind:this={ref}
+		data-slot="input"
+		class={cn(
+			"selection:bg-primary dark:bg-input/30 selection:text-primary-foreground border-input ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 pt-1.5 text-sm font-medium outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+			className
+		)}
+		type="file"
+		bind:files
+		bind:value
+		{...restProps}
+	/>
+{:else}
+	<input
+		bind:this={ref}
+		data-slot="input"
+		class={cn(
+			"border-input bg-background selection:bg-primary dark:bg-input/30 selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+			className
+		)}
+		{type}
+		bind:value
+		{...restProps}
+	/>
+{/if}
+
+// --- Ruta: src/lib/components/ui/input/index.ts ---
+import Root from "./input.svelte";
+export {
+	Root,
+	//
+	Root as Input,
+};
+
+// --- Ruta: src/lib/components/ui/dialog/index.ts ---
+import * as DialogPrimitive from "bits-ui";
+import Title from "./dialog-title.svelte";
+import Footer from "./dialog-footer.svelte";
+import Header from "./dialog-header.svelte";
+import Overlay from "./dialog-overlay.svelte";
+import Content from "./dialog-content.svelte";
+import Description from "./dialog-description.svelte";
+import Trigger from "./dialog-trigger.svelte";
+import Close from "./dialog-close.svelte";
+const Root = DialogPrimitive.Dialog.Root;
+const Portal = DialogPrimitive.Dialog.Portal;
+export {
+	Root,
+	Title,
+	Portal,
+	Footer,
+	Header,
+	Trigger,
+	Overlay,
+	Content,
+	Description,
+	Close,
+	//
+	Root as Dialog,
+	Title as DialogTitle,
+	Portal as DialogPortal,
+	Footer as DialogFooter,
+	Header as DialogHeader,
+	Trigger as DialogTrigger,
+	Overlay as DialogOverlay,
+	Content as DialogContent,
+	Description as DialogDescription,
+	Close as DialogClose,
+};
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-trigger.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	let { ref = $bindable(null), ...restProps }: DialogPrimitive.TriggerProps = $props();
+</script>
+<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {...restProps} />
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-title.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.TitleProps = $props();
+</script>
+<DialogPrimitive.Title
+	bind:ref
+	data-slot="dialog-title"
+	class={cn("text-lg font-semibold leading-none", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-overlay.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.OverlayProps = $props();
+</script>
+<DialogPrimitive.Overlay
+	bind:ref
+	data-slot="dialog-overlay"
+	class={cn(
+		"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-header.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="dialog-header"
+	class={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="dialog-footer"
+	class={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-description.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.DescriptionProps = $props();
+</script>
+<DialogPrimitive.Description
+	bind:ref
+	data-slot="dialog-description"
+	class={cn("text-muted-foreground text-sm", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-content.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import XIcon from "@lucide/svelte/icons/x";
+	import type { Snippet } from "svelte";
+	import * as Dialog from "./index.js";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		portalProps,
+		children,
+		showCloseButton = true,
+		...restProps
+	}: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
+		portalProps?: DialogPrimitive.PortalProps;
+		children: Snippet;
+		showCloseButton?: boolean;
+	} = $props();
+</script>
+<Dialog.Portal {...portalProps}>
+	<Dialog.Overlay />
+	<DialogPrimitive.Content
+		bind:ref
+		data-slot="dialog-content"
+		class={cn(
+			"bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+			className
+		)}
+		{...restProps}
+	>
+		{@render children?.()}
+		{#if showCloseButton}
+			<DialogPrimitive.Close
+				class="ring-offset-background focus:ring-ring rounded-xs focus:outline-hidden absolute right-4 top-4 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+			>
+				<XIcon />
+				<span class="sr-only">Close</span>
+			</DialogPrimitive.Close>
+		{/if}
+	</DialogPrimitive.Content>
+</Dialog.Portal>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-close.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	let { ref = $bindable(null), ...restProps }: DialogPrimitive.CloseProps = $props();
+</script>
+<DialogPrimitive.Close bind:ref data-slot="dialog-close" {...restProps} />
+
+// --- Ruta: src/lib/components/ui/command/index.ts ---
+import { Command as CommandPrimitive } from "bits-ui";
+import Root from "./command.svelte";
+import Dialog from "./command-dialog.svelte";
+import Empty from "./command-empty.svelte";
+import Group from "./command-group.svelte";
+import Item from "./command-item.svelte";
+import Input from "./command-input.svelte";
+import List from "./command-list.svelte";
+import Separator from "./command-separator.svelte";
+import Shortcut from "./command-shortcut.svelte";
+import LinkItem from "./command-link-item.svelte";
+const Loading = CommandPrimitive.Loading;
+export {
+	Root,
+	Dialog,
+	Empty,
+	Group,
+	Item,
+	LinkItem,
+	Input,
+	List,
+	Separator,
+	Shortcut,
+	Loading,
+	//
+	Root as Command,
+	Dialog as CommandDialog,
+	Empty as CommandEmpty,
+	Group as CommandGroup,
+	Item as CommandItem,
+	LinkItem as CommandLinkItem,
+	Input as CommandInput,
+	List as CommandList,
+	Separator as CommandSeparator,
+	Shortcut as CommandShortcut,
+	Loading as CommandLoading,
+};
+
+// --- Ruta: src/lib/components/ui/command/command.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		value = $bindable(""),
+		class: className,
+		...restProps
+	}: CommandPrimitive.RootProps = $props();
+</script>
+<CommandPrimitive.Root
+	bind:value
+	bind:ref
+	data-slot="command"
+	class={cn(
+		"bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/command/command-shortcut.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLSpanElement>> = $props();
+</script>
+<span
+	bind:this={ref}
+	data-slot="command-shortcut"
+	class={cn("text-muted-foreground ml-auto text-xs tracking-widest", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</span>
+
+// --- Ruta: src/lib/components/ui/command/command-separator.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CommandPrimitive.SeparatorProps = $props();
+</script>
+<CommandPrimitive.Separator
+	bind:ref
+	data-slot="command-separator"
+	class={cn("bg-border -mx-1 h-px", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/command/command-list.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CommandPrimitive.ListProps = $props();
+</script>
+<CommandPrimitive.List
+	bind:ref
+	data-slot="command-list"
+	class={cn("max-h-[300px] scroll-py-1 overflow-y-auto overflow-x-hidden", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/command/command-link-item.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CommandPrimitive.LinkItemProps = $props();
+</script>
+<CommandPrimitive.LinkItem
+	bind:ref
+	data-slot="command-item"
+	class={cn(
+		"aria-selected:bg-accent aria-selected:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground outline-hidden relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/command/command-item.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CommandPrimitive.ItemProps = $props();
+</script>
+<CommandPrimitive.Item
+	bind:ref
+	data-slot="command-item"
+	class={cn(
+		"aria-selected:bg-accent aria-selected:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground outline-hidden relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/command/command-input.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive } from "bits-ui";
+	import SearchIcon from "@lucide/svelte/icons/search";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		value = $bindable(""),
+		...restProps
+	}: CommandPrimitive.InputProps = $props();
+</script>
+<div class="flex h-9 items-center gap-2 border-b px-3" data-slot="command-input-wrapper">
+	<SearchIcon class="size-4 shrink-0 opacity-50" />
+	<CommandPrimitive.Input
+		data-slot="command-input"
+		class={cn(
+			"placeholder:text-muted-foreground outline-hidden flex h-10 w-full rounded-md bg-transparent py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50",
+			className
+		)}
+		bind:ref
+		{...restProps}
+		bind:value
+	/>
+</div>
+
+// --- Ruta: src/lib/components/ui/command/command-group.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive, useId } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		heading,
+		value,
+		...restProps
+	}: CommandPrimitive.GroupProps & {
+		heading?: string;
+	} = $props();
+</script>
+<CommandPrimitive.Group
+	bind:ref
+	data-slot="command-group"
+	class={cn("text-foreground overflow-hidden p-1", className)}
+	value={value ?? heading ?? `----${useId()}`}
+	{...restProps}
+>
+	{#if heading}
+		<CommandPrimitive.GroupHeading
+			class="text-muted-foreground px-2 py-1.5 text-xs font-medium"
+		>
+			{heading}
+		</CommandPrimitive.GroupHeading>
+	{/if}
+	<CommandPrimitive.GroupItems {children} />
+</CommandPrimitive.Group>
+
+// --- Ruta: src/lib/components/ui/command/command-empty.svelte ---
+<script lang="ts">
+	import { Command as CommandPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CommandPrimitive.EmptyProps = $props();
+</script>
+<CommandPrimitive.Empty
+	bind:ref
+	data-slot="command-empty"
+	class={cn("py-6 text-center text-sm", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/command/command-dialog.svelte ---
+<script lang="ts">
+	import type { Command as CommandPrimitive, Dialog as DialogPrimitive } from "bits-ui";
+	import type { Snippet } from "svelte";
+	import Command from "./command.svelte";
+	import * as Dialog from "$lib/components/ui/dialog/index.js";
+	import type { WithoutChildrenOrChild } from "$lib/utils.js";
+	let {
+		open = $bindable(false),
+		ref = $bindable(null),
+		value = $bindable(""),
+		title = "Command Palette",
+		description = "Search for a command to run",
+		portalProps,
+		children,
+		...restProps
+	}: WithoutChildrenOrChild<DialogPrimitive.RootProps> &
+		WithoutChildrenOrChild<CommandPrimitive.RootProps> & {
+			portalProps?: DialogPrimitive.PortalProps;
+			children: Snippet;
+			title?: string;
+			description?: string;
+		} = $props();
+</script>
+<Dialog.Root bind:open {...restProps}>
+	<Dialog.Header class="sr-only">
+		<Dialog.Title>{title}</Dialog.Title>
+		<Dialog.Description>{description}</Dialog.Description>
+	</Dialog.Header>
+	<Dialog.Content class="overflow-hidden p-0" {portalProps}>
+		<Command
+			class="**:data-[slot=command-input-wrapper]:h-12 [&_[data-command-group]:not([hidden])_~[data-command-group]]:pt-0 [&_[data-command-group]]:px-2 [&_[data-command-input-wrapper]_svg]:h-5 [&_[data-command-input-wrapper]_svg]:w-5 [&_[data-command-input]]:h-12 [&_[data-command-item]]:px-2 [&_[data-command-item]]:py-3 [&_[data-command-item]_svg]:h-5 [&_[data-command-item]_svg]:w-5"
+			{...restProps}
+			bind:value
+			bind:ref
+			{children}
+		/>
+	</Dialog.Content>
+</Dialog.Root>
+
+// --- Ruta: src/lib/components/ui/card/index.ts ---
+import Root from "./card.svelte";
+import Content from "./card-content.svelte";
+import Description from "./card-description.svelte";
+import Footer from "./card-footer.svelte";
+import Header from "./card-header.svelte";
+import Title from "./card-title.svelte";
+import Action from "./card-action.svelte";
+export {
+	Root,
+	Content,
+	Description,
+	Footer,
+	Header,
+	Title,
+	Action,
+	//
+	Root as Card,
+	Content as CardContent,
+	Description as CardDescription,
+	Footer as CardFooter,
+	Header as CardHeader,
+	Title as CardTitle,
+	Action as CardAction,
+};
+
+// --- Ruta: src/lib/components/ui/card/card.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card"
+	class={cn(
+		"bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-title.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-title"
+	class={cn("font-semibold leading-none", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-header.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-header"
+	class={cn(
+		"@container/card-header has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6",
+		className
+	)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-footer"
+	class={cn("[.border-t]:pt-6 flex items-center px-6", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-description.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLParagraphElement>> = $props();
+</script>
+<p
+	bind:this={ref}
+	data-slot="card-description"
+	class={cn("text-muted-foreground text-sm", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</p>
+
+// --- Ruta: src/lib/components/ui/card/card-content.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div bind:this={ref} data-slot="card-content" class={cn("px-6", className)} {...restProps}>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/card/card-action.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="card-action"
+	class={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/button/index.ts ---
+import Root, {
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant,
+	buttonVariants,
+} from "./button.svelte";
+export {
+	Root,
+	type ButtonProps as Props,
+	//
+	Root as Button,
+	buttonVariants,
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant,
+};
+
+// --- Ruta: src/lib/components/ui/button/button.svelte ---
+<script lang="ts" module>
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
+	import { type VariantProps, tv } from "tailwind-variants";
+	export const buttonVariants = tv({
+		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		variants: {
+			variant: {
+				default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+				destructive:
+					"bg-destructive shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white",
+				outline:
+					"bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border",
+				secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+				ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+				link: "text-primary underline-offset-4 hover:underline",
+			},
+			size: {
+				default: "h-9 px-4 py-2 has-[>svg]:px-3",
+				sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
+				lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+				icon: "size-9",
+			},
+		},
+		defaultVariants: {
+			variant: "default",
+			size: "default",
+		},
+	});
+	export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
+	export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
+	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
+		WithElementRef<HTMLAnchorAttributes> & {
+			variant?: ButtonVariant;
+			size?: ButtonSize;
+		};
+</script>
+<script lang="ts">
+	let {
+		class: className,
+		variant = "default",
+		size = "default",
+		ref = $bindable(null),
+		href = undefined,
+		type = "button",
+		disabled,
+		children,
+		...restProps
+	}: ButtonProps = $props();
+</script>
+{#if href}
+	<a
+		bind:this={ref}
+		data-slot="button"
+		class={cn(buttonVariants({ variant, size }), className)}
+		href={disabled ? undefined : href}
+		aria-disabled={disabled}
+		role={disabled ? "link" : undefined}
+		tabindex={disabled ? -1 : undefined}
+		{...restProps}
+	>
+		{@render children?.()}
+	</a>
+{:else}
+	<button
+		bind:this={ref}
+		data-slot="button"
+		class={cn(buttonVariants({ variant, size }), className)}
+		{type}
+		{disabled}
+		{...restProps}
+	>
+		{@render children?.()}
+	</button>
+{/if}
 
 // --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
 // Ruta: src/routes/api/recipes/[id]/+server.ts
@@ -3419,1646 +5225,6 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		console.error(`Error deleting ingredient ${id}:`, error);
 		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
-};
-
-// --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
-<!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
-<script lang="ts">
-	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
-	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
-	import * as Popover from '$lib/components/ui/popover';
-	import * as Command from '$lib/components/ui/command';
-	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
-	type SearchResult = {
-		id: string;
-		name: string;
-		source: 'local' | 'off';
-		type: 'custom' | 'product';
-		imageUrl: string | null;
-	};
-	// --- Estado del formulario ---
-	let title = $state(data.recipe.title);
-	let description = $state(data.recipe.description ?? '');
-	let steps = $state(data.recipe.steps);
-	let imageUrl = $state(data.recipe.imageUrl ?? '');
-	let urls = $state(data.recipe.urls.map((u) => u.url) ?? []);
-	const initialIngredients = data.recipe.ingredients
-		.map((ing): IngredientWithDetails | null => {
-			const quantity = ing.quantity;
-			if (ing.customIngredient) {
-				return {
-					id: ing.customIngredient.id,
-					type: 'custom',
-					quantity,
-					name: ing.customIngredient.name,
-					calories: ing.customIngredient.calories ?? 0,
-					protein: ing.customIngredient.protein ?? 0,
-					fat: ing.customIngredient.fat ?? 0,
-					carbs: ing.customIngredient.carbs ?? 0
-				};
-			}
-			if (ing.product) {
-				return {
-					id: ing.product.id,
-					type: 'product',
-					quantity,
-					name: ing.product.name,
-					calories: ing.product.calories ?? 0,
-					protein: ing.product.protein ?? 0,
-					fat: ing.product.fat ?? 0,
-					carbs: ing.product.carbs ?? 0
-				};
-			}
-			return null;
-		})
-		.filter((ing): ing is IngredientWithDetails => ing !== null);
-	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
-	// --- Estado del buscador de ingredientes ---
-	let searchResults = $state<SearchResult[]>([]);
-	let isSearching = $state(false);
-	let open = $state(false);
-	let inputValue = $state('');
-	let searchTerm = $state('');
-	$effect(() => {
-		let eventSource: EventSource | null = null;
-		if (searchTerm.length < 3) {
-			searchResults = [];
-			isSearching = false;
-		} else {
-			isSearching = true;
-			searchResults = [];
-			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
-			eventSource.addEventListener('message', (e) => {
-				const newResults = JSON.parse(e.data);
-				searchResults = [...searchResults, ...newResults];
-			});
-			eventSource.addEventListener('stream_error', (e) => {
-				const errorData = JSON.parse((e as MessageEvent).data);
-				console.error('Error de stream recibido:', errorData);
-			});
-			eventSource.onerror = (err) => {
-				console.error('Error en la conexión de EventSource:', err);
-				isSearching = false;
-				eventSource?.close();
-			};
-			eventSource.addEventListener('close', () => {
-				isSearching = false;
-				eventSource?.close();
-			});
-		}
-		return () => {
-			eventSource?.close();
-		};
-	});
-	async function addIngredient(result: SearchResult) {
-		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
-		try {
-			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
-			if (!response.ok) throw new Error('Failed to fetch ingredient details');
-			const details: CalculableIngredient = await response.json();
-			ingredients.push({
-				...result,
-				quantity: 100,
-				calories: details.calories,
-				protein: details.protein,
-				fat: details.fat,
-				carbs: details.carbs
-			});
-		} catch (error) {
-			console.error('Error adding ingredient:', error);
-		} finally {
-			open = false;
-			searchResults = [];
-			searchTerm = '';
-			inputValue = '';
-		}
-	}
-	function removeIngredient(index: number) {
-		ingredients.splice(index, 1);
-	}
-	// --- Gestión de URLs de referencia ---
-	function addUrlField() {
-		urls.push('');
-	}
-	function removeUrlField(index: number) {
-		urls.splice(index, 1);
-	}
-	// --- Gestión de subida de imagen ---
-	function handleImageUpload(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				imageUrl = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
-	}
-	// --- Cálculos y envío ---
-	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
-	let isSubmitting = $state(false);
-</script>
-<Card class="max-w-4xl mx-auto my-8">
-	<CardHeader>
-		<CardTitle>Editar Receta</CardTitle>
-	</CardHeader>
-	<CardContent>
-		<form
-			method="POST"
-			use:enhance={() => {
-				isSubmitting = true;
-				return async ({ result }) => {
-					if (result.type === 'success') {
-						await goto(`/recetas/${data.recipe.id}`);
-					}
-					isSubmitting = false;
-				};
-			}}
-			class="space-y-6"
-		>
-			<!-- Campos ocultos para enviar datos complejos -->
-			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
-			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
-			<input type="hidden" name="imageUrl" value={imageUrl} />
-			<!-- Campos del formulario -->
-			<div class="space-y-2">
-				<Label for="title">Título</Label>
-				<Input id="title" name="title" bind:value={title} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
-				{#if form?.errors?.title}
-					<p class="text-sm text-red-500">{form.errors.title}</p>
-				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" name="description" bind:value={description} />
-			</div>
-			<div class="space-y-2">
-				<Label for="image">Imagen de la Receta</Label>
-				<div class="flex items-center gap-4">
-					{#if imageUrl}
-						<img
-							src={imageUrl}
-							alt="Previsualización de la receta"
-							class="h-24 w-24 rounded-md object-cover"
-						/>
-					{/if}
-					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
-				</div>
-				<p class="text-sm text-gray-500">
-					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
-				</p>
-			</div>
-			<div class="space-y-2">
-				<Label>URLs de Referencia</Label>
-				{#each urls as url, i}
-					<div class="flex items-center gap-2">
-						<Input
-							type="url"
-							placeholder="https://ejemplo.com/receta"
-							bind:value={urls[i]}
-							class="flex-grow"
-						/>
-						<Button type="button" variant="ghost" size="icon" onclick={() => removeUrlField(i)}>
-							<Trash2 class="h-4 w-4" />
-						</Button>
-					</div>
-				{/each}
-				<Button type="button" variant="outline" size="sm" onclick={addUrlField}>
-					Añadir URL
-				</Button>
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
-				{#if form?.errors?.urls}
-					<p class="text-sm text-red-500">{form.errors.urls}</p>
-				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
-				{#if form?.errors?.steps}
-					<p class="text-sm text-red-500">{form.errors.steps}</p>
-				{/if}
-			</div>
-			<!-- Buscador y tabla de ingredientes -->
-			<div class="space-y-2">
-				<Label>Añadir Ingrediente</Label>
-				<Popover.Root bind:open>
-					<Popover.Trigger
-						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
-						role="combobox"
-						aria-expanded={open}
-					>
-						<div class="flex items-center justify-between w-full">
-							{inputValue || 'Seleccionar ingrediente...'}
-							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-						</div>
-					</Popover.Trigger>
-					<Popover.Content class="w-[--trigger-width] p-0">
-						<Command.Root filter={() => 1}>
-							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
-							<Command.List>
-								{#if searchResults.length > 0}
-									{#each searchResults as result (result.id + result.type)}
-										<Command.Item
-											value={result.name}
-											onSelect={() => {
-												inputValue = result.name;
-												addIngredient(result);
-											}}
-											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
-										>
-											<img
-												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
-												alt={result.name}
-												class="h-8 w-8 rounded-sm object-cover"
-											/>
-											<span>{result.name}</span>
-										</Command.Item>
-									{/each}
-								{:else}
-									<div class="p-4 text-sm text-center text-gray-500">
-										{#if isSearching}
-											Buscando...
-										{:else if searchTerm.length < 3}
-											Escribe al menos 3 caracteres para buscar...
-										{:else}
-											No se encontraron resultados.
-										{/if}
-									</div>
-								{/if}
-							</Command.List>
-						</Command.Root>
-					</Popover.Content>
-				</Popover.Root>
-			</div>
-			<div class="space-y-2">
-				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
-							<TableHead class="w-[100px] text-right">Acciones</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each ingredients as ingredient, i}
-							<TableRow>
-								<TableCell>{ingredient.name}</TableCell>
-								<TableCell>
-									<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
-								</TableCell>
-								<TableCell class="text-right">
-									<Button
-										type="button"
-										variant="destructive"
-										size="sm"
-										onclick={() => removeIngredient(i)}
-									>
-										Quitar
-									</Button>
-								</TableCell>
-							</TableRow>
-						{/each}
-						{#if ingredients.length === 0}
-							<TableRow>
-								<TableCell colspan={3} class="text-center text-gray-500">
-									Añade ingredientes usando el buscador.
-								</TableCell>
-							</TableRow>
-						{/if}
-					</TableBody>
-				</Table>
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
-				{#if form?.errors?.ingredients}
-					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
-				{/if}
-			</div>
-			<!-- Información nutricional -->
-			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
-				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
-				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
-					</div>
-				</div>
-			</div>
-			<div class="flex justify-end">
-				<Button type="submit" disabled={isSubmitting}>
-					{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-				</Button>
-			</div>
-			{#if form?.message}
-				<p class="text-sm text-red-500 text-right">{form.message}</p>
-			{/if}
-		</form>
-	</CardContent>
-</Card>
-
-// --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
-// Ruta: src/routes/recetas/[id]/editar/+page.server.ts
-import { error, fail } from '@sveltejs/kit';
-import { recipeService } from '$lib/server/services/recipeService';
-import type { PageServerLoad, Actions } from './$types';
-import { RecipeSchema } from '$lib/schemas/recipeSchema';
-// Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
-import { createFailResponse } from '$lib/server/zodErrors';
-export const load: PageServerLoad = async ({ params }) => {
-	const recipe = await recipeService.getById(params.id);
-	if (!recipe) {
-		throw error(404, 'Receta no encontrada');
-	}
-	return {
-		recipe
-	};
-};
-export const actions: Actions = {
-	default: async ({ request, params }) => {
-		const formData = await request.formData();
-		const data = Object.fromEntries(formData.entries());
-		const dataToValidate = {
-			...data,
-			ingredients: JSON.parse(data.ingredients as string),
-			urls: JSON.parse(data.urls as string)
-		};
-		const validation = RecipeSchema.safeParse(dataToValidate);
-		if (!validation.success) {
-			// Justificación: Se usa la nueva utilidad para el fallo de validación.
-			const response = createFailResponse('La validación falló. Revisa los campos.', validation.error);
-			return fail(400, response);
-		}
-		try {
-			const updatedRecipe = await recipeService.update(params.id, validation.data);
-			return {
-				status: 200,
-				body: {
-					recipe: updatedRecipe
-				}
-			};
-		} catch (err) {
-			console.error(err);
-			// Justificación: Se usa la misma utilidad para el fallo del servidor,
-			// garantizando una estructura de respuesta 100% consistente.
-			const response = createFailResponse('No se pudo actualizar la receta.');
-			return fail(500, response);
-		}
-	}
-};
-
-// --- Ruta: src/routes/admin/ingredientes/off/+page.svelte ---
-<script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-	type SearchResult = {
-		id: string;
-		name: string;
-		source: 'local' | 'off';
-		imageUrl: string | null;
-	};
-	let searchTerm = '';
-	let results: SearchResult[] = [];
-	let isLoading = false;
-	let searchAttempted = false; // Para mostrar el mensaje de "no resultados"
-	let eventSource: EventSource | null = null;
-	function handleSearch() {
-		if (searchTerm.length < 3) {
-			results = [];
-			searchAttempted = false;
-			return;
-		}
-		results = [];
-		isLoading = true;
-		searchAttempted = true;
-		if (eventSource) {
-			eventSource.close();
-		}
-		eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
-		eventSource.addEventListener('message', (event) => {
-			const newResults = JSON.parse(event.data);
-			results = [...results, ...newResults];
-		});
-		// Escucha los errores de aplicación enviados explícitamente por el servidor
-		eventSource.addEventListener('stream_error', (event) => {
-			// Este es un MessageEvent, por lo que podemos castearlo y leer `data`
-			const errorData = JSON.parse((event as MessageEvent).data);
-			console.error('Error de stream recibido:', errorData);
-		});
-		// Escucha los errores de conexión genéricos
-		eventSource.onerror = (err) => {
-			// Este es un Event genérico, no tiene `data`. Solo indica fallo en la conexión.
-			console.error('Error en la conexión de EventSource. La conexión se ha cerrado.', err);
-			isLoading = false;
-			eventSource?.close();
-		};
-		eventSource.addEventListener('close', () => {
-			isLoading = false;
-			eventSource?.close();
-		});
-	}
-</script>
-<div class="space-y-8 p-4 md:p-8">
-	<div class="flex justify-between items-center">
-		<h1 class="text-2xl font-bold">Añadir Ingredientes desde Open Food Facts</h1>
-		<a href="/admin/ingredientes" class={buttonVariants({ variant: 'outline' })}>
-			Volver al listado
-		</a>
-	</div>
-	<form on:submit|preventDefault={handleSearch} class="flex items-center gap-2">
-		<Input
-		bind:value={searchTerm}
-		placeholder="Buscar por nombre (ej. tomate frito)..."
-		class="flex-grow"
-		/>
-		<Button type="submit" disabled={isLoading}>
-			{#if isLoading}Buscando...{:else}Buscar{/if}
-		</Button>
-	</form>
-	{#if results.length > 0}
-	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-		{#each results as result (result.id)}
-		<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
-			<CardHeader>
-				<img
-				src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
-				alt={result.name}
-				class="aspect-square w-full rounded-md object-cover"
-				/>
-			</CardHeader>
-			<CardContent class="flex flex-col justify-between space-y-4">
-				<CardTitle class="text-sm">{result.name}</CardTitle>
-				{#if result.source === 'off'}
-				<form method="POST" action="?/add">
-					<input type="hidden" name="productId" value={result.id} />
-					<Button type="submit" class="w-full">Añadir a la Base de Datos</Button>
-				</form>
-				{:else}
-				<Button class="w-full" disabled>Ya está en la Base de Datos</Button>
-				{/if}
-			</CardContent>
-		</Card>
-		{/each}
-	</div>
-	{:else if !isLoading && searchAttempted}
-	<div class="text-center text-gray-500 py-8">
-		<p>No se encontraron resultados para tu búsqueda.</p>
-	</div>
-	{/if}
-</div>
-
-// --- Ruta: src/routes/admin/ingredientes/off/+page.server.ts ---
-import { productService } from '$lib/server/services/productService';
-import { fail } from '@sveltejs/kit';
-import type { Actions } from './$types';
-export const actions: Actions = {
-	// Acción para añadir un producto de OFF a nuestra base de datos
-	add: async ({ request }) => {
-		const data = await request.formData();
-		const productId = data.get('productId') as string;
-		if (!productId) {
-			return fail(400, { success: false, error: 'Product ID no proporcionado' });
-		}
-		try {
-			const product = await productService.findByBarcode(productId);
-			if (!product) {
-				return fail(404, {
-					success: false,
-					error: `Producto con ID ${productId} no encontrado en Open Food Facts.`
-				});
-			}
-			return { success: true, product };
-		} catch (error) {
-			console.error(error);
-			return fail(500, {
-				success: false,
-				error: 'Error interno del servidor al intentar cachear el producto.'
-			});
-		}
-	}
-};
-
-// --- Ruta: src/lib/components/ui/popover/popover-trigger.svelte ---
-<script lang="ts">
-	import { cn } from "$lib/utils.js";
-	import { Popover as PopoverPrimitive } from "bits-ui";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: PopoverPrimitive.TriggerProps = $props();
-</script>
-<PopoverPrimitive.Trigger
-	bind:ref
-	data-slot="popover-trigger"
-	class={cn("", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/popover/popover-content.svelte ---
-<script lang="ts">
-	import { cn } from "$lib/utils.js";
-	import { Popover as PopoverPrimitive } from "bits-ui";
-	let {
-		ref = $bindable(null),
-		class: className,
-		sideOffset = 4,
-		align = "center",
-		portalProps,
-		...restProps
-	}: PopoverPrimitive.ContentProps & {
-		portalProps?: PopoverPrimitive.PortalProps;
-	} = $props();
-</script>
-<PopoverPrimitive.Portal {...portalProps}>
-	<PopoverPrimitive.Content
-		bind:ref
-		data-slot="popover-content"
-		{sideOffset}
-		{align}
-		class={cn(
-			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-popover-content-transform-origin) outline-hidden z-50 w-72 rounded-md border p-4 shadow-md",
-			className
-		)}
-		{...restProps}
-	/>
-</PopoverPrimitive.Portal>
-
-// --- Ruta: src/lib/components/ui/popover/index.ts ---
-import { Popover as PopoverPrimitive } from "bits-ui";
-import Content from "./popover-content.svelte";
-import Trigger from "./popover-trigger.svelte";
-const Root = PopoverPrimitive.Root;
-const Close = PopoverPrimitive.Close;
-export {
-	Root,
-	Content,
-	Trigger,
-	Close,
-	//
-	Root as Popover,
-	Content as PopoverContent,
-	Trigger as PopoverTrigger,
-	Close as PopoverClose,
-};
-
-// --- Ruta: src/lib/components/ui/table/table.svelte ---
-<script lang="ts">
-	import type { HTMLTableAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLTableAttributes> = $props();
-</script>
-<div data-slot="table-container" class="relative w-full overflow-x-auto">
-	<table
-		bind:this={ref}
-		data-slot="table"
-		class={cn("w-full caption-bottom text-sm", className)}
-		{...restProps}
-	>
-		{@render children?.()}
-	</table>
-</div>
-
-// --- Ruta: src/lib/components/ui/table/table-row.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLTableRowElement>> = $props();
-</script>
-<tr
-	bind:this={ref}
-	data-slot="table-row"
-	class={cn(
-		"hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
-		className
-	)}
-	{...restProps}
->
-	{@render children?.()}
-</tr>
-
-// --- Ruta: src/lib/components/ui/table/table-header.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
-</script>
-<thead
-	bind:this={ref}
-	data-slot="table-header"
-	class={cn("[&_tr]:border-b", className)}
-	{...restProps}
->
-	{@render children?.()}
-</thead>
-
-// --- Ruta: src/lib/components/ui/table/table-head.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLThAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLThAttributes> = $props();
-</script>
-<th
-	bind:this={ref}
-	data-slot="table-head"
-	class={cn(
-		"text-foreground h-10 whitespace-nowrap bg-clip-padding px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0",
-		className
-	)}
-	{...restProps}
->
-	{@render children?.()}
-</th>
-
-// --- Ruta: src/lib/components/ui/table/table-footer.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
-</script>
-<tfoot
-	bind:this={ref}
-	data-slot="table-footer"
-	class={cn("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", className)}
-	{...restProps}
->
-	{@render children?.()}
-</tfoot>
-
-// --- Ruta: src/lib/components/ui/table/table-cell.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLTdAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLTdAttributes> = $props();
-</script>
-<td
-	bind:this={ref}
-	data-slot="table-cell"
-	class={cn(
-		"whitespace-nowrap bg-clip-padding p-2 align-middle [&:has([role=checkbox])]:pr-0",
-		className
-	)}
-	{...restProps}
->
-	{@render children?.()}
-</td>
-
-// --- Ruta: src/lib/components/ui/table/table-caption.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLElement>> = $props();
-</script>
-<caption
-	bind:this={ref}
-	data-slot="table-caption"
-	class={cn("text-muted-foreground mt-4 text-sm", className)}
-	{...restProps}
->
-	{@render children?.()}
-</caption>
-
-// --- Ruta: src/lib/components/ui/table/table-body.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
-</script>
-<tbody
-	bind:this={ref}
-	data-slot="table-body"
-	class={cn("[&_tr:last-child]:border-0", className)}
-	{...restProps}
->
-	{@render children?.()}
-</tbody>
-
-// --- Ruta: src/lib/components/ui/table/index.ts ---
-import Root from "./table.svelte";
-import Body from "./table-body.svelte";
-import Caption from "./table-caption.svelte";
-import Cell from "./table-cell.svelte";
-import Footer from "./table-footer.svelte";
-import Head from "./table-head.svelte";
-import Header from "./table-header.svelte";
-import Row from "./table-row.svelte";
-export {
-	Root,
-	Body,
-	Caption,
-	Cell,
-	Footer,
-	Head,
-	Header,
-	Row,
-	//
-	Root as Table,
-	Body as TableBody,
-	Caption as TableCaption,
-	Cell as TableCell,
-	Footer as TableFooter,
-	Head as TableHead,
-	Header as TableHeader,
-	Row as TableRow,
-};
-
-// --- Ruta: src/lib/components/ui/label/label.svelte ---
-<script lang="ts">
-	import { Label as LabelPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: LabelPrimitive.RootProps = $props();
-</script>
-<LabelPrimitive.Root
-	bind:ref
-	data-slot="label"
-	class={cn(
-		"flex select-none items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50",
-		className
-	)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/label/index.ts ---
-import Root from "./label.svelte";
-export {
-	Root,
-	//
-	Root as Label,
-};
-
-// --- Ruta: src/lib/components/ui/input/input.svelte ---
-<script lang="ts">
-	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	type InputType = Exclude<HTMLInputTypeAttribute, "file">;
-	type Props = WithElementRef<
-		Omit<HTMLInputAttributes, "type"> &
-			({ type: "file"; files?: FileList } | { type?: InputType; files?: undefined })
-	>;
-	let {
-		ref = $bindable(null),
-		value = $bindable(),
-		type,
-		files = $bindable(),
-		class: className,
-		...restProps
-	}: Props = $props();
-</script>
-{#if type === "file"}
-	<input
-		bind:this={ref}
-		data-slot="input"
-		class={cn(
-			"selection:bg-primary dark:bg-input/30 selection:text-primary-foreground border-input ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 pt-1.5 text-sm font-medium outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-			className
-		)}
-		type="file"
-		bind:files
-		bind:value
-		{...restProps}
-	/>
-{:else}
-	<input
-		bind:this={ref}
-		data-slot="input"
-		class={cn(
-			"border-input bg-background selection:bg-primary dark:bg-input/30 selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-			"aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-			className
-		)}
-		{type}
-		bind:value
-		{...restProps}
-	/>
-{/if}
-
-// --- Ruta: src/lib/components/ui/input/index.ts ---
-import Root from "./input.svelte";
-export {
-	Root,
-	//
-	Root as Input,
-};
-
-// --- Ruta: src/lib/components/ui/dialog/index.ts ---
-import { Dialog as DialogPrimitive } from "bits-ui";
-import Title from "./dialog-title.svelte";
-import Footer from "./dialog-footer.svelte";
-import Header from "./dialog-header.svelte";
-import Overlay from "./dialog-overlay.svelte";
-import Content from "./dialog-content.svelte";
-import Description from "./dialog-description.svelte";
-import Trigger from "./dialog-trigger.svelte";
-import Close from "./dialog-close.svelte";
-const Root = DialogPrimitive.Root;
-const Portal = DialogPrimitive.Portal;
-export {
-	Root,
-	Title,
-	Portal,
-	Footer,
-	Header,
-	Trigger,
-	Overlay,
-	Content,
-	Description,
-	Close,
-	//
-	Root as Dialog,
-	Title as DialogTitle,
-	Portal as DialogPortal,
-	Footer as DialogFooter,
-	Header as DialogHeader,
-	Trigger as DialogTrigger,
-	Overlay as DialogOverlay,
-	Content as DialogContent,
-	Description as DialogDescription,
-	Close as DialogClose,
-};
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-trigger.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	let { ref = $bindable(null), ...restProps }: DialogPrimitive.TriggerProps = $props();
-</script>
-<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {...restProps} />
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-title.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: DialogPrimitive.TitleProps = $props();
-</script>
-<DialogPrimitive.Title
-	bind:ref
-	data-slot="dialog-title"
-	class={cn("text-lg font-semibold leading-none", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-overlay.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: DialogPrimitive.OverlayProps = $props();
-</script>
-<DialogPrimitive.Overlay
-	bind:ref
-	data-slot="dialog-overlay"
-	class={cn(
-		"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-		className
-	)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-header.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="dialog-header"
-	class={cn("flex flex-col gap-2 text-center sm:text-left", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-footer.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="dialog-footer"
-	class={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-description.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: DialogPrimitive.DescriptionProps = $props();
-</script>
-<DialogPrimitive.Description
-	bind:ref
-	data-slot="dialog-description"
-	class={cn("text-muted-foreground text-sm", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-content.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import XIcon from "@lucide/svelte/icons/x";
-	import type { Snippet } from "svelte";
-	import * as Dialog from "./index.js";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		portalProps,
-		children,
-		showCloseButton = true,
-		...restProps
-	}: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
-		portalProps?: DialogPrimitive.PortalProps;
-		children: Snippet;
-		showCloseButton?: boolean;
-	} = $props();
-</script>
-<Dialog.Portal {...portalProps}>
-	<Dialog.Overlay />
-	<DialogPrimitive.Content
-		bind:ref
-		data-slot="dialog-content"
-		class={cn(
-			"bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
-			className
-		)}
-		{...restProps}
-	>
-		{@render children?.()}
-		{#if showCloseButton}
-			<DialogPrimitive.Close
-				class="ring-offset-background focus:ring-ring rounded-xs focus:outline-hidden absolute right-4 top-4 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
-			>
-				<XIcon />
-				<span class="sr-only">Close</span>
-			</DialogPrimitive.Close>
-		{/if}
-	</DialogPrimitive.Content>
-</Dialog.Portal>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-close.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	let { ref = $bindable(null), ...restProps }: DialogPrimitive.CloseProps = $props();
-</script>
-<DialogPrimitive.Close bind:ref data-slot="dialog-close" {...restProps} />
-
-// --- Ruta: src/lib/components/ui/card/index.ts ---
-import Root from "./card.svelte";
-import Content from "./card-content.svelte";
-import Description from "./card-description.svelte";
-import Footer from "./card-footer.svelte";
-import Header from "./card-header.svelte";
-import Title from "./card-title.svelte";
-import Action from "./card-action.svelte";
-export {
-	Root,
-	Content,
-	Description,
-	Footer,
-	Header,
-	Title,
-	Action,
-	//
-	Root as Card,
-	Content as CardContent,
-	Description as CardDescription,
-	Footer as CardFooter,
-	Header as CardHeader,
-	Title as CardTitle,
-	Action as CardAction,
-};
-
-// --- Ruta: src/lib/components/ui/card/card.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card"
-	class={cn(
-		"bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
-		className
-	)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-title.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-title"
-	class={cn("font-semibold leading-none", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-header.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-header"
-	class={cn(
-		"@container/card-header has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6",
-		className
-	)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-footer.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-footer"
-	class={cn("[.border-t]:pt-6 flex items-center px-6", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-description.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLParagraphElement>> = $props();
-</script>
-<p
-	bind:this={ref}
-	data-slot="card-description"
-	class={cn("text-muted-foreground text-sm", className)}
-	{...restProps}
->
-	{@render children?.()}
-</p>
-
-// --- Ruta: src/lib/components/ui/card/card-content.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div bind:this={ref} data-slot="card-content" class={cn("px-6", className)} {...restProps}>
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/card/card-action.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="card-action"
-	class={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/command/index.ts ---
-import { Command as CommandPrimitive } from "bits-ui";
-import Root from "./command.svelte";
-import Dialog from "./command-dialog.svelte";
-import Empty from "./command-empty.svelte";
-import Group from "./command-group.svelte";
-import Item from "./command-item.svelte";
-import Input from "./command-input.svelte";
-import List from "./command-list.svelte";
-import Separator from "./command-separator.svelte";
-import Shortcut from "./command-shortcut.svelte";
-import LinkItem from "./command-link-item.svelte";
-const Loading = CommandPrimitive.Loading;
-export {
-	Root,
-	Dialog,
-	Empty,
-	Group,
-	Item,
-	LinkItem,
-	Input,
-	List,
-	Separator,
-	Shortcut,
-	Loading,
-	//
-	Root as Command,
-	Dialog as CommandDialog,
-	Empty as CommandEmpty,
-	Group as CommandGroup,
-	Item as CommandItem,
-	LinkItem as CommandLinkItem,
-	Input as CommandInput,
-	List as CommandList,
-	Separator as CommandSeparator,
-	Shortcut as CommandShortcut,
-	Loading as CommandLoading,
-};
-
-// --- Ruta: src/lib/components/ui/command/command.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		value = $bindable(""),
-		class: className,
-		...restProps
-	}: CommandPrimitive.RootProps = $props();
-</script>
-<CommandPrimitive.Root
-	bind:value
-	bind:ref
-	data-slot="command"
-	class={cn(
-		"bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
-		className
-	)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/command/command-shortcut.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLSpanElement>> = $props();
-</script>
-<span
-	bind:this={ref}
-	data-slot="command-shortcut"
-	class={cn("text-muted-foreground ml-auto text-xs tracking-widest", className)}
-	{...restProps}
->
-	{@render children?.()}
-</span>
-
-// --- Ruta: src/lib/components/ui/command/command-separator.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: CommandPrimitive.SeparatorProps = $props();
-</script>
-<CommandPrimitive.Separator
-	bind:ref
-	data-slot="command-separator"
-	class={cn("bg-border -mx-1 h-px", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/command/command-list.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: CommandPrimitive.ListProps = $props();
-</script>
-<CommandPrimitive.List
-	bind:ref
-	data-slot="command-list"
-	class={cn("max-h-[300px] scroll-py-1 overflow-y-auto overflow-x-hidden", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/command/command-link-item.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: CommandPrimitive.LinkItemProps = $props();
-</script>
-<CommandPrimitive.LinkItem
-	bind:ref
-	data-slot="command-item"
-	class={cn(
-		"aria-selected:bg-accent aria-selected:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground outline-hidden relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		className
-	)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/command/command-item.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: CommandPrimitive.ItemProps = $props();
-</script>
-<CommandPrimitive.Item
-	bind:ref
-	data-slot="command-item"
-	class={cn(
-		"aria-selected:bg-accent aria-selected:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground outline-hidden relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		className
-	)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/command/command-input.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive } from "bits-ui";
-	import SearchIcon from "@lucide/svelte/icons/search";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		value = $bindable(""),
-		...restProps
-	}: CommandPrimitive.InputProps = $props();
-</script>
-<div class="flex h-9 items-center gap-2 border-b px-3" data-slot="command-input-wrapper">
-	<SearchIcon class="size-4 shrink-0 opacity-50" />
-	<CommandPrimitive.Input
-		data-slot="command-input"
-		class={cn(
-			"placeholder:text-muted-foreground outline-hidden flex h-10 w-full rounded-md bg-transparent py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50",
-			className
-		)}
-		bind:ref
-		{...restProps}
-		bind:value
-	/>
-</div>
-
-// --- Ruta: src/lib/components/ui/command/command-group.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive, useId } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		heading,
-		value,
-		...restProps
-	}: CommandPrimitive.GroupProps & {
-		heading?: string;
-	} = $props();
-</script>
-<CommandPrimitive.Group
-	bind:ref
-	data-slot="command-group"
-	class={cn("text-foreground overflow-hidden p-1", className)}
-	value={value ?? heading ?? `----${useId()}`}
-	{...restProps}
->
-	{#if heading}
-		<CommandPrimitive.GroupHeading
-			class="text-muted-foreground px-2 py-1.5 text-xs font-medium"
-		>
-			{heading}
-		</CommandPrimitive.GroupHeading>
-	{/if}
-	<CommandPrimitive.GroupItems {children} />
-</CommandPrimitive.Group>
-
-// --- Ruta: src/lib/components/ui/command/command-empty.svelte ---
-<script lang="ts">
-	import { Command as CommandPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: CommandPrimitive.EmptyProps = $props();
-</script>
-<CommandPrimitive.Empty
-	bind:ref
-	data-slot="command-empty"
-	class={cn("py-6 text-center text-sm", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/command/command-dialog.svelte ---
-<script lang="ts">
-	import type { Command as CommandPrimitive, Dialog as DialogPrimitive } from "bits-ui";
-	import type { Snippet } from "svelte";
-	import Command from "./command.svelte";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import type { WithoutChildrenOrChild } from "$lib/utils.js";
-	let {
-		open = $bindable(false),
-		ref = $bindable(null),
-		value = $bindable(""),
-		title = "Command Palette",
-		description = "Search for a command to run",
-		portalProps,
-		children,
-		...restProps
-	}: WithoutChildrenOrChild<DialogPrimitive.RootProps> &
-		WithoutChildrenOrChild<CommandPrimitive.RootProps> & {
-			portalProps?: DialogPrimitive.PortalProps;
-			children: Snippet;
-			title?: string;
-			description?: string;
-		} = $props();
-</script>
-<Dialog.Root bind:open {...restProps}>
-	<Dialog.Header class="sr-only">
-		<Dialog.Title>{title}</Dialog.Title>
-		<Dialog.Description>{description}</Dialog.Description>
-	</Dialog.Header>
-	<Dialog.Content class="overflow-hidden p-0" {portalProps}>
-		<Command
-			class="**:data-[slot=command-input-wrapper]:h-12 [&_[data-command-group]:not([hidden])_~[data-command-group]]:pt-0 [&_[data-command-group]]:px-2 [&_[data-command-input-wrapper]_svg]:h-5 [&_[data-command-input-wrapper]_svg]:w-5 [&_[data-command-input]]:h-12 [&_[data-command-item]]:px-2 [&_[data-command-item]]:py-3 [&_[data-command-item]_svg]:h-5 [&_[data-command-item]_svg]:w-5"
-			{...restProps}
-			bind:value
-			bind:ref
-			{children}
-		/>
-	</Dialog.Content>
-</Dialog.Root>
-
-// --- Ruta: src/lib/components/ui/button/index.ts ---
-import Root, {
-	type ButtonProps,
-	type ButtonSize,
-	type ButtonVariant,
-	buttonVariants,
-} from "./button.svelte";
-export {
-	Root,
-	type ButtonProps as Props,
-	//
-	Root as Button,
-	buttonVariants,
-	type ButtonProps,
-	type ButtonSize,
-	type ButtonVariant,
-};
-
-// --- Ruta: src/lib/components/ui/button/button.svelte ---
-<script lang="ts" module>
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
-	import { type VariantProps, tv } from "tailwind-variants";
-	export const buttonVariants = tv({
-		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		variants: {
-			variant: {
-				default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
-				destructive:
-					"bg-destructive shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white",
-				outline:
-					"bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border",
-				secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-				ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-				link: "text-primary underline-offset-4 hover:underline",
-			},
-			size: {
-				default: "h-9 px-4 py-2 has-[>svg]:px-3",
-				sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-				lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-				icon: "size-9",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-			size: "default",
-		},
-	});
-	export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
-	export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
-	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
-		WithElementRef<HTMLAnchorAttributes> & {
-			variant?: ButtonVariant;
-			size?: ButtonSize;
-		};
-</script>
-<script lang="ts">
-	let {
-		class: className,
-		variant = "default",
-		size = "default",
-		ref = $bindable(null),
-		href = undefined,
-		type = "button",
-		disabled,
-		children,
-		...restProps
-	}: ButtonProps = $props();
-</script>
-{#if href}
-	<a
-		bind:this={ref}
-		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
-		href={disabled ? undefined : href}
-		aria-disabled={disabled}
-		role={disabled ? "link" : undefined}
-		tabindex={disabled ? -1 : undefined}
-		{...restProps}
-	>
-		{@render children?.()}
-	</a>
-{:else}
-	<button
-		bind:this={ref}
-		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
-		{type}
-		{disabled}
-		{...restProps}
-	>
-		{@render children?.()}
-	</button>
-{/if}
-
-// --- Ruta: src/lib/components/ui/textarea/textarea.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
-	import type { HTMLTextareaAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		value = $bindable(),
-		class: className,
-		...restProps
-	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
-</script>
-<textarea
-	bind:this={ref}
-	data-slot="textarea"
-	class={cn(
-		"border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 field-sizing-content shadow-xs flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-		className
-	)}
-	bind:value
-	{...restProps}
-></textarea>
-
-// --- Ruta: src/lib/components/ui/textarea/index.ts ---
-import Root from "./textarea.svelte";
-export {
-	Root,
-	//
-	Root as Textarea,
 };
 
 // --- Ruta: src/routes/api/products/search/[barcode]/+server.ts ---
