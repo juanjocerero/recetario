@@ -1,6 +1,7 @@
 // Ruta: src/lib/server/services/recipeService.ts
 import prisma from '$lib/server/prisma';
 import { Prisma } from '@prisma/client';
+import type { SearchFilters as ZodSearchFilters } from '$lib/schemas/searchSchema';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
 
 const recipeInclude = {
@@ -13,23 +14,20 @@ const recipeInclude = {
 	urls: true
 };
 
+// Justificación: Se usa Prisma.RecipeGetPayload para generar automáticamente
+// el tipo correcto que corresponde a la consulta, incluyendo las relaciones.
+// Esto es más robusto y menos propenso a errores que definir el tipo manualmente.
+type FullRecipe = Prisma.RecipeGetPayload<{
+	include: typeof recipeInclude;
+}>;
+
 // --- Tipos para Búsqueda Avanzada ---
 export type MacroFilter = {
 	min?: number;
 	max?: number;
 };
 
-export type AdvancedSearchFilters = {
-	ingredients?: string[];
-	unit?: 'grams' | 'percent'; // La unidad es clave
-	calories?: MacroFilter;
-	protein?: MacroFilter;
-	carbs?: MacroFilter;
-	fat?: MacroFilter;
-	sortBy?: string;
-	limit: number;
-	offset: number;
-};
+export type AdvancedSearchFilters = ZodSearchFilters;
 
 type RawRecipeQueryResult = {
 	id: string;
@@ -38,14 +36,14 @@ type RawRecipeQueryResult = {
 };
 
 export const recipeService = {
-	async getAll() {
+	async getAll(): Promise<FullRecipe[]> {
 		return await prisma.recipe.findMany({
 			include: recipeInclude,
 			orderBy: { title: 'asc' }
 		});
 	},
 
-	async getById(id: string) {
+	async getById(id: string): Promise<FullRecipe | null> {
 		return await prisma.recipe.findUnique({
 			where: { id },
 			include: recipeInclude
@@ -156,11 +154,9 @@ export const recipeService = {
 		});
 	},
 
-	async findAdvanced(filters: AdvancedSearchFilters) {
-		const { ingredients, unit, calories, protein, carbs, fat, sortBy, limit, offset } = filters;
+	async findAdvanced(filters: AdvancedSearchFilters): Promise<FullRecipe[]> {
+		const { ingredients, grams, percent, sortBy, limit, offset } = filters;
 
-		// Justificación: La cláusula WITH ahora calcula tanto los totales en gramos como
-		// los porcentajes de macronutrientes. Se usa NULLIF para evitar la división por cero.
 		const withClause = Prisma.sql`
 			WITH "RecipeTotals" AS (
 				SELECT
@@ -223,26 +219,22 @@ export const recipeService = {
 			}
 		}
 
-		if (calories?.min != null) whereConditions.push(Prisma.sql`rt."totalCalories" >= ${calories.min}`);
-		if (calories?.max != null) whereConditions.push(Prisma.sql`rt."totalCalories" <= ${calories.max}`);
+		if (grams?.calories?.min != null) whereConditions.push(Prisma.sql`rt."totalCalories" >= ${grams.calories.min}`);
+		if (grams?.calories?.max != null) whereConditions.push(Prisma.sql`rt."totalCalories" <= ${grams.calories.max}`);
+		if (grams?.protein?.min != null) whereConditions.push(Prisma.sql`rt."totalProtein" >= ${grams.protein.min}`);
+		if (grams?.protein?.max != null) whereConditions.push(Prisma.sql`rt."totalProtein" <= ${grams.protein.max}`);
+		if (grams?.carbs?.min != null) whereConditions.push(Prisma.sql`rt."totalCarbs" >= ${grams.carbs.min}`);
+		if (grams?.carbs?.max != null) whereConditions.push(Prisma.sql`rt."totalCarbs" <= ${grams.carbs.max}`);
+		if (grams?.fat?.min != null) whereConditions.push(Prisma.sql`rt."totalFat" >= ${grams.fat.min}`);
+		if (grams?.fat?.max != null) whereConditions.push(Prisma.sql`rt."totalFat" <= ${grams.fat.max}`);
 
-		// Justificación: Se aplica el filtro de macros a las columnas de gramos o de porcentajes
-		// basándose en el parámetro `unit` enviado desde el frontend.
-		if (unit === 'percent') {
-			if (protein?.min != null) whereConditions.push(Prisma.sql`rt."percentProtein" >= ${protein.min}`);
-			if (protein?.max != null) whereConditions.push(Prisma.sql`rt."percentProtein" <= ${protein.max}`);
-			if (carbs?.min != null) whereConditions.push(Prisma.sql`rt."percentCarbs" >= ${carbs.min}`);
-			if (carbs?.max != null) whereConditions.push(Prisma.sql`rt."percentCarbs" <= ${carbs.max}`);
-			if (fat?.min != null) whereConditions.push(Prisma.sql`rt."percentFat" >= ${fat.min}`);
-			if (fat?.max != null) whereConditions.push(Prisma.sql`rt."percentFat" <= ${fat.max}`);
-		} else { // 'grams' es el default
-			if (protein?.min != null) whereConditions.push(Prisma.sql`rt."totalProtein" >= ${protein.min}`);
-			if (protein?.max != null) whereConditions.push(Prisma.sql`rt."totalProtein" <= ${protein.max}`);
-			if (carbs?.min != null) whereConditions.push(Prisma.sql`rt."totalCarbs" >= ${carbs.min}`);
-			if (carbs?.max != null) whereConditions.push(Prisma.sql`rt."totalCarbs" <= ${carbs.max}`);
-			if (fat?.min != null) whereConditions.push(Prisma.sql`rt."totalFat" >= ${fat.min}`);
-			if (fat?.max != null) whereConditions.push(Prisma.sql`rt."totalFat" <= ${fat.max}`);
-		}
+		if (percent?.protein?.min != null) whereConditions.push(Prisma.sql`rt."percentProtein" >= ${percent.protein.min}`);
+		if (percent?.protein?.max != null) whereConditions.push(Prisma.sql`rt."percentProtein" <= ${percent.protein.max}`);
+		if (percent?.carbs?.min != null) whereConditions.push(Prisma.sql`rt."percentCarbs" >= ${percent.carbs.min}`);
+		if (percent?.carbs?.max != null) whereConditions.push(Prisma.sql`rt."percentCarbs" <= ${percent.carbs.max}`);
+		if (percent?.fat?.min != null) whereConditions.push(Prisma.sql`rt."percentFat" >= ${percent.fat.min}`);
+		if (percent?.fat?.max != null) whereConditions.push(Prisma.sql`rt."percentFat" <= ${percent.fat.max}`);
+
 
 		const whereClause = whereConditions.length > 0 ? Prisma.sql`WHERE ${Prisma.join(whereConditions, ' AND ')}` : Prisma.empty;
 
@@ -251,7 +243,7 @@ export const recipeService = {
 			case 'calories_asc': orderByClause = Prisma.sql`ORDER BY rt."totalCalories" ASC`; break;
 			case 'calories_desc': orderByClause = Prisma.sql`ORDER BY rt."totalCalories" DESC`; break;
 			case 'protein_desc':
-				orderByClause = unit === 'percent'
+				orderByClause = (percent?.protein?.min != null || percent?.protein?.max != null)
 					? Prisma.sql`ORDER BY rt."percentProtein" DESC`
 					: Prisma.sql`ORDER BY rt."totalProtein" DESC`;
 				break;
@@ -272,7 +264,6 @@ export const recipeService = {
 			include: recipeInclude
 		});
 
-		// Reordena los resultados completos según el orden de la consulta paginada
-		return recipeIds.map(id => recipesInOrder.find(r => r.id === id)).filter(Boolean) as any[];
+		return recipeIds.map(id => recipesInOrder.find(r => r.id === id)).filter((r): r is FullRecipe => !!r);
 	}
 };

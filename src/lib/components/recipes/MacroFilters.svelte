@@ -1,11 +1,10 @@
 <!--
 // Fichero: src/lib/components/recipes/MacroFilters.svelte
-// --- VERSIÓN FINAL CON ACTUALIZACIONES INMUTABLES ---
+// --- VERSIÓN FINAL CON FILTROS COMBINADOS ---
 -->
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 
@@ -22,15 +21,12 @@
 		carbs: RangeFilter;
 		fat: RangeFilter;
 	};
-	export type FilterUnit = 'grams' | 'percent';
 
 	// --- Props (Svelte 5) ---
 	let {
-		unit = $bindable(),
 		gramFilters = $bindable(),
 		percentFilters = $bindable()
 	}: {
-		unit: FilterUnit;
 		gramFilters: GramFilters;
 		percentFilters: PercentFilters;
 	} = $props();
@@ -38,7 +34,6 @@
 	function clearFilters() {
 		gramFilters = { calories: {}, protein: {}, carbs: {}, fat: {} };
 		percentFilters = { protein: {}, carbs: {}, fat: {} };
-		unit = 'grams';
 	}
 
 	// Justificación: Se sigue un patrón de actualización inmutable. En lugar de mutar
@@ -77,20 +72,8 @@
 		</Button>
 	</div>
 
-	<div class="flex items-center space-x-2">
-		<Label for="unit-switch" class={unit === 'grams' ? 'font-bold' : ''}>Gramos</Label>
-		<Switch
-			id="unit-switch"
-			checked={unit === 'percent'}
-			onCheckedChange={(checked) => {
-				unit = checked ? 'percent' : 'grams';
-			}}
-		/>
-		<Label for="unit-switch" class={unit === 'percent' ? 'font-bold' : ''}>Porcentaje (%)</Label>
-	</div>
-
 	<!-- Filtros de Gramos y Calorías -->
-	<div class="space-y-4 border-l-2 border-transparent pl-2 {unit === 'percent' ? 'opacity-50 grayscale' : 'border-primary'} transition-all">
+	<div class="space-y-4">
 		<div class="space-y-2">
 			<Label for="calories-min">Calorías (kcal)</Label>
 			<div class="flex gap-2">
@@ -121,8 +104,10 @@
 		</div>
 	</div>
 
+	<hr/>
+
 	<!-- Filtros de Porcentaje -->
-	<div class="space-y-4 border-l-2 border-transparent pl-2 {unit === 'grams' ? 'opacity-50 grayscale' : 'border-primary'} transition-all">
+	<div class="space-y-4">
 		<div class="space-y-2">
 			<Label for="protein-percent-min">Proteínas (%)</Label>
 			<div class="flex gap-2">

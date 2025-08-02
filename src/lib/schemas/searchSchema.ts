@@ -5,17 +5,28 @@ import { z } from 'zod';
 // de las peticiones de búsqueda avanzada. Esto asegura que los datos que llegan
 // al endpoint tienen la forma correcta, previniendo errores y ataques.
 
-const MacroFilterSchema = z.object({
+const RangeFilterSchema = z.object({
 	min: z.coerce.number().optional(),
 	max: z.coerce.number().optional()
 });
 
+const GramsFilterSchema = z.object({
+	calories: RangeFilterSchema.optional(),
+	protein: RangeFilterSchema.optional(),
+	carbs: RangeFilterSchema.optional(),
+	fat: RangeFilterSchema.optional()
+});
+
+const PercentFilterSchema = z.object({
+	protein: RangeFilterSchema.optional(),
+	carbs: RangeFilterSchema.optional(),
+	fat: RangeFilterSchema.optional()
+});
+
 export const SearchFiltersSchema = z.object({
 	ingredients: z.array(z.string()).optional(),
-	calories: MacroFilterSchema.optional(),
-	protein: MacroFilterSchema.optional(),
-	carbs: MacroFilterSchema.optional(),
-	fat: MacroFilterSchema.optional(),
+	grams: GramsFilterSchema.optional(),
+	percent: PercentFilterSchema.optional(),
 	sortBy: z.string().optional(),
 	limit: z.coerce.number().default(50),
 	offset: z.coerce.number().default(0)

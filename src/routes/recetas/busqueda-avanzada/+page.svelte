@@ -1,14 +1,13 @@
 <!--
 // Fichero: src/routes/recetas/busqueda-avanzada/+page.svelte
-// --- VERSIÓN FINAL CON CORRECCIÓN DE GUARDA ---
+// --- VERSIÓN FINAL CON CORRECCIONES DE REFACTORIZACIÓN ---
 -->
 <script lang="ts">
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
 	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
 	import type {
 		GramFilters,
-		PercentFilters,
-		FilterUnit
+		PercentFilters
 	} from '$lib/components/recipes/MacroFilters.svelte';
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -20,28 +19,18 @@
 
 	// --- ESTADO CRUDO (RAW STATE) DESACOPLADO ---
 	let selectedIngredients = $state<Ingredient[]>([]);
-	let unit = $state<FilterUnit>('grams');
 	let gramFilters = $state<GramFilters>({ calories: {}, protein: {}, carbs: {}, fat: {} });
 	let percentFilters = $state<PercentFilters>({ protein: {}, carbs: {}, fat: {} });
 	let sortBy = $state('title_asc');
 
 	// --- ESTADO DERIVADO ---
 	const searchFilters = $derived(() => {
-		// LOGGING DE VERIFICACIÓN
-		console.log('[DEBUG] $derived searchFilters se está recalculando...');
-
-		const baseFilters = {
+		return {
 			ingredients: selectedIngredients.map((i) => i.id),
 			sortBy: sortBy,
-			unit: unit
+			grams: gramFilters,
+			percent: percentFilters
 		};
-
-		if (unit === 'grams') {
-			return { ...baseFilters, ...gramFilters };
-		} else {
-			const { calories, ...rest } = gramFilters; // Excluye calorías en modo %
-			return { ...baseFilters, ...percentFilters };
-		}
 	});
 
 	// --- ESTADO DE RESULTADOS Y CONTROL DE UI ---
@@ -56,9 +45,6 @@
 		const currentFilters = filters;
 		if (!currentFilters) return;
 
-		// Justificación: Se reemplaza `some(Boolean)` por `some(v => v != null)` para
-		// que el número 0 sea considerado un filtro válido. `Boolean(0)` es `false`,
-		// lo que causaba que la guarda de la búsqueda fallara incorrectamente.
 		const hasGramFilters =
 			Object.values(gramFilters.calories).some((v) => v != null) ||
 			Object.values(gramFilters.protein).some((v) => v != null) ||
@@ -70,7 +56,8 @@
 			Object.values(percentFilters.carbs).some((v) => v != null) ||
 			Object.values(percentFilters.fat).some((v) => v != null);
 
-		const hasMacroFilters = unit === 'grams' ? hasGramFilters : hasPercentFilters;
+		// Justificación: La guarda ahora comprueba si hay filtros de gramos O de porcentaje.
+		const hasMacroFilters = hasGramFilters || hasPercentFilters;
 
 		if (currentFilters.ingredients.length === 0 && !hasMacroFilters) {
 			recipes = [];
@@ -186,7 +173,7 @@
 					</div>
 				</div>
 				<hr />
-				<MacroFilters bind:unit bind:gramFilters bind:percentFilters />
+				<MacroFilters bind:gramFilters bind:percentFilters />
 			</div>
 		</aside>
 
