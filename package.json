@@ -13,11 +13,16 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest",
-		"test": "vitest run"
+		"test": "vitest run",
+		"seed": "node scripts/seed.js"
+	},
+	"prisma": {
+		"seed": "node scripts/seed.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
+		"@faker-js/faker": "^9.9.0",
 		"@internationalized/date": "^3.8.2",
 		"@lucide/svelte": "^0.515.0",
 		"@sveltejs/adapter-auto": "^6.0.0",
@@ -25,6 +30,7 @@
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@tailwindcss/vite": "^4.1.11",
+		"@testing-library/svelte": "^5.2.8",
 		"@types/bcryptjs": "^2.4.6",
 		"@types/cheerio": "^0.22.35",
 		"@types/node": "^24.1.0",

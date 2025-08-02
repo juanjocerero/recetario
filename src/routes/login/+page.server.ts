@@ -44,6 +44,6 @@ export const actions: Actions = {
 		// Justificación (redirect): En lugar de devolver un JSON, una 'action' exitosa
 		// puede lanzar una redirección. SvelteKit la gestionará correctamente,
 		// tanto en el lado del servidor como en el cliente (si se usa `enhance`).
-		throw redirect(303, '/admin/ingredientes');
+		throw redirect(303, '/');
 	}
 };

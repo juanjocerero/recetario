@@ -39,12 +39,21 @@ export async function createSessionToken(payload: { sub: string; [key: string]: 
 		.sign(secret);
 }
 
-export async function verifySessionToken(token: string) {
+export async function verifyToken(token: string) {
 	try {
 		const { payload } = await jwtVerify(token, secret, {
 			algorithms: [algorithm]
 		});
-		return payload;
+
+		// Justificación: Añadimos explícitamente la propiedad `isAdmin` si el
+		// sujeto (sub) del token es 'admin'. Esto asegura que el objeto `user`
+		// que se pasa a la aplicación contiene la información de rol necesaria.
+		const user = {
+			sub: payload.sub,
+			isAdmin: payload.sub === 'admin'
+		};
+
+		return user;
 	} catch (error) {
 		return null; // El token es inválido o ha expirado
 	}
