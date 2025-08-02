@@ -5,10 +5,11 @@ generator client {
 }
 
 datasource db {
-  // Justificación: Se configura para SQLite para el desarrollo local,
-  // como se especifica en el plan (M1.3, M2.2).
   provider = "sqlite"
-  url      = "file:./dev.db"
+  // Justificación: Se usa una variable de entorno para la URL de la base de datos.
+  // Esto permite que los tests apunten a una base de datos separada (`test.db`)
+  // sin afectar a la de desarrollo (`dev.db`), aislando los entornos.
+  url      = env("DATABASE_URL")
 }
 
 model Product {
@@ -39,10 +40,11 @@ model CustomIngredient {
 }
 
 model Recipe {
-  id          String             @id @default(cuid())
-  title       String
-  description String?
-  steps       String
+  id              String             @id @default(cuid())
+  title           String
+  normalizedTitle String // Para búsqueda case/accent-insensitive
+  description     String?
+  steps           String
   // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.
   // Es opcional para permitir recetas sin imagen o para usar la imagen de una URL de referencia.
   imageUrl    String?

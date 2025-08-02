@@ -1,7 +1,6 @@
 <!--
 // Fichero: src/routes/+page.svelte
-// Esta es la página principal de la aplicación, que actúa como un dashboard de recetas.
-// --- VERSIÓN MEJORADA CON BUSCADOR ---
+// --- VERSIÓN FINAL CON PATRONES AVANZADOS DE SVELTE 5 ---
 -->
 <script lang="ts">
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
@@ -11,45 +10,88 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import Plus from 'lucide-svelte/icons/plus';
 	import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal';
+	import { useDebounce } from '$lib/runes/useDebounce.svelte';
+
+	const RECIPES_PER_PAGE = 50;
 
 	let { data } = $props();
 	type Recipe = (typeof data.recipes)[number];
 
-	// --- ESTADO DEL BUSCADOR ---
+	// --- ESTADO REACTIVO (Svelte 5) ---
+	let recipes = $state(data.recipes);
 	let searchQuery = $state('');
+	let isLoading = $state(false);
+	let hasMore = $state(data.hasMore);
 
-	// --- ESTADO DE LOS DIÁLOGOS ---
 	let selectedRecipe = $state<Recipe | null>(null);
 	let isEditDialogOpen = $state(false);
 	let isDeleteDialogOpen = $state(false);
 
-	// --- VALORES DERIVADOS ---
 	const isAdmin = $derived(!!data.user?.isAdmin);
 
-	// Justificación: Se crea una lista de recetas derivada. Esta se recalculará
-	// automáticamente cada vez que `searchQuery` cambie, proporcionando un
-	// filtrado instantáneo en el lado del cliente.
-	const filteredRecipes = $derived((() => {
-		const searchTerm = searchQuery.toLowerCase().trim();
-		if (!searchTerm) {
-			return data.recipes;
+	// --- LÓGICA DE CARGA Y BÚSQUEDA ---
+	let sentinel: HTMLDivElement | undefined = $state();
+
+	// Justificación (Debounce Moderno): Se utiliza nuestra utilidad `useDebounce` para
+	// crear una señal reactiva que solo se actualiza 300ms después de que el usuario
+	// deja de escribir, optimizando las peticiones a la API.
+	const debouncedSearchQuery = useDebounce(() => searchQuery, 300);
+
+	async function fetchRecipes(isSearch = false) {
+		if (isLoading) return;
+		isLoading = true;
+
+		const offset = isSearch ? 0 : recipes.length;
+		const query = isSearch ? debouncedSearchQuery() : searchQuery;
+		const url = `/api/recipes?q=${encodeURIComponent(query)}&limit=${RECIPES_PER_PAGE}&offset=${offset}`;
+
+		try {
+			const response = await fetch(url);
+			const result = await response.json();
+
+			if (isSearch) {
+				recipes = result.recipes;
+			} else {
+				recipes.push(...result.recipes);
+			}
+			hasMore = result.hasMore;
+		} catch (error) {
+			console.error('Error al cargar recetas:', error);
+		} finally {
+			isLoading = false;
 		}
+	}
 
-		return data.recipes.filter((recipe) => {
-			// Búsqueda en el título de la receta
-			const titleMatch = recipe.title.toLowerCase().includes(searchTerm);
+	// Justificación (Búsqueda con $effect): Este efecto se ejecuta automáticamente
+	// cada vez que la señal `debouncedSearchQuery` cambia. Es la forma idiomática
+	// en Svelte 5 de reaccionar a cambios de estado para ejecutar lógica asíncrona.
+	$effect(() => {
+		// Para evitar una llamada inicial innecesaria, registramos el valor.
+		const query = debouncedSearchQuery();
+		fetchRecipes(true);
+	});
 
-			// Búsqueda en los ingredientes de la receta
-			const ingredientMatch = recipe.ingredients.some((ing) => {
-				const ingredientName = ing.product?.name || ing.customIngredient?.name || '';
-				return ingredientName.toLowerCase().includes(searchTerm);
-			});
+	// Justificación (Scroll Infinito con $effect): Se usa `$effect` para manejar el
+	// ciclo de vida del IntersectionObserver. Es más robusto que `onMount` porque
+	// su función de limpieza se ejecuta automáticamente, previniendo memory leaks.
+	$effect(() => {
+		if (!sentinel) return;
 
-			return titleMatch || ingredientMatch;
-		});
-	})());
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0].isIntersecting && hasMore && !isLoading) {
+					fetchRecipes();
+				}
+			},
+			{ threshold: 1.0 }
+		);
 
-	// --- MANEJADORES DE EVENTOS ---
+		observer.observe(sentinel);
+
+		// La función de limpieza del efecto se encarga de desconectar el observador.
+		return () => observer.disconnect();
+	});
+
 	function handleOpenEditDialog(recipe: Recipe) {
 		selectedRecipe = recipe;
 		isEditDialogOpen = true;
@@ -63,7 +105,6 @@
 
 <div class="container mx-auto p-4 md:p-8">
 	<header class="flex items-center justify-between gap-2 mb-8">
-		<!-- Justificación: El contenedor del buscador ahora usa `flex-grow` para ocupar el espacio disponible. -->
 		<div class="relative flex-grow">
 			<Input bind:value={searchQuery} placeholder="Buscar por receta o ingrediente..." />
 		</div>
@@ -76,42 +117,43 @@
 		</Button>
 	</header>
 
-	<!-- Justificación: El `each` ahora itera sobre la lista `filteredRecipes`. -->
 	<main class="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4">
-		{#if filteredRecipes.length > 0}
-			{#each filteredRecipes as recipe (recipe.id)}
-				<div class="mb-4 break-inside-avoid">
-					<RecipeCard
-						{recipe}
-						{isAdmin}
-						onEditQuantities={() => handleOpenEditDialog(recipe)}
-						onDelete={() => handleOpenDeleteDialog(recipe)}
-					/>
-				</div>
-			{/each}
-		{:else}
-			<!-- Justificación: El mensaje de estado vacío ahora es dinámico. -->
-			<div class="col-span-full text-center py-16 text-muted-foreground">
-				{#if data.recipes.length === 0}
-					<p class="text-lg font-medium">No hay recetas todavía.</p>
-					<p>¡Añade una para empezar!</p>
-				{:else}
-					<p class="text-lg font-medium">No se encontraron recetas.</p>
-					<p>Prueba con otro término de búsqueda.</p>
-				{/if}
+		{#each recipes as recipe (recipe.id)}
+			<div class="mb-4 break-inside-avoid">
+				<RecipeCard
+					{recipe}
+					{isAdmin}
+					onEditQuantities={() => handleOpenEditDialog(recipe)}
+					onDelete={() => handleOpenDeleteDialog(recipe)}
+				/>
 			</div>
-		{/if}
+		{/each}
 	</main>
+
+	{#if hasMore}
+		<div bind:this={sentinel} class="h-10 text-center text-muted-foreground">
+			{#if isLoading}
+				Cargando más recetas...
+			{/if}
+		</div>
+	{/if}
+
+	{#if recipes.length === 0 && !isLoading}
+		<div class="col-span-full text-center py-16 text-muted-foreground">
+			<p class="text-lg font-medium">No se encontraron recetas.</p>
+			<p>Prueba con otro término de búsqueda o añade una nueva receta.</p>
+		</div>
+	{/if}
 </div>
 
 <EditQuantitiesDialog
 	recipe={selectedRecipe}
 	bind:open={isEditDialogOpen}
-	onOpenChange={(isOpen) => (isEditDialogOpen = isOpen)}
+	onOpenChange={(isOpen: boolean) => (isEditDialogOpen = isOpen)}
 />
 
 <DeleteRecipeDialog
 	recipe={selectedRecipe}
 	bind:open={isDeleteDialogOpen}
-	onOpenChange={(isOpen) => (isDeleteDialogOpen = isOpen)}
+	onOpenChange={(isOpen: boolean) => (isDeleteDialogOpen = isOpen)}
 />

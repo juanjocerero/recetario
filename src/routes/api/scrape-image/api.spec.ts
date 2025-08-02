@@ -3,14 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from './+server';
 import { imageService } from '$lib/server/services/imageService';
 
-// Mock del imageService
 vi.mock('$lib/server/services/imageService', () => ({
 	imageService: {
 		getImageFromUrl: vi.fn()
 	}
 }));
 
-// Mock de SvelteKit 'error'
 vi.mock('@sveltejs/kit', async (importOriginal) => {
 	const original = await importOriginal<typeof import('@sveltejs/kit')>();
 	return {
@@ -19,15 +17,17 @@ vi.mock('@sveltejs/kit', async (importOriginal) => {
 	};
 });
 
+// Justificación: Se crea un alias para el tipo del evento de la API para mejorar
+// la legibilidad y mantener la consistencia con otros ficheros de test.
+type ApiEvent = Parameters<typeof POST>[0];
+
 describe('POST /api/scrape-image', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
-		// Justificación: Silenciamos console.error para evitar el ruido en los tests de error.
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 	});
 
 	afterEach(() => {
-		// Restauramos la implementación original de console.error después de cada test.
 		vi.mocked(console.error).mockRestore();
 	});
 
@@ -40,10 +40,7 @@ describe('POST /api/scrape-image', () => {
 			body: JSON.stringify({ url: 'https://example.com' })
 		});
 
-		// Justificación: Usamos `Parameters<typeof POST>[0]` para obtener el tipo exacto
-		// del evento que espera la función POST. El `as unknown as` es necesario porque
-		// nuestro objeto mock `{ request }` no implementa la interfaz completa de RequestEvent.
-		const response = await POST({ request } as unknown as Parameters<typeof POST>[0]);
+		const response = await POST({ request } as unknown as ApiEvent);
 		const body = await response.json();
 
 		expect(response.status).toBe(200);
@@ -57,7 +54,7 @@ describe('POST /api/scrape-image', () => {
 			body: JSON.stringify({ url: 'invalid-url' })
 		});
 
-		await expect(POST({ request } as unknown as Parameters<typeof POST>[0])).rejects.toEqual({
+		await expect(POST({ request } as unknown as ApiEvent)).rejects.toEqual({
 			status: 400,
 			message: 'URL no válida'
 		});
@@ -71,7 +68,7 @@ describe('POST /api/scrape-image', () => {
 			body: JSON.stringify({ url: 'https://example.com/no-image' })
 		});
 
-		await expect(POST({ request } as unknown as Parameters<typeof POST>[0])).rejects.toEqual({
+		await expect(POST({ request } as unknown as ApiEvent)).rejects.toEqual({
 			status: 404,
 			message: 'No se pudo encontrar una imagen en la URL proporcionada'
 		});
@@ -85,7 +82,7 @@ describe('POST /api/scrape-image', () => {
 			body: JSON.stringify({ url: 'https://example.com/error-page' })
 		});
 
-		await expect(POST({ request } as unknown as Parameters<typeof POST>[0])).rejects.toEqual({
+		await expect(POST({ request } as unknown as ApiEvent)).rejects.toEqual({
 			status: 500,
 			message: 'Error interno al procesar la imagen'
 		});

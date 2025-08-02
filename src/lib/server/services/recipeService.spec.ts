@@ -86,6 +86,7 @@ describe('recipeService with images and URLs', () => {
 		const initialRecipe = await prisma.recipe.create({
 			data: {
 				title: 'Initial',
+				normalizedTitle: 'initial',
 				steps: 'Initial',
 				urls: { create: { url: 'https://initial.com' } }
 			}
@@ -111,5 +112,94 @@ describe('recipeService with images and URLs', () => {
 		expect(dbRecipe?.title).toBe('Updated Recipe');
 		expect(dbRecipe?.urls).toHaveLength(1);
 		expect(dbRecipe?.urls[0].url).toBe('https://updated.com'); // La URL antigua fue reemplazada
+	});
+});
+
+describe('recipeService.findPaginated', () => {
+	beforeEach(async () => {
+		// Creación de datos de prueba
+		const pollo = await prisma.customIngredient.create({
+			data: { name: 'Pollo', normalizedName: 'pollo', calories: 165, protein: 31, fat: 3.6, carbs: 0 }
+		});
+		const arroz = await prisma.customIngredient.create({
+			data: { name: 'Arroz', normalizedName: 'arroz', calories: 130, protein: 2.7, fat: 0.3, carbs: 28 }
+		});
+		const lentejas = await prisma.customIngredient.create({
+			data: {
+				name: 'Lentejas',
+				normalizedName: 'lentejas',
+				calories: 116,
+				protein: 9,
+				fat: 0.4,
+				carbs: 20
+			}
+		});
+
+		// Receta 1: Pollo con Arroz
+		await prisma.recipe.create({
+			data: {
+				title: 'Pollo con Arroz',
+				normalizedTitle: 'pollo con arroz',
+				steps: '...',
+				ingredients: {
+					create: [
+						{ customIngredientId: pollo.id, quantity: 200 },
+						{ customIngredientId: arroz.id, quantity: 150 }
+					]
+				}
+			}
+		});
+		// Receta 2: Lentejas Estofadas
+		await prisma.recipe.create({
+			data: {
+				title: 'Lentejas Estofadas',
+				normalizedTitle: 'lentejas estofadas',
+				steps: '...',
+				ingredients: { create: [{ customIngredientId: lentejas.id, quantity: 300 }] }
+			}
+		});
+		// Receta 3: Arroz con Pollo (variación)
+		await prisma.recipe.create({
+			data: {
+				title: 'Arroz con Pollo',
+				normalizedTitle: 'arroz con pollo',
+				steps: '...',
+				ingredients: {
+					create: [
+						{ customIngredientId: arroz.id, quantity: 200 },
+						{ customIngredientId: pollo.id, quantity: 150 }
+					]
+				}
+			}
+		});
+	});
+
+	it('should return all recipes paginated when search term is null', async () => {
+		const recipes = await recipeService.findPaginated(null, 2, 0);
+		expect(recipes).toHaveLength(2);
+		expect(recipes[0].title).toBe('Arroz con Pollo'); // Ordenado alfabéticamente
+		expect(recipes[1].title).toBe('Lentejas Estofadas');
+
+		const nextPage = await recipeService.findPaginated(null, 2, 2);
+		expect(nextPage).toHaveLength(1);
+		expect(nextPage[0].title).toBe('Pollo con Arroz');
+	});
+
+	it('should filter recipes by title', async () => {
+		const recipes = await recipeService.findPaginated('lentejas', 5, 0);
+		expect(recipes).toHaveLength(1);
+		expect(recipes[0].title).toBe('Lentejas Estofadas');
+	});
+
+	it('should filter recipes by ingredient name', async () => {
+		const recipes = await recipeService.findPaginated('pollo', 5, 0);
+		expect(recipes).toHaveLength(2); // "Pollo con Arroz" y "Arroz con Pollo"
+		const titles = recipes.map((r) => r.title).sort();
+		expect(titles).toEqual(['Arroz con Pollo', 'Pollo con Arroz']);
+	});
+
+	it('should return an empty array if no recipe matches the search term', async () => {
+		const recipes = await recipeService.findPaginated('pescado', 5, 0);
+		expect(recipes).toHaveLength(0);
 	});
 });

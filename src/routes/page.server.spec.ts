@@ -8,37 +8,50 @@ vi.mock('$lib/server/services/recipeService');
 
 type PageServerLoadEvent = Parameters<typeof load>[0];
 type ActionEvent = Parameters<typeof actions.delete>[0];
-type Recipes = Awaited<ReturnType<typeof recipeService.getAll>>;
+type Recipes = Awaited<ReturnType<typeof recipeService.findPaginated>>;
+
+// Justificación: Se define explícitamente la estructura del tipo devuelto por `load`.
+// La inferencia automática (`Awaited<ReturnType<typeof load>>`) falla debido a los
+// genéricos complejos de SvelteKit, por lo que un tipo explícito es más robusto.
+interface LoadResult {
+	recipes: Recipes;
+	hasMore: boolean;
+}
 
 describe('+page.server', () => {
-	const mockRecipes: Partial<Recipes[number]>[] = [
-		{ id: '1', title: 'Receta 1', ingredients: [] },
-		{ id: '2', title: 'Receta 2', ingredients: [] }
-	];
-
 	beforeEach(() => {
 		vi.resetAllMocks();
 	});
 
 	describe('load', () => {
-		it('should call recipeService.getAll and return the recipes', async () => {
-			vi.mocked(recipeService.getAll).mockResolvedValue(mockRecipes as Recipes);
-			const result = await load({} as unknown as PageServerLoadEvent);
-			expect(recipeService.getAll).toHaveBeenCalledOnce();
-			expect(result).toEqual({ recipes: mockRecipes });
+		it('should call findPaginated and return recipes with hasMore: true', async () => {
+			const mockRecipes = Array(51).fill({ id: '1', title: 'Receta' });
+			vi.mocked(recipeService.findPaginated).mockResolvedValue(mockRecipes as Recipes);
+
+			const result = (await load({} as unknown as PageServerLoadEvent)) as LoadResult;
+
+			expect(recipeService.findPaginated).toHaveBeenCalledWith(null, 51, 0);
+			expect(result.recipes).toHaveLength(50);
+			expect(result.hasMore).toBe(true);
+		});
+
+		it('should call findPaginated and return recipes with hasMore: false', async () => {
+			const mockRecipes = Array(30).fill({ id: '1', title: 'Receta' });
+			vi.mocked(recipeService.findPaginated).mockResolvedValue(mockRecipes as Recipes);
+
+			const result = (await load({} as unknown as PageServerLoadEvent)) as LoadResult;
+
+			expect(recipeService.findPaginated).toHaveBeenCalledWith(null, 51, 0);
+			expect(result.recipes).toHaveLength(30);
+			expect(result.hasMore).toBe(false);
 		});
 	});
 
 	describe('actions.delete', () => {
-		// Justificación: Se espía y silencia `console.error` antes de cada test
-		// de este bloque para evitar el ruido en la salida del test que
-		// comprueba el manejo de errores.
 		beforeEach(() => {
 			vi.spyOn(console, 'error').mockImplementation(() => {});
 		});
 
-		// Justificación: Se restaura la función original de `console.error`
-		// después de cada test para no afectar a otras suites de tests.
 		afterEach(() => {
 			vi.mocked(console.error).mockRestore();
 		});

@@ -42,6 +42,7 @@ async function main() {
 		const recipe = await prisma.recipe.create({
 			data: {
 				title: recipeTitle,
+				normalizedTitle: recipeTitle.toLowerCase(),
 				description: faker.lorem.sentence(),
 				steps: faker.lorem.paragraphs(3),
 				imageUrl: `https://picsum.photos/seed/${encodeURIComponent(recipeTitle)}/800/600`,
