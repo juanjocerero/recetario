@@ -1,7 +1,3 @@
-<!--
-// Fichero: src/routes/recetas/busqueda-avanzada/+page.svelte
-// --- VERSIÓN FINAL CON PATRONES SVELTE 5 CORRECTOS ---
--->
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
@@ -13,7 +9,7 @@
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import X from 'lucide-svelte/icons/x';
-	
+
 	type Ingredient = {
 		id: string;
 		name: string;
@@ -22,78 +18,58 @@
 		imageUrl: string | null;
 	};
 	type Recipe = any;
-	
+
 	// --- TIPOS LOCALES ---
-	type InitialState = {
-		selectedIngredients: Ingredient[];
-		gramFilters: GramFilters;
-		percentFilters: PercentFilters;
-		sortBy: string;
-	};
-	
 	type SearchPayload = {
 		ingredients: string[];
 		grams: GramFilters;
 		percent: PercentFilters;
 		sortBy: string;
 	};
-	
-	// --- ESTADO DE LA UI (sin URL) ---
-	function getInitialState(): InitialState {
-		return {
-			selectedIngredients: [],
-			gramFilters: { calories:{}, protein:{}, carbs:{}, fat:{} },
-			percentFilters: { protein:{}, carbs:{}, fat:{} },
-			sortBy: 'title_asc'
-		};
-	}
-	let { selectedIngredients, gramFilters, percentFilters, sortBy } =
-	$state(getInitialState());
-	
-	// --- ESTADO DE RESULTADOS Y CONTROL ---
+
+	// --- ESTADO DE FILTROS (LA "CAUSA") ---
+	let filters = $state({
+		selectedIngredients: [] as Ingredient[],
+		gramFilters: { calories: {}, protein: {}, carbs: {}, fat: {} } as GramFilters,
+		percentFilters: { protein: {}, carbs: {}, fat: {} } as PercentFilters,
+		sortBy: 'title_asc'
+	});
+
+	// --- ESTADO DE RESULTADOS Y UI (EL "EFECTO") ---
 	let recipes = $state<Recipe[]>([]);
 	let isLoading = $state(false);
 	let hasMore = $state(true);
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController | undefined;
-	
-	// --- FILTROS DERIVADOS DE LA UI ---
-	const uiFilters = $derived({
-		ingredients: selectedIngredients,
-		grams: gramFilters,
-		percent: percentFilters,
-		sortBy: sortBy
-	});
-	
+
 	// --- DERIVADO: Verificar si hay filtros de macros aplicados ---
 	const hasMacroFilters = $derived(() => {
-		const hasGrams = Object.values(uiFilters.grams).some(
-		(range) => range && (range.min != null || range.max != null)
+		const hasGrams = Object.values(filters.gramFilters).some(
+			(range) => range && (range.min != null || range.max != null)
 		);
-		const hasPercent = Object.values(uiFilters.percent).some(
-		(range) => range && (range.min != null || range.max != null)
+		const hasPercent = Object.values(filters.percentFilters).some(
+			(range) => range && (range.min != null || range.max != null)
 		);
 		return hasGrams || hasPercent;
 	});
-	
+
 	// --- DERIVADO: Verificar si hay algún filtro activo ---
 	const hasActiveFilters = $derived(() => {
-		return uiFilters.ingredients.length > 0 || hasMacroFilters();
+		return filters.selectedIngredients.length > 0 || hasMacroFilters;
 	});
-	
-	// --- LÓGICA DE BÚSQUEDA ---
-	async function performSearch(filters: SearchPayload) {
 
-    if (!hasActiveFilters()) {
-        recipes = [];
-        hasMore = false;
-        return;
-    }
-		
+	// --- LÓGICA DE BÚSQUEDA ---
+	async function performSearch(payload: SearchPayload) {
+		if (!hasActiveFilters) {
+			recipes = [];
+			hasMore = false;
+			return;
+		}
+
 		isLoading = true;
 		const signal = controller?.signal;
 		try {
-			const body = { ...filters, offset: 0 };
+			const body = { ...payload, offset: 0 };
 			const response = await fetch('/api/recipes/search', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -111,12 +87,12 @@
 			if (!signal?.aborted) isLoading = false;
 		}
 	}
-	
-	async function loadMore(filters: SearchPayload) {
+
+	async function loadMore(payload: SearchPayload) {
 		if (isLoading) return;
 		isLoading = true;
 		try {
-			const body = { ...filters, offset: recipes.length };
+			const body = { ...payload, offset: recipes.length };
 			const response = await fetch('/api/recipes/search', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -131,43 +107,45 @@
 			isLoading = false;
 		}
 	}
-	
+
 	// --- EFECTOS ---
-	
 	$effect(() => {
 		if (!browser) return;
 
-    // No ejecutar búsqueda si no hay filtros activos
-    if (!hasActiveFilters()) {
-        recipes = [];
-        hasMore = false;
-        return;
-    }
-		
-		const filtersToSync = uiFilters;
-		
+		// El payload para la búsqueda debe construirse explícitamente
+		// para que coincida con el tipo SearchPayload.
+		const payload: SearchPayload = {
+			ingredients: filters.selectedIngredients.map((i) => i.id),
+			grams: filters.gramFilters,
+			percent: filters.percentFilters,
+			sortBy: filters.sortBy
+		};
+
+		if (!hasActiveFilters) {
+			recipes = [];
+			hasMore = false;
+			return;
+		}
+
 		controller?.abort();
 		controller = new AbortController();
-		
+
 		const timerId = setTimeout(() => {
-			const payload: SearchPayload = {
-				...filtersToSync,
-				ingredients: filtersToSync.ingredients.map((i) => i.id)
-			};
 			performSearch(payload);
 		}, 350);
-		
+
 		return () => clearTimeout(timerId);
 	});
-	
+
 	$effect(() => {
 		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
 			if (entries[0].isIntersecting && hasMore && !isLoading) {
-				const filters = uiFilters;
 				const payload: SearchPayload = {
-					...filters,
-					ingredients: filters.ingredients.map((i) => i.id)
+					ingredients: filters.selectedIngredients.map((i) => i.id),
+					grams: filters.gramFilters,
+					percent: filters.percentFilters,
+					sortBy: filters.sortBy
 				};
 				loadMore(payload);
 			}
@@ -175,18 +153,44 @@
 		observer.observe(sentinel);
 		return () => observer.disconnect();
 	});
-	
+
 	// --- MANEJADORES DE EVENTOS ---
 	function handleAddIngredient(ingredient: Ingredient) {
-		if (!selectedIngredients.some((i) => i.id === ingredient.id)) {
-			selectedIngredients = [...selectedIngredients, ingredient];
+		if (!filters.selectedIngredients.some((i) => i.id === ingredient.id)) {
+			filters.selectedIngredients = [...filters.selectedIngredients, ingredient];
 		}
 	}
 	function handleRemoveIngredient(ingredientId: string) {
-		selectedIngredients = selectedIngredients.filter((i) => i.id !== ingredientId);
+		filters.selectedIngredients = filters.selectedIngredients.filter((i) => i.id !== ingredientId);
 	}
 	function clearIngredients() {
-		selectedIngredients = [];
+		filters.selectedIngredients = [];
+	}
+	function handleGramsChange(macro: keyof GramFilters, key: 'min' | 'max', value: number | undefined) {
+		filters.gramFilters = {
+			...filters.gramFilters,
+			[macro]: {
+				...filters.gramFilters[macro],
+				[key]: value
+			}
+		};
+	}
+	function handlePercentChange(
+		macro: keyof PercentFilters,
+		key: 'min' | 'max',
+		value: number | undefined
+	) {
+		filters.percentFilters = {
+			...filters.percentFilters,
+			[macro]: {
+				...filters.percentFilters[macro],
+				[key]: value
+			}
+		};
+	}
+	function handleClearMacros() {
+		filters.gramFilters = { calories: {}, protein: {}, carbs: {}, fat: {} };
+		filters.percentFilters = { protein: {}, carbs: {}, fat: {} };
 	}
 </script>
 
@@ -199,58 +203,64 @@
 			</p>
 		</div>
 	</header>
-	
+
 	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
 		<aside class="lg:col-span-1">
 			<div class="space-y-6 rounded-lg border p-4 sticky top-4">
 				<div class="space-y-2">
 					<h3 class="text-lg font-semibold">Ingredientes</h3>
 					<IngredientCombobox
-					onSelect={handleAddIngredient}
-					selectedIds={selectedIngredients.map((i) => i.id)}
-					onClear={clearIngredients}
+						onSelect={handleAddIngredient}
+						selectedIds={filters.selectedIngredients.map((i) => i.id)}
+						onClear={clearIngredients}
 					/>
 					<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
-						{#each selectedIngredients as ingredient (ingredient.id)}
-						<Badge variant="secondary" class="flex items-center gap-2">
-							{ingredient.name}
-							<button
-							onclick={() => handleRemoveIngredient(ingredient.id)}
-							class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-							>
-							<X class="h-3 w-3" />
-						</button>
-					</Badge>
-					{/each}
-				</div>
-			</div>
-			<hr />
-			<MacroFilters bind:gramFilters bind:percentFilters />
-		</div>
-	</aside>
-	
-	<main class="lg:col-span-2">
-		<div class="space-y-4">
-			{#if recipes.length > 0}
-			<div class="columns-1 md:columns-2 gap-4">
-				{#each recipes as recipe (recipe.id)}
-				<div class="mb-4 break-inside-avoid">
-					<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
+						{#each filters.selectedIngredients as ingredient (ingredient.id)}
+							<Badge variant="secondary" class="flex items-center gap-2">
+								{ingredient.name}
+								<button
+									onclick={() => handleRemoveIngredient(ingredient.id)}
+									class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+								>
+									<X class="h-3 w-3" />
+								</button>
+							</Badge>
+						{/each}
 					</div>
-					{/each}
 				</div>
+				<hr />
+				<MacroFilters
+					gramFilters={filters.gramFilters}
+					percentFilters={filters.percentFilters}
+					onGramsChange={handleGramsChange}
+					onPercentChange={handlePercentChange}
+					onClear={handleClearMacros}
+				/>
+			</div>
+		</aside>
+
+		<main class="lg:col-span-2">
+			<div class="space-y-4">
+				{#if recipes.length > 0}
+					<div class="columns-1 md:columns-2 gap-4">
+						{#each recipes as recipe (recipe.id)}
+							<div class="mb-4 break-inside-avoid">
+								<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
+							</div>
+						{/each}
+					</div>
 				{:else if !isLoading}
-				<div class="rounded-lg border p-8 text-center">
-					<p class="text-muted-foreground">No se encontraron recetas con estos criterios.</p>
-				</div>
+					<div class="rounded-lg border p-8 text-center">
+						<p class="text-muted-foreground">No se encontraron recetas con estos criterios.</p>
+					</div>
 				{/if}
-				
+
 				{#if hasMore}
-				<div bind:this={sentinel} class="h-10 flex justify-center items-center text-muted-foreground">
-					{#if isLoading}
-					<span>Cargando...</span>
-					{/if}
-				</div>
+					<div bind:this={sentinel} class="h-10 flex justify-center items-center text-muted-foreground">
+						{#if isLoading}
+							<span>Cargando...</span>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</main>

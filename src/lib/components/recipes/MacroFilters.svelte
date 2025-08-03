@@ -1,7 +1,3 @@
-<!--
-// Fichero: src/lib/components/recipes/MacroFilters.svelte
-// --- VERSIÓN FINAL CON FILTROS COMBINADOS ---
--->
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -24,50 +20,39 @@
 
 	// --- Props (Svelte 5) ---
 	let {
-		gramFilters = $bindable(),
-		percentFilters = $bindable()
+		gramFilters,
+		percentFilters,
+		onGramsChange,
+		onPercentChange,
+		onClear
 	}: {
 		gramFilters: GramFilters;
 		percentFilters: PercentFilters;
+		onGramsChange: (macro: keyof GramFilters, key: 'min' | 'max', value: number | undefined) => void;
+		onPercentChange: (macro: keyof PercentFilters, key: 'min' | 'max', value: number | undefined) => void;
+		onClear: () => void;
 	} = $props();
 
-	function clearFilters() {
-		gramFilters = { calories: {}, protein: {}, carbs: {}, fat: {} };
-		percentFilters = { protein: {}, carbs: {}, fat: {} };
-	}
-
-	// Justificación: Se sigue un patrón de actualización inmutable. En lugar de mutar
-	// el objeto de filtros, se crea una copia nueva con el valor actualizado.
-	// Esto garantiza que Svelte 5 detecte el cambio y lo propague al componente padre.
+	// Justificación: Los manejadores de eventos ahora invocan los callbacks
+	// pasados por el padre en lugar de mutar props. Esto respeta la propiedad
+	// del estado y sigue el flujo de datos unidireccional de Svelte 5.
 	function handleGramsInput(macro: keyof GramFilters, key: 'min' | 'max', e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
 		const value = target.valueAsNumber;
-		gramFilters = {
-			...gramFilters,
-			[macro]: {
-				...gramFilters[macro],
-				[key]: isNaN(value) ? undefined : value
-			}
-		};
+		onGramsChange(macro, key, isNaN(value) ? undefined : value);
 	}
 
 	function handlePercentInput(macro: keyof PercentFilters, key: 'min' | 'max', e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
 		const value = target.valueAsNumber;
-		percentFilters = {
-			...percentFilters,
-			[macro]: {
-				...percentFilters[macro],
-				[key]: isNaN(value) ? undefined : value
-			}
-		};
+		onPercentChange(macro, key, isNaN(value) ? undefined : value);
 	}
 </script>
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h3 class="text-lg font-semibold">Macronutrientes</h3>
-		<Button onclick={clearFilters} variant="ghost" size="icon" aria-label="Limpiar filtros de macros">
+		<Button onclick={onClear} variant="ghost" size="icon" aria-label="Limpiar filtros de macros">
 			<Trash2 class="h-4 w-4" />
 		</Button>
 	</div>
