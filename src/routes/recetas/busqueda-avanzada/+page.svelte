@@ -1,4 +1,67 @@
 <script lang="ts">
+	// --- LECCIONES APRENDIDAS Y PATRONES DE SVELTE 5 ---
+	// Este componente ha sido objeto de una depuración intensiva que ha revelado
+	// varias sutilezas importantes sobre Svelte 5 y SvelteKit. A continuación,
+	// se documentan los patrones clave utilizados y las lecciones aprendidas.
+	//
+	// 1. GESTIÓN DEL ESTADO:
+	//    - Se utiliza `$state` para toda la información que puede cambiar y debe
+	//      provocar una actualización de la UI.
+	//    - El estado se divide conceptualmente entre la "causa" (los filtros que
+	//      el usuario modifica) y el "efecto" (los resultados de la búsqueda y
+	//      el estado de la UI, como `isLoading`). Esto mejora la claridad del
+	//      flujo de datos.
+	//
+	// 2. EL PROBLEMA DE LA CARGA INICIAL (BUG RESUELTO):
+	//    - PROBLEMA: Inicialmente, la página mostraba brevemente todas las recetas
+	//      antes de vaciar la lista. Esto ocurría porque la lógica del scroll
+	//      infinito se activaba prematuramente.
+	//    - SOLUCIÓN: La variable `hasMore` se inicializa en `false`. Esto previene
+	//      que el `div` "sentinel" del IntersectionObserver se renderice en la
+	//      carga inicial, evitando así la llamada a `loadMore()` con filtros vacíos.
+	//
+	// 3. PERSISTENCIA DE ESTADO EN NAVEGACIÓN (`snapshot`):
+	//    - PROBLEMA: Se necesita mantener el estado de la búsqueda (filtros y
+	//      resultados) cuando el usuario navega a una receta y vuelve atrás.
+	//    - INTENTO FALLIDO 1: Usar `history.replaceState` directamente. Esto entra
+	//      en conflicto con el router de SvelteKit, que es el dueño del historial,
+	//      provocando warnings y comportamiento errático.
+	//    - INTENTO FALLIDO 2: Usar `replaceState` de `$app/navigation` en un `$effect`.
+	//      Esto causó un bucle infinito porque el efecto dependía de datos (`$page`)
+	//      que él mismo modificaba, y además provocaba un "hydration mismatch"
+	//      al intentar restaurar el estado antes de que el componente se montara
+	//      de forma consistente en el cliente y el servidor.
+	//    - SOLUCIÓN CORRECTA: Utilizar el objeto `snapshot` exportado. SvelteKit
+	//      gestiona este ciclo de vida de forma segura:
+	//        - `capture()`: Se llama ANTES de salir de la página. Guardamos una
+	//          copia del estado. SvelteKit se encarga de almacenarla.
+	//        - `restore()`: Se llama AL VOLVER a la página. SvelteKit nos devuelve
+	//          los datos que guardamos para que podamos restaurar el estado.
+	//      Este es el patrón canónico y robusto para la persistencia de estado
+	//      de UI en SvelteKit.
+	//
+	// 4. REACTIVIDAD: `$derived` vs. FUNCIONES PURAS:
+	//    - PROBLEMA: Durante la depuración, se sospechó de una condición de carrera
+	//      en la inicialización de los `$derived` stores, donde un `$effect` podía
+	//      ejecutarse antes de que el valor derivado se hubiera estabilizado.
+	//    - SOLUCIÓN DE DEPURACIÓN: Reemplazar `$derived` por una función pura
+	//      (`areFiltersActive()`) para asegurar que el cálculo se realizara en el
+	//      momento exacto de la llamada. Esto resolvió el problema, confirmando
+	//      la hipótesis de la condición de carrera.
+	//    - CONCLUSIÓN: Aunque `$derived` es potente, para lógica crítica que se
+	//      ejecuta en la inicialización y que controla si se realizan o no
+	//      peticiones de red, una función pura puede ser más segura y predecible,
+	//      evitando posibles bugs de timing en el ciclo de vida.
+	//
+	// 5. COMUNICACIÓN ENTRE COMPONENTES:
+	//    - Se sigue un patrón de "callbacks" (eventos). El componente padre
+	//      (`+page.svelte`) mantiene la propiedad del estado (`filters`) y pasa
+	//      funciones (`onGramsChange`, etc.) al hijo (`MacroFilters.svelte`).
+	//    - El hijo, en lugar de modificar los datos directamente (lo que Svelte 5
+	//      desaconseja y marca con un warning), llama a estas funciones para
+	//      notificar al padre de que debe realizar un cambio. Esto mantiene un
+	//      flujo de datos unidireccional y predecible.
+
 	import { browser } from '$app/environment';
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
 	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
@@ -43,19 +106,23 @@
 	let controller: AbortController | undefined;
 
 	// --- PERSISTENCIA DE ESTADO CON SNAPSHOT ---
+	// Este es el mecanismo oficial de SvelteKit para guardar y restaurar el estado
+	// de un componente durante la navegación del historial (ej. botón "atrás").
 	export const snapshot = {
 		capture: () => {
-			// SvelteKit llama a esta función antes de navegar fuera de la página.
-			// Devolvemos una copia profunda del estado que queremos guardar.
+			// SvelteKit llama a esta función ANTES de que el usuario navegue fuera de esta página.
+			// Devolvemos un objeto serializable con los datos que queremos preservar.
+			// Usamos JSON.parse/stringify para crear una copia profunda y evitar problemas de referencias.
 			return {
 				filters: JSON.parse(JSON.stringify(filters)),
 				recipes: JSON.parse(JSON.stringify(recipes))
 			};
 		},
 		restore: (data: any) => {
-			// SvelteKit llama a esta función al volver a la página.
-			// Restauramos el estado desde los datos capturados.
-			if (data.filters && data.recipes) {
+			// SvelteKit llama a esta función CUANDO el usuario vuelve a esta página.
+			// 'data' es el objeto que devolvimos en `capture`.
+			// Restauramos el estado del componente con estos datos.
+			if (data && data.filters && data.recipes) {
 				filters = data.filters;
 				recipes = data.recipes;
 			}
@@ -63,6 +130,10 @@
 	};
 
 	// --- FUNCIÓN DE COMPROBACIÓN ---
+	// Se utiliza una función pura en lugar de un `$derived` store para determinar si hay filtros activos.
+	// Esto resolvió un bug de condición de carrera donde los `$effect` se ejecutaban
+	// antes de que el valor de `$derived` se estabilizara en la carga inicial.
+	// Llamar a una función nos da la garantía de que el cálculo se hace en el momento preciso.
 	function areFiltersActive() {
 		const hasMacroGrams = Object.values(filters.gramFilters).some(
 			(range) => range && (range.min != null || range.max != null)
@@ -75,6 +146,7 @@
 
 	// --- LÓGICA DE BÚSQUEDA ---
 	async function performSearch(payload: SearchPayload) {
+		// Guardia de seguridad para no hacer peticiones a la API sin filtros.
 		if (!areFiltersActive()) {
 			recipes = [];
 			hasMore = false;
@@ -103,6 +175,7 @@
 	}
 
 	async function loadMore(payload: SearchPayload) {
+		// Doble guardia: no cargar más si no hay filtros o si ya se está cargando.
 		if (!areFiltersActive() || isLoading) return;
 		isLoading = true;
 		try {
@@ -123,14 +196,19 @@
 	}
 	
 	// --- EFECTOS ---
+
+	// Efecto principal para la búsqueda. Se activa cuando los filtros cambian.
 	$effect(() => {
 		if (!browser) return;
 
+		// Si no hay filtros, se limpia el estado de los resultados.
+		// Esto previene una búsqueda en la carga inicial.
 		if (!areFiltersActive()) {
 			recipes = [];
 			hasMore = false;
 			return;
 		}
+		// AbortController para cancelar peticiones en curso si el usuario sigue escribiendo.
 		controller?.abort();
 		controller = new AbortController();
 		const payload: SearchPayload = {
@@ -139,15 +217,20 @@
 			percent: filters.percentFilters,
 			sortBy: filters.sortBy
 		};
+		// Debounce para no lanzar una petición en cada pulsación de tecla.
 		const timerId = setTimeout(() => {
 			performSearch(payload);
 		}, 350);
+		// Función de limpieza: se ejecuta antes de la siguiente ejecución del efecto.
 		return () => clearTimeout(timerId);
 	});
 
+	// Efecto para el scroll infinito.
 	$effect(() => {
 		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
+			// Solo carga más si el sentinel es visible, hay más resultados, no se está
+			// cargando ya, y (crucialmente) hay filtros activos.
 			if (entries[0].isIntersecting && hasMore && !isLoading && areFiltersActive()) {
 				const payload: SearchPayload = {
 					ingredients: filters.selectedIngredients.map((i) => i.id),
@@ -163,6 +246,8 @@
 	});
 
 	// --- MANEJADORES DE EVENTOS ---
+	// Estos manejadores actualizan el estado `filters` de forma inmutable,
+	// lo que garantiza que la reactividad de Svelte 5 se dispare correctamente.
 	function handleAddIngredient(ingredient: Ingredient) {
 		if (!filters.selectedIngredients.some((i) => i.id === ingredient.id)) {
 			filters.selectedIngredients = [...filters.selectedIngredients, ingredient];
