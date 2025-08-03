@@ -35,8 +35,8 @@ export const actions: Actions = {
 			const newRecipe = await recipeService.create(validation.data);
 			if (newRecipe) {
 				// Justificación: En caso de éxito, se redirige al usuario a la página
-				// de la receta recién creada usando `redirect` de SvelteKit.
-				throw redirect(303, `/recetas/${newRecipe.id}`);
+				// de la receta recién creada usando `redirect` de SvelteKit y el nuevo slug.
+				throw redirect(303, `/recetas/${newRecipe.slug}`);
 			}
 			// Este caso no debería ocurrir si el servicio funciona, pero es un fallback.
 			return fail(500, createFailResponse('La receta no se pudo crear.'));

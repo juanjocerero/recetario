@@ -1,6 +1,7 @@
 // Fichero: scripts/seed.js
 import { faker } from '@faker-js/faker';
 import { PrismaClient } from '@prisma/client';
+import slugify from 'slugify';
 
 const prisma = new PrismaClient();
 
@@ -158,22 +159,40 @@ async function main() {
 
 	console.log('\n--- Fase 3: Creando recetas de prueba... ---');
 	const allAvailableIngredients = [
-        ...seededProducts.map(p => ({ id: p.id, type: 'product', name: p.name })),
-        ...customIngredients.map(c => ({ id: c.id, type: 'custom', name: c.name }))
-    ];
+		...seededProducts.map((p) => ({ id: p.id, type: 'product', name: p.name })),
+		...customIngredients.map((c) => ({ id: c.id, type: 'custom', name: c.name }))
+	];
+
+	const usedSlugs = new Set();
 
 	for (let i = 0; i < 200; i++) {
 		const mainIngredient = faker.helpers.arrayElement(allAvailableIngredients);
 		const recipeTitle = `${mainIngredient.name} ${faker.food.adjective()}`;
-		
-		const otherIngredients = allAvailableIngredients.filter(ing => ing.id !== mainIngredient.id);
-		const secondaryIngredients = faker.helpers.arrayElements(otherIngredients, faker.number.int({ min: 2, max: 5 }));
+
+		// --- Lógica de Unicidad de Slug para el Seeding ---
+		const baseSlug = slugify(recipeTitle, { lower: true, strict: true });
+		let finalSlug = baseSlug;
+		let counter = 2;
+		while (usedSlugs.has(finalSlug)) {
+			finalSlug = `${baseSlug}-${counter}`;
+			counter++;
+		}
+		usedSlugs.add(finalSlug);
+		// --- Fin de la lógica de unicidad ---
+
+		const otherIngredients = allAvailableIngredients.filter((ing) => ing.id !== mainIngredient.id);
+		const secondaryIngredients = faker.helpers.arrayElements(
+			otherIngredients,
+			faker.number.int({ min: 2, max: 5 })
+		);
 		const recipeIngredients = [mainIngredient, ...secondaryIngredients];
 
-		console.log(`[RECETA ${i + 1}/200] Creando: "${recipeTitle}"...`);
+		console.log(`[RECETA ${i + 1}/200] Creando: "${recipeTitle}" (slug: ${finalSlug})...
+`);
 		await prisma.recipe.create({
 			data: {
 				title: recipeTitle,
+				slug: finalSlug,
 				normalizedTitle: recipeTitle.toLowerCase(),
 				steps: createMarkdownSteps(), // Usamos la nueva función
 				imageUrl: `https://picsum.photos/seed/${encodeURIComponent(recipeTitle)}/800/600`,
@@ -181,7 +200,7 @@ async function main() {
 					create: [{ url: faker.internet.url() }]
 				},
 				ingredients: {
-					create: recipeIngredients.map(ing => ({
+					create: recipeIngredients.map((ing) => ({
 						productId: ing.type === 'product' ? ing.id : undefined,
 						customIngredientId: ing.type === 'custom' ? ing.id : undefined,
 						quantity: parseFloat(faker.number.float({ min: 50, max: 500, precision: 1 }).toFixed(1))

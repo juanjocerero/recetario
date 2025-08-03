@@ -42,6 +42,7 @@ model CustomIngredient {
 model Recipe {
   id              String             @id @default(cuid())
   title           String
+  slug            String             @unique
   normalizedTitle String // Para búsqueda case/accent-insensitive
   steps           Json
   // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.

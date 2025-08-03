@@ -3,6 +3,7 @@ import prisma from '$lib/server/prisma';
 import { Prisma } from '@prisma/client';
 import type { SearchFilters as ZodSearchFilters } from '$lib/schemas/searchSchema';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
+import { generateUniqueSlug } from '$lib/server/slug';
 
 const recipeInclude = {
 	ingredients: {
@@ -50,13 +51,22 @@ export const recipeService = {
 		});
 	},
 
+	async getBySlug(slug: string): Promise<FullRecipe | null> {
+		return await prisma.recipe.findUnique({
+			where: { slug },
+			include: recipeInclude
+		});
+	},
+
 	async create(data: RecipeData) {
 		const { title, steps, ingredients, urls, imageUrl } = data;
+		const slug = await generateUniqueSlug(title);
 
 		return await prisma.$transaction(async (tx) => {
 			const newRecipe = await tx.recipe.create({
 				data: {
 					title,
+					slug,
 					normalizedTitle: title.toLowerCase(),
 					steps,
 					imageUrl,
@@ -83,11 +93,19 @@ export const recipeService = {
 	async update(id: string, data: RecipeData) {
 		const { title, steps, ingredients, urls, imageUrl } = data;
 
+		// Comprobar si el título ha cambiado para regenerar el slug
+		const originalRecipe = await prisma.recipe.findUnique({ where: { id } });
+		let slug: string | undefined;
+		if (originalRecipe && originalRecipe.title !== title) {
+			slug = await generateUniqueSlug(title);
+		}
+
 		return await prisma.$transaction(async (tx) => {
 			await tx.recipe.update({
 				where: { id },
 				data: {
 					title,
+					slug, // Se actualiza solo si se ha generado uno nuevo
 					normalizedTitle: title.toLowerCase(),
 					steps,
 					imageUrl

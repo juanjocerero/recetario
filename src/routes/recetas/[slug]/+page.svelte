@@ -86,7 +86,7 @@
 			<div class="flex-1">
 				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
 			</div>
-			<a href="/recetas/{recipe.id}/editar">
+			<a href="/recetas/{recipe.slug}/editar">
 				<Button variant="outline">Editar</Button>
 			</a>
 		</div>

@@ -21,6 +21,7 @@
 	// Justificación: El tipo ahora usa `title` para coincidir con el esquema de Prisma.
 	type Recipe = {
 		id: string;
+		slug: string;
 		title: string;
 		imageUrl: string | null;
 		ingredients: {
@@ -81,7 +82,7 @@
 </script>
 
 <Card.Root class="flex flex-col break-inside-avoid">
-	<a href="/recetas/{recipe.id}" class="flex flex-col h-full" aria-label="Ver receta: {recipe.title}">
+	<a href="/recetas/{recipe.slug}" class="flex flex-col h-full" aria-label="Ver receta: {recipe.title}">
 		<div class="relative">
 			{#if recipe.imageUrl}
 				<img
@@ -113,7 +114,7 @@
 								Editar cantidades
 							</DropdownMenuItem>
 							<DropdownMenuItem>
-								<a href="/recetas/{recipe.id}/editar" class="w-full">Editar receta</a>
+								<a href="/recetas/{recipe.slug}/editar" class="w-full">Editar receta</a>
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem onclick={handleDelete} class="text-destructive focus:text-destructive">
