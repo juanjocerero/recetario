@@ -1,205 +1,183 @@
-<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
+<!--
+// Ruta: src/routes/recetas/[slug]/+page.svelte
+// Implementación del nuevo diseño de la página de detalles de la receta (v2).
+-->
 <script lang="ts">
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow
-	} from '$lib/components/ui/table';
-	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import { ArrowLeft } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import { Button } from '$lib/components/ui/button';
-	import { marked } from 'marked';
-	import DOMPurify from 'dompurify';
-	import { browser } from '$app/environment';
 
 	let { data }: { data: PageData } = $props();
 	const { recipe } = data;
 
-	// Tipos explícitos para mayor claridad y seguridad
-	type IngredientFromLoader = PageData['recipe']['ingredients'][number];
-	type MappedIngredient = {
-		name: string;
-		quantity: number;
-		calories: number;
-		protein: number;
-		fat: number;
-		carbs: number;
-	};
-
-	const ingredientsList = $derived(
-		recipe.ingredients
-			.map((ing: IngredientFromLoader) => {
-				const details = ing.product ?? ing.customIngredient;
-				if (!details) return null;
-
-				return {
-					name: details.name,
-					quantity: ing.quantity,
-					calories: details.calories ?? 0,
-					protein: details.protein ?? 0,
-					fat: details.fat ?? 0,
-					carbs: details.carbs ?? 0
-				};
-			})
-			.filter((i: MappedIngredient | null): i is MappedIngredient => i !== null)
+	// --- LÓGICA DE CÁLCULO ---
+	const calculableIngredients = $derived(
+		recipe.ingredients.map((ing) => {
+			const source = ing.product || ing.customIngredient;
+			return {
+				quantity: ing.quantity,
+				calories: source?.calories,
+				protein: source?.protein,
+				fat: source?.fat,
+				carbs: source?.carbs
+			} as CalculableIngredient;
+		})
 	);
 
-	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
+	const totals = $derived(calculateNutritionalInfo(calculableIngredients));
+	const totalGrams = $derived(totals.totalProtein + totals.totalCarbs + totals.totalFat);
 
-	// Función robusta para parsear los pasos, que ya vienen como array desde el servidor
-	const getRecipeSteps = (stepsData: unknown): string[] => {
-		if (Array.isArray(stepsData)) {
-			return stepsData.map(String);
-		}
-		// Fallback por si en el cliente llega como string JSON
-		if (browser && typeof stepsData === 'string') {
-			try {
-				const parsed = JSON.parse(stepsData);
-				return Array.isArray(parsed) ? parsed.map(String) : [String(stepsData)];
-			} catch (e) {
-				return [String(stepsData)]; // No era JSON, tratar como texto plano
-			}
-		}
-		return [];
-	};
+	const proteinPercentage = $derived(totalGrams > 0 ? (totals.totalProtein / totalGrams) * 100 : 0);
+	const carbsPercentage = $derived(totalGrams > 0 ? (totals.totalCarbs / totalGrams) * 100 : 0);
+	const fatPercentage = $derived(totalGrams > 0 ? (totals.totalFat / totalGrams) * 100 : 0);
 
-	const steps = $derived(getRecipeSteps(recipe.steps));
-
-	// Función para sanitizar el HTML de forma segura en el navegador
-	const sanitizeHtml = (html: string) => {
-		if (browser) {
-			return DOMPurify.sanitize(html);
-		}
-		// En SSR, devolvemos el HTML sin sanitizar, asumiendo que la fuente es confiable.
-		// La sanitización del cliente lo protegerá al renderizar.
-		return html;
-	};
+	// Los pasos ya vienen procesados como HTML desde el servidor.
+	const { steps } = recipe;
 </script>
 
-<div class="max-w-4xl mx-auto my-8 space-y-8">
-	<header class="space-y-4">
-		<div class="flex justify-between items-start">
-			<div class="flex-1">
-				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
-			</div>
-			<a href="/recetas/{recipe.slug}/editar">
-				<Button variant="outline">Editar</Button>
-			</a>
-		</div>
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+	<h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-8">{recipe.title}</h1>
 
-		{#if recipe.imageUrl}
-			<div class="w-full aspect-video rounded-lg overflow-hidden">
+	<!-- Sección Superior: Nutrición e Ingredientes -->
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="mt-4">Información Nutricional</Card.Title>
+				<Card.Description>Valores totales para la receta</Card.Description>
+			</Card.Header>
+			<Card.Content class="space-y-4">
+				<div class="text-center">
+					<span class="text-4xl font-bold">{totals.totalCalories.toFixed(0)}</span>
+					<span class="text-muted-foreground">kcal</span>
+				</div>
+				<div>
+					<div class="flex h-2 w-full overflow-hidden rounded-full bg-muted mb-2">
+						<div
+							class="bg-blue-500"
+							style="width: {proteinPercentage}%"
+							title="Proteínas: {totals.totalProtein.toFixed(1)}g"
+						></div>
+						<div
+							class="bg-green-500"
+							style="width: {carbsPercentage}%"
+							title="Carbohidratos: {totals.totalCarbs.toFixed(1)}g"
+						></div>
+						<div
+							class="bg-red-500"
+							style="width: {fatPercentage}%"
+							title="Grasas: {totals.totalFat.toFixed(1)}g"
+						></div>
+					</div>
+					<div class="flex justify-between text-sm text-muted-foreground">
+						<span class="flex items-center">
+							<span class="mr-1.5 h-2 w-2 rounded-full bg-blue-500"></span>
+							Proteínas: {totals.totalProtein.toFixed(1)}g
+						</span>
+						<span class="flex items-center">
+							<span class="mr-1.5 h-2 w-2 rounded-full bg-green-500"></span>
+							Carbs: {totals.totalCarbs.toFixed(1)}g
+						</span>
+						<span class="flex items-center">
+							<span class="mr-1.5 h-2 w-2 rounded-full bg-red-500"></span>
+							Grasas: {totals.totalFat.toFixed(1)}g
+						</span>
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="mt-4">Ingredientes</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<ul class="space-y-2 text-muted-foreground">
+					{#each recipe.ingredients as ing}
+						{@const name = ing.product?.name || ing.customIngredient?.name}
+						<li class="flex justify-between">
+							<span>{name}</span>
+							<span class="font-medium">{ing.quantity.toLocaleString('es-ES')} g</span>
+						</li>
+					{/each}
+				</ul>
+			</Card.Content>
+		</Card.Root>
+	</div>
+
+	<!-- Sección Inferior: Preparación e Imagen -->
+	<div class="grid grid-cols-1 lg:grid-cols-3 lg:gap-x-12 gap-y-8">
+		<main class="lg:col-span-2">
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="text-xl mt-4">Preparación</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<div class="space-y-6">
+						{#each steps as step, i}
+							<div class="flex items-start gap-4">
+								<span class="text-2xl md:text-3xl font-bold text-primary mt-[-2px]">{i + 1}.</span>
+								<div class="prose prose-sm sm:prose-base max-w-none flex-1">
+									{@html step}
+								</div>
+							</div>
+							{#if i < steps.length - 1}
+								<Separator />
+							{/if}
+						{/each}
+						{#if steps.length === 0}
+							<p class="text-muted-foreground">No hay pasos de preparación definidos.</p>
+						{/if}
+					</div>
+				</Card.Content>
+			</Card.Root>
+		</main>
+
+		<aside class="lg:col-start-3">
+			{#if recipe.imageUrl}
 				<img
 					src={recipe.imageUrl}
-					alt="Foto de {recipe.title}"
-					class="w-full h-full object-cover"
+					alt="Imagen de {recipe.title}"
+					class="w-full rounded-lg object-cover shadow-lg sticky top-8"
 				/>
-			</div>
-		{/if}
-	</header>
-
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-		<div class="md:col-span-2 space-y-8">
-			<!-- Pasos Renderizados con Markdown y Sanitizados -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Preparación</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div class="prose max-w-none">
-						<ol>
-							{#each steps as step}
-								<li>
-									{@html sanitizeHtml(
-										marked.parse(step, { gfm: true, breaks: true, async: false })
-									)}
-								</li>
-							{/each}
-						</ol>
-					</div>
-				</CardContent>
-			</Card>
-
-			{#if recipe.urls && recipe.urls.length > 0}
-				<Card>
-					<CardHeader>
-						<CardTitle>Referencias</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ul class="list-disc pl-5 space-y-2">
-							{#each recipe.urls as ref}
-								<li>
-									<a
-										href={ref.url}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="text-blue-600 hover:underline"
-									>
-										{ref.url}
-									</a>
-								</li>
-							{/each}
-						</ul>
-					</CardContent>
-				</Card>
 			{/if}
-		</div>
+		</aside>
+	</div>
 
-		<div class="space-y-8">
-			<!-- Información Nutricional -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Información Nutricional</CardTitle>
-					<CardDescription>Valores totales para la receta.</CardDescription>
-				</CardHeader>
-				<CardContent class="grid grid-cols-2 gap-4">
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
-					</div>
-				</CardContent>
-			</Card>
-
-			<!-- Ingredientes -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Ingredientes</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Nombre</TableHead>
-								<TableHead class="text-right">Cantidad</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{#each ingredientsList as ingredient}
-								<TableRow>
-									<TableCell class="font-medium">{ingredient.name}</TableCell>
-									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
-								</TableRow>
-							{/each}
-						</TableBody>
-					</Table>
-				</CardContent>
-			</Card>
+	<!-- Sección de Referencias -->
+	{#if recipe.urls.length > 0}
+		<div class="mt-8">
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="mt-4">Referencias</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<ul class="list-disc pl-5 space-y-2">
+						{#each recipe.urls as ref}
+							<li>
+								<a
+									href={ref.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-blue-600 hover:underline break-all"
+								>
+									{ref.url}
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</Card.Content>
+			</Card.Root>
 		</div>
+	{/if}
+
+	<!-- Botón de Volver -->
+	<div class="mt-12">
+		<Button variant="outline" href="/">
+			<ArrowLeft class="mr-2 h-4 w-4" />
+			Volver a todas las recetas
+		</Button>
 	</div>
 </div>

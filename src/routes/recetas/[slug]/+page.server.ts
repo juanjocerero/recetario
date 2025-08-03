@@ -5,6 +5,9 @@ import type { PageServerLoad, Actions } from './$types';
 import { RecipeSchema } from '$lib/schemas/recipeSchema';
 // Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
 import { createFailResponse } from '$lib/server/zodErrors';
+import { marked } from 'marked';
+import createDOMPurify from 'dompurify';
+import { JSDOM } from 'jsdom';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const recipe = await recipeService.getBySlug(params.slug);
@@ -13,8 +16,24 @@ export const load: PageServerLoad = async ({ params }) => {
 		throw error(404, 'Receta no encontrada');
 	}
 
+	const window = new JSDOM('').window;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const sanitizer = createDOMPurify(window as any);
+
+	const processedSteps = await Promise.all(
+		Array.isArray(recipe.steps)
+			? recipe.steps.map(async (step) => {
+					const rawHtml = await marked.parse(String(step ?? ''));
+					return sanitizer.sanitize(rawHtml);
+				})
+			: []
+	);
+
 	return {
-		recipe
+		recipe: {
+			...recipe,
+			steps: processedSteps
+		}
 	};
 };
 
