@@ -1,8 +1,11 @@
 <!--
 // Fichero: src/routes/recetas/busqueda-avanzada/+page.svelte
-// --- VERSIÓN FINAL CON CORRECCIONES DE REFACTORIZACIÓN ---
+// --- VERSIÓN FINAL CON PATRONES SVELTE 5 CORRECTOS ---
 -->
 <script lang="ts">
+	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
+	import { pushState } from '$app/navigation';
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
 	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
 	import type {
@@ -11,73 +14,78 @@
 	} from '$lib/components/recipes/MacroFilters.svelte';
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
 	import X from 'lucide-svelte/icons/x';
 
 	type Ingredient = { id: string; name: string; type: 'product' | 'custom' };
 	type Recipe = any;
 
-	// --- ESTADO CRUDO (RAW STATE) DESACOPLADO ---
-	let selectedIngredients = $state<Ingredient[]>([]);
-	let gramFilters = $state<GramFilters>({ calories: {}, protein: {}, carbs: {}, fat: {} });
-	let percentFilters = $state<PercentFilters>({ protein: {}, carbs: {}, fat: {} });
-	let sortBy = $state('title_asc');
+	// --- TIPOS LOCALES ---
+	type InitialState = {
+		selectedIngredients: Ingredient[];
+		gramFilters: GramFilters;
+		percentFilters: PercentFilters;
+		sortBy: string;
+	};
+	type SearchPayload = {
+		ingredients: string[];
+		grams: GramFilters;
+		percent: PercentFilters;
+		sortBy: string;
+	};
 
-	// --- ESTADO DERIVADO ---
-	const searchFilters = $derived(() => {
+	// --- ESTADO DE LA UI (HIDRATADO DESDE LA URL) ---
+	function getInitialState(): InitialState {
+		const params = $page.url.searchParams;
 		return {
-			ingredients: selectedIngredients.map((i) => i.id),
-			sortBy: sortBy,
-			grams: gramFilters,
-			percent: percentFilters
+			selectedIngredients: JSON.parse(params.get('ingredients') || '[]'),
+			gramFilters: JSON.parse(
+				params.get('grams') || '{"calories":{},"protein":{},"carbs":{},"fat":{}}'
+			),
+			percentFilters: JSON.parse(
+				params.get('percent') || '{"protein":{},"carbs":{},"fat":{}}'
+			),
+			sortBy: params.get('sortBy') || 'title_asc'
 		};
-	});
+	}
+	let { selectedIngredients, gramFilters, percentFilters, sortBy } = $state(getInitialState());
 
-	// --- ESTADO DE RESULTADOS Y CONTROL DE UI ---
+	// --- ESTADO DE RESULTADOS Y CONTROL ---
 	let recipes = $state<Recipe[]>([]);
 	let isLoading = $state(false);
 	let hasMore = $state(true);
 	let sentinel: HTMLDivElement | undefined = $state();
-	let controller: AbortController;
+	let controller: AbortController | undefined;
 
-	// --- LÓGICA DE BÚSQUEDA Y CARGA ---
-	async function fetchRecipes(isNewSearch = false, filters?: ReturnType<typeof searchFilters>) {
-		const currentFilters = filters;
-		if (!currentFilters) return;
+	// --- FILTROS DERIVADOS DE LA UI ---
+	// Justificación: `$derived` crea un valor reactivo. Se accede a él directamente (ej. `uiFilters`),
+	// no se invoca como una función.
+	const uiFilters = $derived({
+		ingredients: selectedIngredients,
+		grams: gramFilters,
+		percent: percentFilters,
+		sortBy: sortBy
+	});
 
-		const hasGramFilters =
-			Object.values(gramFilters.calories).some((v) => v != null) ||
-			Object.values(gramFilters.protein).some((v) => v != null) ||
-			Object.values(gramFilters.carbs).some((v) => v != null) ||
-			Object.values(gramFilters.fat).some((v) => v != null);
+	// --- LÓGICA DE BÚSQUEDA ---
+	async function performSearch(filters: SearchPayload) {
+		const hasGrams = Object.values(filters.grams).some(
+			(range) => range && (range.min != null || range.max != null)
+		);
+		const hasPercent = Object.values(filters.percent).some(
+			(range) => range && (range.min != null || range.max != null)
+		);
+		const hasMacroFilters = hasGrams || hasPercent;
 
-		const hasPercentFilters =
-			Object.values(percentFilters.protein).some((v) => v != null) ||
-			Object.values(percentFilters.carbs).some((v) => v != null) ||
-			Object.values(percentFilters.fat).some((v) => v != null);
-
-		// Justificación: La guarda ahora comprueba si hay filtros de gramos O de porcentaje.
-		const hasMacroFilters = hasGramFilters || hasPercentFilters;
-
-		if (currentFilters.ingredients.length === 0 && !hasMacroFilters) {
+		if (filters.ingredients.length === 0 && !hasMacroFilters) {
 			recipes = [];
 			hasMore = false;
 			return;
 		}
 
-		if (isLoading && !isNewSearch) return;
 		isLoading = true;
-
-		const offset = isNewSearch ? 0 : recipes.length;
-
-		if (isNewSearch) {
-			controller?.abort();
-			controller = new AbortController();
-		}
 		const signal = controller?.signal;
-
 		try {
-			const body = { ...currentFilters, offset };
+			const body = { ...filters, offset: 0 };
 			const response = await fetch('/api/recipes/search', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -85,42 +93,85 @@
 				signal
 			});
 			const result = await response.json();
-
 			if (signal?.aborted) return;
-
-			if (isNewSearch) {
-				recipes = result.recipes;
-			} else {
-				recipes.push(...result.recipes);
-			}
+			recipes = result.recipes;
 			hasMore = result.hasMore;
 		} catch (error) {
 			if (error instanceof DOMException && error.name === 'AbortError') return;
 			console.error('Error en la búsqueda:', error);
 		} finally {
-			if (!signal?.aborted) {
-				isLoading = false;
-			}
+			if (!signal?.aborted) isLoading = false;
 		}
 	}
 
-	// --- EFECTOS DE BÚSQUEDA ---
+	async function loadMore(filters: SearchPayload) {
+		if (isLoading) return;
+		isLoading = true;
+		try {
+			const body = { ...filters, offset: recipes.length };
+			const response = await fetch('/api/recipes/search', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+			const result = await response.json();
+			recipes.push(...result.recipes);
+			hasMore = result.hasMore;
+		} catch (error) {
+			console.error('Error al cargar más recetas:', error);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// --- EFECTOS ---
 	$effect(() => {
-		const filters = searchFilters();
+		if (!browser) return;
+		// Se lee el valor de `uiFilters` para establecer la dependencia.
+		const filtersToSync = uiFilters;
+
+		controller?.abort();
+		controller = new AbortController();
+
 		const timerId = setTimeout(() => {
-			fetchRecipes(true, filters);
+			// Se transforma el estado de la UI al payload que espera la API.
+			const payload: SearchPayload = {
+				...filtersToSync,
+				ingredients: filtersToSync.ingredients.map((i) => i.id)
+			};
+			performSearch(payload);
+
+			// Se actualiza la URL con el estado completo de la UI.
+			const params = new URLSearchParams();
+			if (filtersToSync.ingredients.length > 0) {
+				params.set('ingredients', JSON.stringify(filtersToSync.ingredients));
+			}
+			if (Object.values(filtersToSync.grams).some(v => v && (v.min != null || v.max != null))) {
+				params.set('grams', JSON.stringify(filtersToSync.grams));
+			}
+			if (Object.values(filtersToSync.percent).some(v => v && (v.min != null || v.max != null))) {
+				params.set('percent', JSON.stringify(filtersToSync.percent));
+			}
+			if (filtersToSync.sortBy !== 'title_asc') {
+				params.set('sortBy', filtersToSync.sortBy);
+			}
+			const newUrl = `${$page.url.pathname}?${params.toString()}`;
+			pushState(newUrl, {});
 		}, 350);
 
-		return () => {
-			clearTimeout(timerId);
-		};
+		return () => clearTimeout(timerId);
 	});
 
 	$effect(() => {
 		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
 			if (entries[0].isIntersecting && hasMore && !isLoading) {
-				fetchRecipes(false, searchFilters());
+				const filters = uiFilters;
+				const payload: SearchPayload = {
+					...filters,
+					ingredients: filters.ingredients.map((i) => i.id)
+				};
+				loadMore(payload);
 			}
 		});
 		observer.observe(sentinel);
@@ -130,12 +181,14 @@
 	// --- MANEJADORES DE EVENTOS ---
 	function handleAddIngredient(ingredient: Ingredient) {
 		if (!selectedIngredients.some((i) => i.id === ingredient.id)) {
-			selectedIngredients.push(ingredient);
+			selectedIngredients = [...selectedIngredients, ingredient];
 		}
 	}
-
 	function handleRemoveIngredient(ingredientId: string) {
 		selectedIngredients = selectedIngredients.filter((i) => i.id !== ingredientId);
+	}
+	function clearIngredients() {
+		selectedIngredients = [];
 	}
 </script>
 
@@ -157,6 +210,7 @@
 					<IngredientCombobox
 						onSelect={handleAddIngredient}
 						selectedIds={selectedIngredients.map((i) => i.id)}
+						onClear={clearIngredients}
 					/>
 					<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
 						{#each selectedIngredients as ingredient (ingredient.id)}
