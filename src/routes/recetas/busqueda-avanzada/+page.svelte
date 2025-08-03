@@ -1,8 +1,5 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { page } from '$app/stores';
-	import { replaceState, afterNavigate } from '$app/navigation';
-	import { get } from 'svelte/store';
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
 	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
 	import type {
@@ -45,8 +42,25 @@
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController | undefined;
 
-	// --- CONTROL DE CICLO DE VIDA ---
-	let isReady = $state(false); // Se vuelve true después de la primera navegación/hidratación
+	// --- PERSISTENCIA DE ESTADO CON SNAPSHOT ---
+	export const snapshot = {
+		capture: () => {
+			// SvelteKit llama a esta función antes de navegar fuera de la página.
+			// Devolvemos una copia profunda del estado que queremos guardar.
+			return {
+				filters: JSON.parse(JSON.stringify(filters)),
+				recipes: JSON.parse(JSON.stringify(recipes))
+			};
+		},
+		restore: (data: any) => {
+			// SvelteKit llama a esta función al volver a la página.
+			// Restauramos el estado desde los datos capturados.
+			if (data.filters && data.recipes) {
+				filters = data.filters;
+				recipes = data.recipes;
+			}
+		}
+	};
 
 	// --- FUNCIÓN DE COMPROBACIÓN ---
 	function areFiltersActive() {
@@ -108,24 +122,9 @@
 		}
 	}
 	
-	// --- CICLO DE VIDA Y PERSISTENCIA ---
-
-	// 1. Restaurar estado DESPUÉS de que el router esté listo.
-	afterNavigate(() => {
-		if (browser) {
-			const savedState = history.state;
-			if (savedState && savedState.filters && savedState.recipes) {
-				filters = savedState.filters;
-				recipes = savedState.recipes;
-			}
-			// Indicar que el componente está listo para iniciar efectos reactivos.
-			isReady = true;
-		}
-	});
-
-	// 2. Efecto de búsqueda principal
+	// --- EFECTOS ---
 	$effect(() => {
-		if (!browser || !isReady) return;
+		if (!browser) return;
 
 		if (!areFiltersActive()) {
 			recipes = [];
@@ -146,9 +145,8 @@
 		return () => clearTimeout(timerId);
 	});
 
-	// 3. Efecto de scroll infinito
 	$effect(() => {
-		if (!sentinel || !isReady) return;
+		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
 			if (entries[0].isIntersecting && hasMore && !isLoading && areFiltersActive()) {
 				const payload: SearchPayload = {
@@ -162,17 +160,6 @@
 		});
 		observer.observe(sentinel);
 		return () => observer.disconnect();
-	});
-
-	// 4. Guardar estado en el historial en cada cambio
-	$effect(() => {
-		if (!browser || !isReady) return;
-
-		const currentState = {
-			filters: JSON.parse(JSON.stringify(filters)),
-			recipes: JSON.parse(JSON.stringify(recipes))
-		};
-		replaceState(get(page).url, currentState);
 	});
 
 	// --- MANEJADORES DE EVENTOS ---
