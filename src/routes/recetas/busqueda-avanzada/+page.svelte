@@ -38,7 +38,7 @@
 	// --- ESTADO DE RESULTADOS Y UI (EL "EFECTO") ---
 	let recipes = $state<Recipe[]>([]);
 	let isLoading = $state(false);
-	let hasMore = $state(true);
+	let hasMore = $state(false);
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController | undefined;
 
