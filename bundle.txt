@@ -1,7 +1,7 @@
 /* --- Bundle de Código Generado ---
  * Modo: full
- * Ficheros Incluidos: 161
- * Fecha: 2025-08-03T15:07:30.214Z
+ * Ficheros Incluidos: 163
+ * Fecha: 2025-08-03T16:21:39.523Z
  */
 
 // --- Ruta: vitest.config.ts ---
@@ -129,6 +129,8 @@ export default config;
 		"@testing-library/svelte": "^5.2.8",
 		"@types/bcryptjs": "^2.4.6",
 		"@types/cheerio": "^0.22.35",
+		"@types/dompurify": "^3.0.5",
+		"@types/marked": "^5.0.2",
 		"@types/node": "^24.1.0",
 		"autoprefixer": "^10.4.21",
 		"bits-ui": "^2.8.13",
@@ -171,13 +173,72 @@ export default config;
 		"@prisma/client": "^6.13.0",
 		"bcryptjs": "^3.0.2",
 		"cheerio": "^1.1.2",
+		"dompurify": "^3.2.6",
 		"jose": "^6.0.12",
 		"ky": "^1.8.2",
 		"lucide-svelte": "^0.535.0",
+		"marked": "^16.1.1",
 		"sharp": "^0.34.3",
 		"zod": "^4.0.14"
 	}
 }
+
+// --- Ruta: migration.sql ---
+-- CreateTable
+CREATE TABLE "Product" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "normalizedName" TEXT NOT NULL,
+    "brand" TEXT,
+    "imageUrl" TEXT,
+    "calories" REAL,
+    "fat" REAL,
+    "protein" REAL,
+    "carbs" REAL,
+    "fullPayload" JSONB,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+-- CreateTable
+CREATE TABLE "CustomIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "normalizedName" TEXT NOT NULL,
+    "calories" REAL NOT NULL,
+    "fat" REAL NOT NULL,
+    "protein" REAL NOT NULL,
+    "carbs" REAL NOT NULL
+);
+-- CreateTable
+CREATE TABLE "Recipe" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "normalizedTitle" TEXT NOT NULL,
+    "steps" JSONB NOT NULL,
+    "imageUrl" TEXT
+);
+-- CreateTable
+CREATE TABLE "RecipeUrl" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "url" TEXT NOT NULL,
+    "recipeId" TEXT NOT NULL,
+    CONSTRAINT "RecipeUrl_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+-- CreateTable
+CREATE TABLE "RecipeIngredient" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "recipeId" TEXT NOT NULL,
+    "productId" TEXT,
+    "customIngredientId" TEXT,
+    "quantity" REAL NOT NULL,
+    CONSTRAINT "RecipeIngredient_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "RecipeIngredient_customIngredientId_fkey" FOREIGN KEY ("customIngredientId") REFERENCES "CustomIngredient" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+-- CreateIndex
+CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
+-- CreateIndex
+CREATE UNIQUE INDEX "RecipeUrl_recipeId_url_key" ON "RecipeUrl"("recipeId", "url");
 
 // --- Ruta: eslint.config.js ---
 import prettier from 'eslint-config-prettier';
@@ -275,60 +336,131 @@ engine-strict=true
 # aislando completamente los tests de la base de datos de desarrollo.
 DATABASE_URL="file:./test.db"
 
-// --- Ruta: src/demo.spec.ts ---
-import { describe, it, expect } from 'vitest';
-describe('sum test', () => {
-	it('adds 1 + 2 to equal 3', () => {
-		expect(1 + 2).toBe(3);
-	});
-});
-
-// --- Ruta: src/app.html ---
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		%sveltekit.head%
-	</head>
-	<body data-sveltekit-preload-data="hover">
-		<div style="display: contents">%sveltekit.body%</div>
-	</body>
-</html>
-
-// --- Ruta: src/app.d.ts ---
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
-declare global {
-	namespace App {
-		// interface Error {}
-		// interface Locals {}
-		// interface PageData {}
-		// interface PageState {}
-		// interface Platform {}
-	}
-}
-export {};
-
 // --- Ruta: scripts/seed.js ---
 // Fichero: scripts/seed.js
 import { faker } from '@faker-js/faker';
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
+// =================================================================
+// --- FASE 1: OBTENCIÓN DE PRODUCTOS DE OPENFOODFACTS (OFF) ---
+// =================================================================
+const SEARCH_TERMS_FOR_SEEDING = [
+	'Atún Hacendado',
+	'Tortiglioni Hacendado',
+	'Yogur Hacendado',
+	'Aceite Hacendado',
+	'Leche Hacendado',
+	'Galletas Hacendado',
+	'Huevos Hacendado',
+	'Arroz Hacendado',
+	'Pechuga Hacendado',
+	'Mantequilla Hacendado',
+	'Pavo Hacendado',
+	'Queso Hacendado'
+];
+/**
+ * Busca un producto en OpenFoodFacts y lo guarda en la base de datos si es válido.
+ * @param {string} searchTerm - Término de búsqueda para el producto.
+ * @returns {Promise<import('@prisma/client').Product | null>} El producto creado o null si no es válido.
+ */
+async function fetchAndCreateProduct(searchTerm) {
+	console.log(`[OFF] Buscando producto para el término: "${searchTerm}"...`);
+	const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+		searchTerm
+	)}&search_simple=1&action=process&json=1&page_size=5`;
+	try {
+		const response = await fetch(searchUrl);
+		if (!response.ok) {
+			throw new Error(`La API de OFF devolvió el estado ${response.status}`);
+		}
+		const data = await response.json();
+		// Buscamos el primer producto que tenga todos los datos que necesitamos
+		const productData = data.products.find((p) => {
+			const nutriments = p.nutriments;
+			return (
+				p.code &&
+				p.product_name &&
+				p.image_url &&
+				nutriments &&
+				nutriments['energy-kcal_100g'] &&
+				nutriments.proteins_100g &&
+				nutriments.fat_100g &&
+				nutriments.carbohydrates_100g
+			);
+		});
+		if (!productData) {
+			console.warn(`-> [ADVERTENCIA] No se encontró un producto válido para "${searchTerm}".`);
+			return null;
+		}
+		const barcode = productData.code;
+		console.log(`-> [INFO] Producto encontrado: "${productData.product_name}" (${barcode})`);
+		// Comprobar si el producto ya existe en nuestra BD
+		const existingProduct = await prisma.product.findUnique({ where: { id: barcode } });
+		if (existingProduct) {
+			console.log(`-> [CACHE] El producto "${existingProduct.name}" ya existe. Omitiendo.`);
+			return existingProduct;
+		}
+		// Transformar y crear el producto
+		const newProduct = {
+			id: barcode,
+			name: productData.product_name,
+			normalizedName: productData.product_name.toLowerCase(),
+			brand: productData.brands || 'Marca no especificada',
+			imageUrl: productData.image_url,
+			calories: productData.nutriments['energy-kcal_100g'] || 0,
+			protein: productData.nutriments.proteins_100g || 0,
+			fat: productData.nutriments.fat_100g || 0,
+			carbs: productData.nutriments.carbohydrates_100g || 0,
+			fullPayload: productData
+		};
+		const createdProduct = await prisma.product.create({ data: newProduct });
+		console.log(`-> [ÉXITO] Producto "${createdProduct.name}" guardado en la base de datos.`);
+		return createdProduct;
+	} catch (error) {
+		console.error(`-> [ERROR] Fallo al procesar "${searchTerm}":`, error.message);
+		return null;
+	}
+}
+// =================================================================
+// --- FASE 2: CREACIÓN DE INGREDIENTES Y RECETAS ---
+// =================================================================
 const BASE_INGREDIENTS = [
-	'Pollo', 'Ternera', 'Salmón', 'Huevo', 'Lentejas', 'Garbanzos', 'Arroz',
+	'Pollo', 'Ternera', 'Salmón', 'Lentejas', 'Garbanzos', 'Arroz',
 	'Quinoa', 'Patata', 'Brócoli', 'Espinacas', 'Tomate', 'Cebolla', 'Ajo', 'Pimiento'
 ];
+/**
+ * Genera un array de pasos para una receta con formato Markdown.
+ * @returns {string[]} Un array de strings con los pasos.
+ */
+function createMarkdownSteps() {
+	const numSteps = faker.number.int({ min: 3, max: 6 });
+	const steps = [];
+	for (let i = 0; i < numSteps; i++) {
+		let stepText = faker.lorem.sentence();
+		// Añadir Markdown aleatoriamente
+		if (Math.random() > 0.5) {
+			const wordToEmphasize = faker.helpers.arrayElement(stepText.split(' '));
+			const markdownType = Math.random() > 0.5 ? '**' : '*'; // Negrita o cursiva
+			stepText = stepText.replace(wordToEmphasize, `${markdownType}${wordToEmphasize}${markdownType}`);
+		}
+		steps.push(stepText);
+	}
+	return steps;
+}
 async function main() {
-	console.log('Limpiando la base de datos...');
+	console.log('--- Limpiando la base de datos... ---');
 	await prisma.recipeIngredient.deleteMany();
 	await prisma.recipeUrl.deleteMany();
 	await prisma.recipe.deleteMany();
 	await prisma.customIngredient.deleteMany();
 	await prisma.product.deleteMany();
-	console.log('Creando ingredientes de prueba...');
-	const ingredients = [];
+	console.log('✅ Base de datos limpia.');
+	console.log('\n--- Fase 1: Poblando productos desde OpenFoodFacts... ---');
+	const productPromises = SEARCH_TERMS_FOR_SEEDING.map(fetchAndCreateProduct);
+	const seededProducts = (await Promise.all(productPromises)).filter(p => p !== null);
+	console.log(`✅ Fase 1 completada. ${seededProducts.length} productos de OFF procesados.`);
+	console.log('\n--- Fase 2: Creando ingredientes personalizados... ---');
+	const customIngredients = [];
 	for (const name of BASE_INGREDIENTS) {
 		const ingredient = await prisma.customIngredient.create({
 			data: {
@@ -340,36 +472,41 @@ async function main() {
 				carbs: parseFloat(faker.number.float({ min: 0, max: 100, precision: 0.1 }).toFixed(1))
 			}
 		});
-		ingredients.push(ingredient);
+		customIngredients.push(ingredient);
 	}
-	console.log(`${ingredients.length} ingredientes creados.`);
-	console.log('Creando 200 recetas de prueba consistentes...');
+	console.log(`✅ Fase 2 completada. ${customIngredients.length} ingredientes personalizados creados.`);
+	console.log('\n--- Fase 3: Creando recetas de prueba... ---');
+	const allAvailableIngredients = [
+        ...seededProducts.map(p => ({ id: p.id, type: 'product', name: p.name })),
+        ...customIngredients.map(c => ({ id: c.id, type: 'custom', name: c.name }))
+    ];
 	for (let i = 0; i < 200; i++) {
-		const mainIngredient = faker.helpers.arrayElement(ingredients);
+		const mainIngredient = faker.helpers.arrayElement(allAvailableIngredients);
 		const recipeTitle = `${mainIngredient.name} ${faker.food.adjective()}`;
-		const otherIngredients = ingredients.filter(ing => ing.id !== mainIngredient.id);
-		const secondaryIngredients = faker.helpers.arrayElements(otherIngredients, faker.number.int({ min: 2, max: 4 }));
+		const otherIngredients = allAvailableIngredients.filter(ing => ing.id !== mainIngredient.id);
+		const secondaryIngredients = faker.helpers.arrayElements(otherIngredients, faker.number.int({ min: 2, max: 5 }));
 		const recipeIngredients = [mainIngredient, ...secondaryIngredients];
+		console.log(`[RECETA ${i + 1}/200] Creando: "${recipeTitle}"...`);
 		await prisma.recipe.create({
 			data: {
 				title: recipeTitle,
 				normalizedTitle: recipeTitle.toLowerCase(),
-				description: faker.lorem.sentence(),
-				steps: faker.lorem.paragraphs(3),
+				steps: createMarkdownSteps(), // Usamos la nueva función
 				imageUrl: `https://picsum.photos/seed/${encodeURIComponent(recipeTitle)}/800/600`,
 				urls: {
 					create: [{ url: faker.internet.url() }]
 				},
 				ingredients: {
 					create: recipeIngredients.map(ing => ({
-						customIngredientId: ing.id,
+						productId: ing.type === 'product' ? ing.id : undefined,
+						customIngredientId: ing.type === 'custom' ? ing.id : undefined,
 						quantity: parseFloat(faker.number.float({ min: 50, max: 500, precision: 1 }).toFixed(1))
 					}))
 				}
 			}
 		});
 	}
-	console.log('200 recetas consistentes creadas.');
+	console.log('✅ Fase 3 completada. 200 recetas creadas.');
 }
 main()
 	.catch((e) => {
@@ -378,7 +515,7 @@ main()
 	})
 	.finally(async () => {
 		await prisma.$disconnect();
-		console.log('Seeding completado.');
+		console.log('\n🎉 ¡Seeding completado con éxito! La base de datos está lista para usar.');
 	});
 
 // --- Ruta: scripts/hash-password.js ---
@@ -438,8 +575,7 @@ model Recipe {
   id              String             @id @default(cuid())
   title           String
   normalizedTitle String // Para búsqueda case/accent-insensitive
-  description     String?
-  steps           String
+  steps           Json
   // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.
   // Es opcional para permitir recetas sin imagen o para usar la imagen de una URL de referencia.
   imageUrl    String?
@@ -467,6 +603,42 @@ model RecipeIngredient {
   customIngredientId String?
   quantity           Float             // En gramos
 }
+
+// --- Ruta: src/demo.spec.ts ---
+import { describe, it, expect } from 'vitest';
+describe('sum test', () => {
+	it('adds 1 + 2 to equal 3', () => {
+		expect(1 + 2).toBe(3);
+	});
+});
+
+// --- Ruta: src/app.html ---
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
+
+// --- Ruta: src/app.d.ts ---
+// See https://svelte.dev/docs/kit/types#app.d.ts
+// for information about these interfaces
+declare global {
+	namespace App {
+		// interface Error {}
+		// interface Locals {}
+		// interface PageData {}
+		// interface PageState {}
+		// interface Platform {}
+	}
+}
+export {};
 
 // --- Ruta: src/routes/page.server.spec.ts ---
 // Fichero: src/routes/page.server.spec.ts
@@ -931,104 +1103,6 @@ describe('calculateNutritionalInfo', () => {
 # It should be added in your version-control system (e.g., Git)
 provider = "sqlite"
 
-// --- Ruta: src/routes/login/+page.svelte ---
-<!-- Ruta: src/routes/login/+page.svelte -->
-<script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { ActionData } from './$types';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	export let form: ActionData;
-	let loading = false;
-</script>
-<div class="flex min-h-screen items-center justify-center bg-muted/40">
-	<Card.Root class="w-full max-w-sm">
-		<Card.Header class="space-y-1 text-center">
-			<Card.Title class="text-2xl font-bold">Admin Login</Card.Title>
-			<Card.Description>Introduce tus credenciales para acceder al panel</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			<!-- Justificación (form action y enhance): Se usa un <form> estándar con un `action`
-			que apunta a la acción por defecto de esta misma página (`?/default`).
-			`use:enhance` intercepta el envío, lo hace vía fetch, y maneja el resultado
-			(actualizar `form`, redirigir, etc.) de forma automática y robusta. -->
-			<form
-				method="POST"
-				action="?/login"
-				use:enhance={() => {
-					loading = true;
-					return async ({ update }) => {
-						await update();
-						loading = false;
-					};
-				}}
-				class="space-y-4"
-			>
-				<div class="space-y-2">
-					<Label for="user">Usuario</Label>
-					<Input id="user" name="user" type="text" required />
-				</div>
-				<div class="space-y-2">
-					<Label for="password">Contraseña</Label>
-					<Input id="password" name="password" type="password" required />
-				</div>
-				{#if form?.message}
-					<p class="text-sm font-medium text-destructive">{form.message}</p>
-				{/if}
-				<Button type="submit" class="w-full" disabled={loading}>
-					{loading ? 'Entrando...' : 'Entrar'}
-				</Button>
-			</form>
-		</Card.Content>
-	</Card.Root>
-</div>
-
-// --- Ruta: src/routes/login/+page.server.ts ---
-// Ruta: src/routes/login/+page.server.ts
-import { type Actions, fail, redirect } from '@sveltejs/kit';
-import { comparePasswords, createSessionToken } from '$lib/server/auth';
-import { env } from '$env/dynamic/private';
-// Justificación: Se define una 'action' de SvelteKit en lugar de un endpoint de API.
-// Esto integra el manejo del formulario directamente con el ciclo de vida de la página,
-// lo que es más robusto y la forma idiomática de manejar envíos de formularios en SvelteKit.
-export const actions: Actions = {
-	login: async ({ request, cookies }) => {
-		const data = await request.formData();
-		const user = data.get('user');
-		const password = data.get('password');
-		// 1. Validación de entrada
-		if (!user || !password || typeof user !== 'string' || typeof password !== 'string') {
-			return fail(400, { message: 'Usuario y contraseña son requeridos' });
-		}
-		// 2. Verificación de credenciales
-		if (!env.ADMIN_PASSWORD_HASH) {
-			console.error('La variable de entorno ADMIN_PASSWORD_HASH no está configurada.');
-			return fail(500, { message: 'Error de configuración en el servidor' });
-		}
-		const isAdminUser = user === 'juanjocerero';
-		const isPasswordValid = await comparePasswords(password, env.ADMIN_PASSWORD_HASH);
-		if (!isAdminUser || !isPasswordValid) {
-			return fail(401, { message: 'Credenciales inválidas' });
-		}
-		// 3. Creación del token y establecimiento de la cookie
-		const token = await createSessionToken({ sub: 'admin' });
-		cookies.set('session', token, {
-			path: '/',
-			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
-			sameSite: 'strict',
-			maxAge: 60 * 60 * 24 // 1 día
-		});
-		// 4. Redirección
-		// Justificación (redirect): En lugar de devolver un JSON, una 'action' exitosa
-		// puede lanzar una redirección. SvelteKit la gestionará correctamente,
-		// tanto en el lado del servidor como en el cliente (si se usa `enhance`).
-		throw redirect(303, '/');
-	}
-};
-
 // --- Ruta: src/lib/server/zodErrors.ts ---
 // Ruta: src/lib/server/zodErrors.ts
 import type { ZodError } from 'zod';
@@ -1122,6 +1196,34 @@ export async function verifyToken(token: string) {
 	}
 }
 
+// --- Ruta: src/lib/runes/useDebounce.svelte.ts ---
+// Fichero: src/lib/runes/useDebounce.svelte.ts
+/**
+ * Una runa de Svelte 5 personalizada que retrasa la actualización de un valor.
+ * @param value La señal reactiva cuyo valor se quiere retrasar.
+ * @param delay El tiempo de espera en milisegundos.
+ * @returns Una nueva señal que contiene el valor retrasado.
+ */
+export function useDebounce<T>(value: () => T, delay: number): () => T {
+	let debouncedValue = $state(value());
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
+	$effect(() => {
+		const currentValue = value();
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+		timeoutId = setTimeout(() => {
+			debouncedValue = currentValue;
+		}, delay);
+		return () => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+		};
+	});
+	return () => debouncedValue;
+}
+
 // --- Ruta: src/lib/schemas/searchSchema.ts ---
 // Fichero: src/lib/schemas/searchSchema.ts
 import { z } from 'zod';
@@ -1167,8 +1269,9 @@ const RecipeIngredientSchema = z.object({
 // Valida la estructura completa del objeto que se enviará a la API.
 export const RecipeSchema = z.object({
 	title: z.string().min(1, { message: 'El título no puede estar vacío.' }),
-	description: z.string().optional(),
-	steps: z.string().min(1, { message: 'Debe haber al menos un paso.' }),
+	steps: z
+		.array(z.string().min(1, { message: 'El paso no puede estar vacío.' }))
+		.min(1, { message: 'Debe haber al menos un paso.' }),
 	ingredients: z
 		.array(RecipeIngredientSchema)
 		.min(1, { message: 'La receta debe tener al menos un ingrediente.' }),
@@ -1202,38 +1305,11 @@ export const IngredientSchema = z.object({
 // la forma de los datos sin importar el validador.
 export type Ingredient = z.infer<typeof IngredientSchema>;
 
-// --- Ruta: src/lib/runes/useDebounce.svelte.ts ---
-// Fichero: src/lib/runes/useDebounce.svelte.ts
-/**
- * Una runa de Svelte 5 personalizada que retrasa la actualización de un valor.
- * @param value La señal reactiva cuyo valor se quiere retrasar.
- * @param delay El tiempo de espera en milisegundos.
- * @returns Una nueva señal que contiene el valor retrasado.
- */
-export function useDebounce<T>(value: () => T, delay: number): () => T {
-	let debouncedValue = $state(value());
-	let timeoutId: ReturnType<typeof setTimeout> | null = null;
-	$effect(() => {
-		const currentValue = value();
-		if (timeoutId) {
-			clearTimeout(timeoutId);
-		}
-		timeoutId = setTimeout(() => {
-			debouncedValue = currentValue;
-		}, delay);
-		return () => {
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-			}
-		};
-	});
-	return () => debouncedValue;
-}
-
-// --- Ruta: prisma/migrations/20250802143934_add_normalized_title_to_recipe/migration.sql ---
+// --- Ruta: prisma/migrations/20250803153006_remove_description_and_json_steps/migration.sql ---
 /*
   Warnings:
-  - Added the required column `normalizedTitle` to the `Recipe` table without a default value. This is not possible if the table is not empty.
+  - You are about to drop the column `description` on the `Recipe` table. All the data in the column will be lost.
+  - You are about to alter the column `steps` on the `Recipe` table. The data in that column could be lost. The data in that column will be cast from `String` to `Json`.
 */
 -- RedefineTables
 PRAGMA defer_foreign_keys=ON;
@@ -1242,11 +1318,10 @@ CREATE TABLE "new_Recipe" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "normalizedTitle" TEXT NOT NULL,
-    "description" TEXT,
-    "steps" TEXT NOT NULL,
+    "steps" JSONB NOT NULL,
     "imageUrl" TEXT
 );
-INSERT INTO "new_Recipe" ("description", "id", "imageUrl", "steps", "title") SELECT "description", "id", "imageUrl", "steps", "title" FROM "Recipe";
+INSERT INTO "new_Recipe" ("id", "imageUrl", "normalizedTitle", "steps", "title") SELECT "id", "imageUrl", "normalizedTitle", "steps", "title" FROM "Recipe";
 DROP TABLE "Recipe";
 ALTER TABLE "new_Recipe" RENAME TO "Recipe";
 PRAGMA foreign_keys=ON;
@@ -1402,6 +1477,126 @@ CREATE TABLE "RecipeIngredient" (
 -- CreateIndex
 CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 
+// --- Ruta: prisma/migrations/20250802143934_add_normalized_title_to_recipe/migration.sql ---
+/*
+  Warnings:
+  - Added the required column `normalizedTitle` to the `Recipe` table without a default value. This is not possible if the table is not empty.
+*/
+-- RedefineTables
+PRAGMA defer_foreign_keys=ON;
+PRAGMA foreign_keys=OFF;
+CREATE TABLE "new_Recipe" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "normalizedTitle" TEXT NOT NULL,
+    "description" TEXT,
+    "steps" TEXT NOT NULL,
+    "imageUrl" TEXT
+);
+INSERT INTO "new_Recipe" ("description", "id", "imageUrl", "steps", "title") SELECT "description", "id", "imageUrl", "steps", "title" FROM "Recipe";
+DROP TABLE "Recipe";
+ALTER TABLE "new_Recipe" RENAME TO "Recipe";
+PRAGMA foreign_keys=ON;
+PRAGMA defer_foreign_keys=OFF;
+
+// --- Ruta: src/routes/login/+page.svelte ---
+<!-- Ruta: src/routes/login/+page.svelte -->
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import type { ActionData } from './$types';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	export let form: ActionData;
+	let loading = false;
+</script>
+<div class="flex min-h-screen items-center justify-center bg-muted/40">
+	<Card.Root class="w-full max-w-sm">
+		<Card.Header class="space-y-1 text-center">
+			<Card.Title class="text-2xl font-bold">Admin Login</Card.Title>
+			<Card.Description>Introduce tus credenciales para acceder al panel</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<!-- Justificación (form action y enhance): Se usa un <form> estándar con un `action`
+			que apunta a la acción por defecto de esta misma página (`?/default`).
+			`use:enhance` intercepta el envío, lo hace vía fetch, y maneja el resultado
+			(actualizar `form`, redirigir, etc.) de forma automática y robusta. -->
+			<form
+				method="POST"
+				action="?/login"
+				use:enhance={() => {
+					loading = true;
+					return async ({ update }) => {
+						await update();
+						loading = false;
+					};
+				}}
+				class="space-y-4"
+			>
+				<div class="space-y-2">
+					<Label for="user">Usuario</Label>
+					<Input id="user" name="user" type="text" required />
+				</div>
+				<div class="space-y-2">
+					<Label for="password">Contraseña</Label>
+					<Input id="password" name="password" type="password" required />
+				</div>
+				{#if form?.message}
+					<p class="text-sm font-medium text-destructive">{form.message}</p>
+				{/if}
+				<Button type="submit" class="w-full" disabled={loading}>
+					{loading ? 'Entrando...' : 'Entrar'}
+				</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
+</div>
+
+// --- Ruta: src/routes/login/+page.server.ts ---
+// Ruta: src/routes/login/+page.server.ts
+import { type Actions, fail, redirect } from '@sveltejs/kit';
+import { comparePasswords, createSessionToken } from '$lib/server/auth';
+import { env } from '$env/dynamic/private';
+// Justificación: Se define una 'action' de SvelteKit en lugar de un endpoint de API.
+// Esto integra el manejo del formulario directamente con el ciclo de vida de la página,
+// lo que es más robusto y la forma idiomática de manejar envíos de formularios en SvelteKit.
+export const actions: Actions = {
+	login: async ({ request, cookies }) => {
+		const data = await request.formData();
+		const user = data.get('user');
+		const password = data.get('password');
+		// 1. Validación de entrada
+		if (!user || !password || typeof user !== 'string' || typeof password !== 'string') {
+			return fail(400, { message: 'Usuario y contraseña son requeridos' });
+		}
+		// 2. Verificación de credenciales
+		if (!env.ADMIN_PASSWORD_HASH) {
+			console.error('La variable de entorno ADMIN_PASSWORD_HASH no está configurada.');
+			return fail(500, { message: 'Error de configuración en el servidor' });
+		}
+		const isAdminUser = user === 'juanjocerero';
+		const isPasswordValid = await comparePasswords(password, env.ADMIN_PASSWORD_HASH);
+		if (!isAdminUser || !isPasswordValid) {
+			return fail(401, { message: 'Credenciales inválidas' });
+		}
+		// 3. Creación del token y establecimiento de la cookie
+		const token = await createSessionToken({ sub: 'admin' });
+		cookies.set('session', token, {
+			path: '/',
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 60 * 60 * 24 // 1 día
+		});
+		// 4. Redirección
+		// Justificación (redirect): En lugar de devolver un JSON, una 'action' exitosa
+		// puede lanzar una redirección. SvelteKit la gestionará correctamente,
+		// tanto en el lado del servidor como en el cliente (si se usa `enhance`).
+		throw redirect(303, '/');
+	}
+};
+
 // --- Ruta: src/routes/recetas/nueva/+page.svelte ---
 <!-- Ruta: src/routes/recetas/nueva/+page.svelte -->
 <script lang="ts">
@@ -1430,8 +1625,7 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 	};
 	// --- Estado del formulario ---
 	let title = $state('');
-	let description = $state('');
-	let steps = $state('');
+	let steps = $state(['']);
 	let imageUrl = $state('');
 	let urls = $state<string[]>([]);
 	let ingredients = $state<IngredientWithDetails[]>([]);
@@ -1536,6 +1730,7 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 			<!-- Campos ocultos para enviar datos complejos -->
 			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
 			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input type="hidden" name="steps" value={JSON.stringify(steps.filter(s => s.trim() !== ''))} />
 			<input type="hidden" name="imageUrl" value={imageUrl} />
 			<!-- Campos del formulario -->
 			<div class="space-y-2">
@@ -1544,10 +1739,6 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 				{#if form?.errors?.title}
 					<p class="text-sm text-red-500">{form.errors.title}</p>
 				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" name="description" bind:value={description} />
 			</div>
 			<div class="space-y-2">
 				<Label for="image">Imagen de la Receta</Label>
@@ -1572,9 +1763,35 @@ CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 					<p class="text-sm text-red-500">{form.errors.urls}</p>
 				{/if}
 			</div>
-			<div class="space-y-2">
-				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
+			<div class="space-y-4">
+				<Label class="text-lg font-medium">Pasos de la Receta</Label>
+				{#each steps as step, i}
+					<div class="flex items-start gap-2">
+						<div class="flex-1 space-y-1">
+							<Label for={`step-${i}`} class="text-sm font-normal text-gray-600">Paso {i + 1}</Label>
+							<Textarea
+								id={`step-${i}`}
+								name={`step-${i}`}
+								bind:value={steps[i]}
+								rows={3}
+								placeholder="Describe este paso... (soporta Markdown)"
+							/>
+						</div>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onclick={() => steps.splice(i, 1)}
+							class="mt-6"
+							aria-label="Eliminar paso"
+						>
+							<Trash2 class="h-4 w-4" />
+						</Button>
+					</div>
+				{/each}
+				<Button type="button" variant="outline" onclick={() => steps.push('')}>
+					Añadir Paso
+				</Button>
 				{#if form?.errors?.steps}
 					<p class="text-sm text-red-500">{form.errors.steps}</p>
 				{/if}
@@ -1725,7 +1942,8 @@ export const actions: Actions = {
 			...data,
 			// Los datos complejos se envían como JSON string desde el cliente.
 			ingredients: JSON.parse(data.ingredients as string),
-			urls: JSON.parse(data.urls as string)
+			urls: JSON.parse(data.urls as string),
+			steps: JSON.parse(data.steps as string)
 		};
 		const validation = RecipeSchema.safeParse(dataToValidate);
 		if (!validation.success) {
@@ -2107,6 +2325,217 @@ export const actions: Actions = {
 	</div>
 </div>
 
+// --- Ruta: src/routes/recetas/[id]/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
+<script lang="ts">
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Table,
+		TableBody,
+		TableCell,
+		TableHead,
+		TableHeader,
+		TableRow
+	} from '$lib/components/ui/table';
+	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
+	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button';
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
+	import { browser } from '$app/environment';
+	let { data }: { data: PageData } = $props();
+	const { recipe } = data;
+	// Tipos explícitos para mayor claridad y seguridad
+	type IngredientFromLoader = PageData['recipe']['ingredients'][number];
+	type MappedIngredient = {
+		name: string;
+		quantity: number;
+		calories: number;
+		protein: number;
+		fat: number;
+		carbs: number;
+	};
+	const ingredientsList = $derived(
+		recipe.ingredients
+			.map((ing: IngredientFromLoader) => {
+				const details = ing.product ?? ing.customIngredient;
+				if (!details) return null;
+				return {
+					name: details.name,
+					quantity: ing.quantity,
+					calories: details.calories ?? 0,
+					protein: details.protein ?? 0,
+					fat: details.fat ?? 0,
+					carbs: details.carbs ?? 0
+				};
+			})
+			.filter((i: MappedIngredient | null): i is MappedIngredient => i !== null)
+	);
+	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
+	// Función robusta para parsear los pasos, que ya vienen como array desde el servidor
+	const getRecipeSteps = (stepsData: unknown): string[] => {
+		if (Array.isArray(stepsData)) {
+			return stepsData.map(String);
+		}
+		// Fallback por si en el cliente llega como string JSON
+		if (browser && typeof stepsData === 'string') {
+			try {
+				const parsed = JSON.parse(stepsData);
+				return Array.isArray(parsed) ? parsed.map(String) : [String(stepsData)];
+			} catch (e) {
+				return [String(stepsData)]; // No era JSON, tratar como texto plano
+			}
+		}
+		return [];
+	};
+	const steps = $derived(getRecipeSteps(recipe.steps));
+	// Función para sanitizar el HTML de forma segura en el navegador
+	const sanitizeHtml = (html: string) => {
+		if (browser) {
+			return DOMPurify.sanitize(html);
+		}
+		// En SSR, devolvemos el HTML sin sanitizar, asumiendo que la fuente es confiable.
+		// La sanitización del cliente lo protegerá al renderizar.
+		return html;
+	};
+</script>
+<div class="max-w-4xl mx-auto my-8 space-y-8">
+	<header class="space-y-4">
+		<div class="flex justify-between items-start">
+			<div class="flex-1">
+				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
+			</div>
+			<a href="/recetas/{recipe.id}/editar">
+				<Button variant="outline">Editar</Button>
+			</a>
+		</div>
+		{#if recipe.imageUrl}
+			<div class="w-full aspect-video rounded-lg overflow-hidden">
+				<img
+					src={recipe.imageUrl}
+					alt="Foto de {recipe.title}"
+					class="w-full h-full object-cover"
+				/>
+			</div>
+		{/if}
+	</header>
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+		<div class="md:col-span-2 space-y-8">
+			<!-- Pasos Renderizados con Markdown y Sanitizados -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Preparación</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div class="prose max-w-none">
+						<ol>
+							{#each steps as step}
+								<li>
+									{@html sanitizeHtml(
+										marked.parse(step, { gfm: true, breaks: true, async: false })
+									)}
+								</li>
+							{/each}
+						</ol>
+					</div>
+				</CardContent>
+			</Card>
+			{#if recipe.urls && recipe.urls.length > 0}
+				<Card>
+					<CardHeader>
+						<CardTitle>Referencias</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ul class="list-disc pl-5 space-y-2">
+							{#each recipe.urls as ref}
+								<li>
+									<a
+										href={ref.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-blue-600 hover:underline"
+									>
+										{ref.url}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</CardContent>
+				</Card>
+			{/if}
+		</div>
+		<div class="space-y-8">
+			<!-- Información Nutricional -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Información Nutricional</CardTitle>
+					<CardDescription>Valores totales para la receta.</CardDescription>
+				</CardHeader>
+				<CardContent class="grid grid-cols-2 gap-4">
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</CardContent>
+			</Card>
+			<!-- Ingredientes -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Ingredientes</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Nombre</TableHead>
+								<TableHead class="text-right">Cantidad</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{#each ingredientsList as ingredient}
+								<TableRow>
+									<TableCell class="font-medium">{ingredient.name}</TableCell>
+									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
+								</TableRow>
+							{/each}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
+		</div>
+	</div>
+</div>
+
+// --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/+page.server.ts
+import { error } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { PageServerLoad } from './$types';
+// Justificación: La función `load` del servidor es ideal para cargar los datos
+// de una receta específica antes de que la página se renderice.
+// Esto asegura que los datos estén disponibles inmediatamente y mejora el SEO.
+export const load: PageServerLoad = async ({ params }) => {
+	const recipe = await recipeService.getById(params.id);
+	if (!recipe) {
+		throw error(404, 'Receta no encontrada');
+	}
+	return {
+		recipe
+	};
+};
+
 // --- Ruta: src/routes/api/scrape-image/api.spec.ts ---
 // Ruta: src/routes/api/scrape-image/api.spec.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -2213,175 +2642,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		console.error('Error scraping image:', e);
 		throw error(500, 'Error interno al procesar la imagen');
 	}
-};
-
-// --- Ruta: src/routes/recetas/[id]/+page.svelte ---
-<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
-<script lang="ts">
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow
-	} from '$lib/components/ui/table';
-	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
-	import type { PageData } from './$types';
-	import { Button } from '$lib/components/ui/button';
-	const { data } = $props<PageData>();
-	const { recipe } = data;
-	const ingredientsList = $derived(
-		recipe.ingredients
-			.map((ing) => {
-				const details = ing.product ?? ing.customIngredient;
-				if (!details) return null;
-				return {
-					name: details.name,
-					quantity: ing.quantity,
-					calories: details.calories ?? 0,
-					protein: details.protein ?? 0,
-					fat: details.fat ?? 0,
-					carbs: details.carbs ?? 0
-				};
-			})
-			.filter((i): i is NonNullable<typeof i> => i !== null)
-	);
-	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
-</script>
-<div class="max-w-4xl mx-auto my-8 space-y-8">
-	<header class="space-y-4">
-		<div class="flex justify-between items-start">
-			<div class="flex-1">
-				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
-				{#if recipe.description}
-					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
-				{/if}
-			</div>
-			<a href="/recetas/{recipe.id}/editar">
-				<Button variant="outline">Editar</Button>
-			</a>
-		</div>
-		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
-		{#if recipe.imageUrl}
-			<div class="w-full aspect-video rounded-lg overflow-hidden">
-				<img
-					src={recipe.imageUrl}
-					alt="Foto de {recipe.title}"
-					class="w-full h-full object-cover"
-				/>
-			</div>
-		{/if}
-	</header>
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-		<div class="md:col-span-2 space-y-8">
-			<!-- Pasos -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Preparación</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div class="prose max-w-none whitespace-pre-wrap">
-						{recipe.steps}
-					</div>
-				</CardContent>
-			</Card>
-			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
-			{#if recipe.urls && recipe.urls.length > 0}
-				<Card>
-					<CardHeader>
-						<CardTitle>Referencias</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ul class="list-disc pl-5 space-y-2">
-							{#each recipe.urls as ref}
-								<li>
-									<a
-										href={ref.url}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="text-blue-600 hover:underline"
-									>
-										{ref.url}
-									</a>
-								</li>
-							{/each}
-						</ul>
-					</CardContent>
-				</Card>
-			{/if}
-		</div>
-		<div class="space-y-8">
-			<!-- Información Nutricional -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Información Nutricional</CardTitle>
-					<CardDescription>Valores totales para la receta.</CardDescription>
-				</CardHeader>
-				<CardContent class="grid grid-cols-2 gap-4">
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
-					</div>
-				</CardContent>
-			</Card>
-			<!-- Ingredientes -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Ingredientes</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Nombre</TableHead>
-								<TableHead class="text-right">Cantidad</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{#each ingredientsList as ingredient}
-								<TableRow>
-									<TableCell class="font-medium">{ingredient.name}</TableCell>
-									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
-								</TableRow>
-							{/each}
-						</TableBody>
-					</Table>
-				</CardContent>
-			</Card>
-		</div>
-	</div>
-</div>
-
-// --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
-// Ruta: src/routes/recetas/[id]/+page.server.ts
-import { error } from '@sveltejs/kit';
-import { recipeService } from '$lib/server/services/recipeService';
-import type { PageServerLoad } from './$types';
-// Justificación: La función `load` del servidor es ideal para cargar los datos
-// de una receta específica antes de que la página se renderice.
-// Esto asegura que los datos estén disponibles inmediatamente y mejora el SEO.
-export const load: PageServerLoad = async ({ params }) => {
-	const recipe = await recipeService.getById(params.id);
-	if (!recipe) {
-		throw error(404, 'Receta no encontrada');
-	}
-	return {
-		recipe
-	};
 };
 
 // --- Ruta: src/routes/api/recipes/server.spec.ts ---
@@ -2520,330 +2780,6 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 };
 
-// --- Ruta: src/routes/admin/ingredientes/+page.svelte ---
-<!-- Ruta: src/routes/admin/ingredientes/+page.svelte -->
-<script lang="ts">
-	import { enhance } from '$app/forms';
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Table from '$lib/components/ui/table';
-	import type { ActionData, PageData } from './$types';
-	import SyncDialog from '$lib/components/admin/SyncDialog.svelte';
-	import { invalidateAll } from '$app/navigation';
-	let { data, form } = $props<{ data: PageData; form: ActionData }>();
-	// --- Lógica para el diálogo de sincronización ---
-	let isSyncDialogOpen = $state(false);
-	let syncState = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
-	let syncResult = $state<any>(null);
-	// Justificación: Esta función maneja el flujo de la sincronización en el cliente.
-	// Llama al endpoint del backend, gestiona los estados de carga/éxito/error
-	// y actualiza los datos de la página al finalizar para reflejar los cambios.
-	async function handleSync() {
-		syncState = 'loading';
-		// isSyncDialogOpen se controla automáticamente por el Dialog.Trigger
-		try {
-			const response = await fetch('/api/ingredients/sync', {
-				method: 'POST',
-				credentials: 'include' // Justificación: Se incluye para enviar la cookie de sesión.
-			});
-			if (!response.ok) {
-				throw new Error('Falló la petición de sincronización');
-			}
-			syncResult = await response.json();
-			syncState = 'success';
-			// Justificación: invalidamos los datos de la página actual para que SvelteKit
-			// los vuelva a cargar del servidor, mostrando así los ingredientes actualizados.
-			await invalidateAll();
-		} catch (error) {
-			console.error('Error durante la sincronización:', error);
-			syncState = 'error';
-		}
-	}
-</script>
-<div class="container mx-auto py-10">
-	<div class="flex justify-between items-center mb-6">
-		<h1 class="text-2xl font-bold">Gestión de Ingredientes</h1>
-		<div class="flex gap-2">
-			<!-- Botón de Sincronización -->
-			<Dialog.Root bind:open={isSyncDialogOpen}>
-				<Dialog.Trigger class={buttonVariants({ variant: 'outline' })} onclick={handleSync}>
-					Sincronizar con OFF
-				</Dialog.Trigger>
-				{#if isSyncDialogOpen}
-					<SyncDialog state={syncState} result={syncResult} />
-				{/if}
-			</Dialog.Root>
-			<a href="/admin/ingredientes/off" class={buttonVariants({ variant: 'outline' })}>
-				Añadir desde Open Food Facts
-			</a>
-			<Dialog.Root>
-				<Dialog.Trigger class={buttonVariants()}>Añadir Ingrediente Personalizado</Dialog.Trigger>
-				<Dialog.Content class="sm:max-w-[425px]">
-					<Dialog.Header>
-						<Dialog.Title>Añadir Nuevo Ingrediente</Dialog.Title>
-						<Dialog.Description>
-							Completa los detalles del ingrediente personalizado. Todos los valores son por 100g.
-						</Dialog.Description>
-					</Dialog.Header>
-					<form method="POST" action="?/create" use:enhance>
-						<div class="grid gap-4 py-4">
-							<div class="grid grid-cols-4 items-center gap-4">
-								<Label for="name" class="text-right">Nombre</Label>
-								<Input id="name" name="name" class="col-span-3" />
-							</div>
-							<div class="grid grid-cols-4 items-center gap-4">
-								<Label for="calories" class="text-right">Calorías</Label>
-								<Input id="calories" name="calories" type="number" step="0.1" class="col-span-3" />
-							</div>
-							<div class="grid grid-cols-4 items-center gap-4">
-								<Label for="protein" class="text-right">Proteínas</Label>
-								<Input id="protein" name="protein" type="number" step="0.1" class="col-span-3" />
-							</div>
-							<div class="grid grid-cols-4 items-center gap-4">
-								<Label for="fat" class="text-right">Grasas</Label>
-								<Input id="fat" name="fat" type="number" step="0.1" class="col-span-3" />
-							</div>
-							<div class="grid grid-cols-4 items-center gap-4">
-								<Label for="carbs" class="text-right">Carbohidratos</Label>
-								<Input id="carbs" name="carbs" type="number" step="0.1" class="col-span-3" />
-							</div>
-						</div>
-						<Dialog.Footer>
-							<Dialog.Close class={buttonVariants()} type="submit">Guardar Ingrediente</Dialog.Close>
-						</Dialog.Footer>
-					</form>
-				</Dialog.Content>
-			</Dialog.Root>
-		</div>
-	</div>
-	<div class="rounded-md border">
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Nombre</Table.Head>
-					<Table.Head>Origen</Table.Head>
-					<Table.Head class="text-right">Calorías (por 100g)</Table.Head>
-					<Table.Head class="text-right">Proteínas (g)</Table.Head>
-					<Table.Head class="text-right">Grasas (g)</Table.Head>
-					<Table.Head class="text-right">Carbs (g)</Table.Head>
-					<Table.Head class="text-right">Acciones</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each data.ingredients as ingredient (ingredient.id)}
-					<Table.Row>
-						<Table.Cell class="font-medium">{ingredient.name}</Table.Cell>
-						<Table.Cell>
-							{#if ingredient.source === 'custom'}
-								<span
-									class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300"
-								>
-									Personalizado
-								</span>
-							{:else}
-								<span
-									class="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300"
-								>
-									Caché de OFF
-								</span>
-							{/if}
-						</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
-						<Table.Cell class="text-right">{ingredient.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
-						<Table.Cell class="text-right">
-							<Dialog.Root>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={ingredient.source !== 'custom'}
-									onclick={(e) => {
-										if (ingredient.source !== 'custom') e.preventDefault();
-										// Lógica para abrir el diálogo si es necesario
-									}}
-								>
-									Editar
-								</Button>
-								<Dialog.Content class="sm:max-w-[425px]">
-									<Dialog.Header>
-										<Dialog.Title>Editar Ingrediente</Dialog.Title>
-									</Dialog.Header>
-									<form method="POST" action="?/update" use:enhance>
-										<input type="hidden" name="id" value={ingredient.id} />
-										<div class="grid gap-4 py-4">
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="name-edit" class="text-right">Nombre</Label>
-												<Input
-													id="name-edit"
-													name="name"
-													value={ingredient.name}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="calories-edit" class="text-right">Calorías</Label>
-												<Input
-													id="calories-edit"
-													name="calories"
-													type="number"
-													step="0.1"
-													value={ingredient.calories}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="protein-edit" class="text-right">Proteínas</Label>
-												<Input
-													id="protein-edit"
-													name="protein"
-													type="number"
-													step="0.1"
-													value={ingredient.protein}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="fat-edit" class="text-right">Grasas</Label>
-												<Input
-													id="fat-edit"
-													name="fat"
-													type="number"
-													step="0.1"
-													value={ingredient.fat}
-													class="col-span-3"
-												/>
-											</div>
-											<div class="grid grid-cols-4 items-center gap-4">
-												<Label for="carbs-edit" class="text-right">Carbohidratos</Label>
-												<Input
-													id="carbs-edit"
-													name="carbs"
-													type="number"
-													step="0.1"
-													value={ingredient.carbs}
-													class="col-span-3"
-												/>
-											</div>
-										</div>
-										<Dialog.Footer>
-											<Dialog.Close class={buttonVariants()} type="submit">Guardar Cambios</Dialog.Close>
-										</Dialog.Footer>
-									</form>
-								</Dialog.Content>
-							</Dialog.Root>
-							<Dialog.Root>
-								<Dialog.Trigger
-									class={buttonVariants({ variant: 'destructive', size: 'sm' }) + ' ml-2'}
-								>
-									Eliminar
-								</Dialog.Trigger>
-								<Dialog.Content class="sm:max-w-[425px]">
-									<Dialog.Header>
-										<Dialog.Title>Confirmar Eliminación</Dialog.Title>
-										<Dialog.Description>
-											¿Estás seguro de que quieres eliminar el ingrediente "{ingredient.name}"? Esta
-											acción no se puede deshacer.
-										</Dialog.Description>
-									</Dialog.Header>
-									<form method="POST" action="?/delete" use:enhance>
-										<input type="hidden" name="id" value={ingredient.id} />
-										<input type="hidden" name="source" value={ingredient.source} />
-										<Dialog.Footer>
-											<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
-											<Button variant="destructive" type="submit">Eliminar</Button>
-										</Dialog.Footer>
-									</form>
-								</Dialog.Content>
-							</Dialog.Root>
-						</Table.Cell>
-					</Table.Row>
-				{:else}
-					<Table.Row>
-						<Table.Cell colspan={7} class="text-center">No hay ingredientes.</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
-	</div>
-</div>
-
-// --- Ruta: src/routes/admin/ingredientes/+page.server.ts ---
-// Ruta: src/routes/admin/ingredientes/+page.server.ts
-import { fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
-// Justificación (load): La función `load` ahora llama al endpoint GET de la API usando `fetch`.
-// Esto asegura que la página y la API están desacopladas. La página consume su propia API,
-// una práctica conocida como "dogfooding", que garantiza que la API es robusta.
-export const load: PageServerLoad = async ({ fetch }) => {
-	const response = await fetch('/api/ingredients');
-	if (!response.ok) {
-		// En un caso real, podrías manejar el error de forma más elegante.
-		return { ingredients: [] };
-	}
-	const ingredients = await response.json();
-	return {
-		ingredients
-	};
-};
-// Justificación (actions): Las acciones ahora empaquetan los datos del formulario y los envían
-// al endpoint de la API correspondiente usando `fetch`. La lógica de negocio y la validación
-// residen únicamente en la API, y esta acción solo se encarga de la comunicación.
-export const actions: Actions = {
-	create: async ({ request, fetch }) => {
-		const formData = await request.formData();
-		const response = await fetch('/api/ingredients', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(Object.fromEntries(formData))
-		});
-		if (!response.ok) {
-			const result = await response.json();
-			return fail(response.status, {
-				data: Object.fromEntries(formData),
-				errors: result.errors
-			});
-		}
-		return { success: true, message: 'Ingrediente creado con éxito' };
-	},
-	update: async ({ request, fetch }) => {
-		const formData = await request.formData();
-		const id = formData.get('id') as string;
-		const response = await fetch(`/api/ingredients/${id}`,
-		{
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(Object.fromEntries(formData))
-		});
-		if (!response.ok) {
-			const result = await response.json();
-			return fail(response.status, {
-				data: Object.fromEntries(formData),
-				errors: result.errors,
-				id
-			});
-		}
-		return { success: true, message: 'Ingrediente actualizado con éxito' };
-	},
-	delete: async ({ request, fetch }) => {
-		const formData = await request.formData();
-		const id = formData.get('id') as string;
-		const source = formData.get('source') as string;
-		// Justificación: La lógica para determinar qué endpoint llamar ahora reside aquí,
-		// basándose en el 'source' del ingrediente.
-		const apiPath = source === 'custom' ? `/api/ingredients/${id}` : `/api/products/${id}`;
-		const response = await fetch(apiPath, {
-			method: 'DELETE'
-		});
-		if (!response.ok) {
-			return fail(response.status, { message: 'Error al eliminar el ingrediente' });
-		}
-		return { success: true, message: 'Ingrediente eliminado con éxito' };
-	}
-};
-
 // --- Ruta: src/lib/server/services/recipeService.ts ---
 // Ruta: src/lib/server/services/recipeService.ts
 import prisma from '$lib/server/prisma';
@@ -2890,13 +2826,12 @@ export const recipeService = {
 		});
 	},
 	async create(data: RecipeData) {
-		const { title, description, steps, ingredients, urls, imageUrl } = data;
+		const { title, steps, ingredients, urls, imageUrl } = data;
 		return await prisma.$transaction(async (tx) => {
 			const newRecipe = await tx.recipe.create({
 				data: {
 					title,
 					normalizedTitle: title.toLowerCase(),
-					description,
 					steps,
 					imageUrl,
 					urls: {
@@ -2918,14 +2853,13 @@ export const recipeService = {
 		});
 	},
 	async update(id: string, data: RecipeData) {
-		const { title, description, steps, ingredients, urls, imageUrl } = data;
+		const { title, steps, ingredients, urls, imageUrl } = data;
 		return await prisma.$transaction(async (tx) => {
 			await tx.recipe.update({
 				where: { id },
 				data: {
 					title,
 					normalizedTitle: title.toLowerCase(),
-					description,
 					steps,
 					imageUrl
 				}
@@ -4133,6 +4067,425 @@ describe('imageService', () => {
 	});
 });
 
+// --- Ruta: src/routes/admin/ingredientes/+page.svelte ---
+<!-- Ruta: src/routes/admin/ingredientes/+page.svelte -->
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Table from '$lib/components/ui/table';
+	import type { ActionData, PageData } from './$types';
+	import SyncDialog from '$lib/components/admin/SyncDialog.svelte';
+	import { invalidateAll } from '$app/navigation';
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	// --- Lógica para el diálogo de sincronización ---
+	let isSyncDialogOpen = $state(false);
+	let syncState = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
+	let syncResult = $state<any>(null);
+	// Justificación: Esta función maneja el flujo de la sincronización en el cliente.
+	// Llama al endpoint del backend, gestiona los estados de carga/éxito/error
+	// y actualiza los datos de la página al finalizar para reflejar los cambios.
+	async function handleSync() {
+		syncState = 'loading';
+		// isSyncDialogOpen se controla automáticamente por el Dialog.Trigger
+		try {
+			const response = await fetch('/api/ingredients/sync', {
+				method: 'POST',
+				credentials: 'include' // Justificación: Se incluye para enviar la cookie de sesión.
+			});
+			if (!response.ok) {
+				throw new Error('Falló la petición de sincronización');
+			}
+			syncResult = await response.json();
+			syncState = 'success';
+			// Justificación: invalidamos los datos de la página actual para que SvelteKit
+			// los vuelva a cargar del servidor, mostrando así los ingredientes actualizados.
+			await invalidateAll();
+		} catch (error) {
+			console.error('Error durante la sincronización:', error);
+			syncState = 'error';
+		}
+	}
+</script>
+<div class="container mx-auto py-10">
+	<div class="flex justify-between items-center mb-6">
+		<h1 class="text-2xl font-bold">Gestión de Ingredientes</h1>
+		<div class="flex gap-2">
+			<!-- Botón de Sincronización -->
+			<Dialog.Root bind:open={isSyncDialogOpen}>
+				<Dialog.Trigger class={buttonVariants({ variant: 'outline' })} onclick={handleSync}>
+					Sincronizar con OFF
+				</Dialog.Trigger>
+				{#if isSyncDialogOpen}
+					<SyncDialog state={syncState} result={syncResult} />
+				{/if}
+			</Dialog.Root>
+			<a href="/admin/ingredientes/off" class={buttonVariants({ variant: 'outline' })}>
+				Añadir desde Open Food Facts
+			</a>
+			<Dialog.Root>
+				<Dialog.Trigger class={buttonVariants()}>Añadir Ingrediente Personalizado</Dialog.Trigger>
+				<Dialog.Content class="sm:max-w-[425px]">
+					<Dialog.Header>
+						<Dialog.Title>Añadir Nuevo Ingrediente</Dialog.Title>
+						<Dialog.Description>
+							Completa los detalles del ingrediente personalizado. Todos los valores son por 100g.
+						</Dialog.Description>
+					</Dialog.Header>
+					<form method="POST" action="?/create" use:enhance>
+						<div class="grid gap-4 py-4">
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="name" class="text-right">Nombre</Label>
+								<Input id="name" name="name" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="calories" class="text-right">Calorías</Label>
+								<Input id="calories" name="calories" type="number" step="0.1" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="protein" class="text-right">Proteínas</Label>
+								<Input id="protein" name="protein" type="number" step="0.1" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="fat" class="text-right">Grasas</Label>
+								<Input id="fat" name="fat" type="number" step="0.1" class="col-span-3" />
+							</div>
+							<div class="grid grid-cols-4 items-center gap-4">
+								<Label for="carbs" class="text-right">Carbohidratos</Label>
+								<Input id="carbs" name="carbs" type="number" step="0.1" class="col-span-3" />
+							</div>
+						</div>
+						<Dialog.Footer>
+							<Dialog.Close class={buttonVariants()} type="submit">Guardar Ingrediente</Dialog.Close>
+						</Dialog.Footer>
+					</form>
+				</Dialog.Content>
+			</Dialog.Root>
+		</div>
+	</div>
+	<div class="rounded-md border">
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Nombre</Table.Head>
+					<Table.Head>Origen</Table.Head>
+					<Table.Head class="text-right">Calorías (por 100g)</Table.Head>
+					<Table.Head class="text-right">Proteínas (g)</Table.Head>
+					<Table.Head class="text-right">Grasas (g)</Table.Head>
+					<Table.Head class="text-right">Carbs (g)</Table.Head>
+					<Table.Head class="text-right">Acciones</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each data.ingredients as ingredient (ingredient.id)}
+					<Table.Row>
+						<Table.Cell class="font-medium">{ingredient.name}</Table.Cell>
+						<Table.Cell>
+							{#if ingredient.source === 'custom'}
+								<span
+									class="bg-blue-100 text-blue-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300"
+								>
+									Personalizado
+								</span>
+							{:else}
+								<span
+									class="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300"
+								>
+									Caché de OFF
+								</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">{ingredient.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
+						<Table.Cell class="text-right">
+							<Dialog.Root>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={ingredient.source !== 'custom'}
+									onclick={(e) => {
+										if (ingredient.source !== 'custom') e.preventDefault();
+										// Lógica para abrir el diálogo si es necesario
+									}}
+								>
+									Editar
+								</Button>
+								<Dialog.Content class="sm:max-w-[425px]">
+									<Dialog.Header>
+										<Dialog.Title>Editar Ingrediente</Dialog.Title>
+									</Dialog.Header>
+									<form method="POST" action="?/update" use:enhance>
+										<input type="hidden" name="id" value={ingredient.id} />
+										<div class="grid gap-4 py-4">
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="name-edit" class="text-right">Nombre</Label>
+												<Input
+													id="name-edit"
+													name="name"
+													value={ingredient.name}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="calories-edit" class="text-right">Calorías</Label>
+												<Input
+													id="calories-edit"
+													name="calories"
+													type="number"
+													step="0.1"
+													value={ingredient.calories}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="protein-edit" class="text-right">Proteínas</Label>
+												<Input
+													id="protein-edit"
+													name="protein"
+													type="number"
+													step="0.1"
+													value={ingredient.protein}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="fat-edit" class="text-right">Grasas</Label>
+												<Input
+													id="fat-edit"
+													name="fat"
+													type="number"
+													step="0.1"
+													value={ingredient.fat}
+													class="col-span-3"
+												/>
+											</div>
+											<div class="grid grid-cols-4 items-center gap-4">
+												<Label for="carbs-edit" class="text-right">Carbohidratos</Label>
+												<Input
+													id="carbs-edit"
+													name="carbs"
+													type="number"
+													step="0.1"
+													value={ingredient.carbs}
+													class="col-span-3"
+												/>
+											</div>
+										</div>
+										<Dialog.Footer>
+											<Dialog.Close class={buttonVariants()} type="submit">Guardar Cambios</Dialog.Close>
+										</Dialog.Footer>
+									</form>
+								</Dialog.Content>
+							</Dialog.Root>
+							<Dialog.Root>
+								<Dialog.Trigger
+									class={buttonVariants({ variant: 'destructive', size: 'sm' }) + ' ml-2'}
+								>
+									Eliminar
+								</Dialog.Trigger>
+								<Dialog.Content class="sm:max-w-[425px]">
+									<Dialog.Header>
+										<Dialog.Title>Confirmar Eliminación</Dialog.Title>
+										<Dialog.Description>
+											¿Estás seguro de que quieres eliminar el ingrediente "{ingredient.name}"? Esta
+											acción no se puede deshacer.
+										</Dialog.Description>
+									</Dialog.Header>
+									<form method="POST" action="?/delete" use:enhance>
+										<input type="hidden" name="id" value={ingredient.id} />
+										<input type="hidden" name="source" value={ingredient.source} />
+										<Dialog.Footer>
+											<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
+											<Button variant="destructive" type="submit">Eliminar</Button>
+										</Dialog.Footer>
+									</form>
+								</Dialog.Content>
+							</Dialog.Root>
+						</Table.Cell>
+					</Table.Row>
+				{:else}
+					<Table.Row>
+						<Table.Cell colspan={7} class="text-center">No hay ingredientes.</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+	</div>
+</div>
+
+// --- Ruta: src/routes/admin/ingredientes/+page.server.ts ---
+// Ruta: src/routes/admin/ingredientes/+page.server.ts
+import { fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+// Justificación (load): La función `load` ahora llama al endpoint GET de la API usando `fetch`.
+// Esto asegura que la página y la API están desacopladas. La página consume su propia API,
+// una práctica conocida como "dogfooding", que garantiza que la API es robusta.
+export const load: PageServerLoad = async ({ fetch }) => {
+	const response = await fetch('/api/ingredients');
+	if (!response.ok) {
+		// En un caso real, podrías manejar el error de forma más elegante.
+		return { ingredients: [] };
+	}
+	const ingredients = await response.json();
+	return {
+		ingredients
+	};
+};
+// Justificación (actions): Las acciones ahora empaquetan los datos del formulario y los envían
+// al endpoint de la API correspondiente usando `fetch`. La lógica de negocio y la validación
+// residen únicamente en la API, y esta acción solo se encarga de la comunicación.
+export const actions: Actions = {
+	create: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const response = await fetch('/api/ingredients', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(Object.fromEntries(formData))
+		});
+		if (!response.ok) {
+			const result = await response.json();
+			return fail(response.status, {
+				data: Object.fromEntries(formData),
+				errors: result.errors
+			});
+		}
+		return { success: true, message: 'Ingrediente creado con éxito' };
+	},
+	update: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+		const response = await fetch(`/api/ingredients/${id}`,
+		{
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(Object.fromEntries(formData))
+		});
+		if (!response.ok) {
+			const result = await response.json();
+			return fail(response.status, {
+				data: Object.fromEntries(formData),
+				errors: result.errors,
+				id
+			});
+		}
+		return { success: true, message: 'Ingrediente actualizado con éxito' };
+	},
+	delete: async ({ request, fetch }) => {
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+		const source = formData.get('source') as string;
+		// Justificación: La lógica para determinar qué endpoint llamar ahora reside aquí,
+		// basándose en el 'source' del ingrediente.
+		const apiPath = source === 'custom' ? `/api/ingredients/${id}` : `/api/products/${id}`;
+		const response = await fetch(apiPath, {
+			method: 'DELETE'
+		});
+		if (!response.ok) {
+			return fail(response.status, { message: 'Error al eliminar el ingrediente' });
+		}
+		return { success: true, message: 'Ingrediente eliminado con éxito' };
+	}
+};
+
+// --- Ruta: src/lib/components/admin/SyncDialog.svelte ---
+<!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
+<script lang="ts">
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { CircleDashed } from 'lucide-svelte';
+	// Justificación: Este componente ahora solo se encarga de mostrar el *contenido* del diálogo.
+	// El control de apertura/cierre y el disparador se gestionan en la página padre,
+	// siguiendo las convenciones del proyecto y de Svelte 5.
+	type $Props = {
+		state: 'idle' | 'loading' | 'success' | 'error';
+		result: {
+			updatedIngredients: string[];
+			failedIngredients: { id: string; name: string; reason: string }[];
+		} | null;
+	};
+	let { state, result }: $Props = $props();
+</script>
+<Dialog.Content class="sm:max-w-[625px]">
+	{#if state === 'loading'}
+		<div class="flex flex-col items-center justify-center p-8">
+			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
+			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
+			<p class="text-sm text-muted-foreground">
+				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
+			</p>
+		</div>
+	{:else if state === 'success' && result}
+		<Dialog.Header>
+			<Dialog.Title>Sincronización Completada</Dialog.Title>
+			<Dialog.Description>
+				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
+				{#if result.failedIngredients.length > 0}
+					Hubo <strong>{result.failedIngredients.length}</strong> errores.
+				{/if}
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="max-h-[400px] overflow-y-auto">
+			{#if result.updatedIngredients.length > 0}
+				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.updatedIngredients as name}
+							<TableRow>
+								<TableCell>{name}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+			{#if result.failedIngredients.length > 0}
+				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead>Motivo del Error</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each result.failedIngredients as failure}
+							<TableRow>
+								<TableCell>{failure.name} ({failure.id})</TableCell>
+								<TableCell>{failure.reason}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<!-- Justificación: Se usa Dialog.Close directamente estilizado como un botón,
+			     evitando la complejidad y errores de 'asChild'. -->
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{:else if state === 'error'}
+		<Dialog.Header>
+			<Dialog.Title>Error en la Sincronización</Dialog.Title>
+			<Dialog.Description>
+				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
+				de nuevo más tarde.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer>
+			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
+		</Dialog.Footer>
+	{/if}
+</Dialog.Content>
+
 // --- Ruta: src/lib/components/recipes/UrlImageFetcher.svelte ---
 <!-- Ruta: src/lib/components/recipes/UrlImageFetcher.svelte -->
 <script lang="ts">
@@ -4882,101 +5235,6 @@ describe('EditQuantitiesDialog.svelte', () => {
 	</AlertDialog.Content>
 </AlertDialog.Root>
 
-// --- Ruta: src/lib/components/admin/SyncDialog.svelte ---
-<!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
-<script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
-	import { CircleDashed } from 'lucide-svelte';
-	// Justificación: Este componente ahora solo se encarga de mostrar el *contenido* del diálogo.
-	// El control de apertura/cierre y el disparador se gestionan en la página padre,
-	// siguiendo las convenciones del proyecto y de Svelte 5.
-	type $Props = {
-		state: 'idle' | 'loading' | 'success' | 'error';
-		result: {
-			updatedIngredients: string[];
-			failedIngredients: { id: string; name: string; reason: string }[];
-		} | null;
-	};
-	let { state, result }: $Props = $props();
-</script>
-<Dialog.Content class="sm:max-w-[625px]">
-	{#if state === 'loading'}
-		<div class="flex flex-col items-center justify-center p-8">
-			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
-			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
-			<p class="text-sm text-muted-foreground">
-				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
-			</p>
-		</div>
-	{:else if state === 'success' && result}
-		<Dialog.Header>
-			<Dialog.Title>Sincronización Completada</Dialog.Title>
-			<Dialog.Description>
-				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
-				{#if result.failedIngredients.length > 0}
-					Hubo <strong>{result.failedIngredients.length}</strong> errores.
-				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
-		<div class="max-h-[400px] overflow-y-auto">
-			{#if result.updatedIngredients.length > 0}
-				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each result.updatedIngredients as name}
-							<TableRow>
-								<TableCell>{name}</TableCell>
-							</TableRow>
-						{/each}
-					</TableBody>
-				</Table>
-			{/if}
-			{#if result.failedIngredients.length > 0}
-				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-							<TableHead>Motivo del Error</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each result.failedIngredients as failure}
-							<TableRow>
-								<TableCell>{failure.name} ({failure.id})</TableCell>
-								<TableCell>{failure.reason}</TableCell>
-							</TableRow>
-						{/each}
-					</TableBody>
-				</Table>
-			{/if}
-		</div>
-		<Dialog.Footer>
-			<!-- Justificación: Se usa Dialog.Close directamente estilizado como un botón,
-			     evitando la complejidad y errores de 'asChild'. -->
-			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
-		</Dialog.Footer>
-	{:else if state === 'error'}
-		<Dialog.Header>
-			<Dialog.Title>Error en la Sincronización</Dialog.Title>
-			<Dialog.Description>
-				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
-				de nuevo más tarde.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cerrar</Dialog.Close>
-		</Dialog.Footer>
-	{/if}
-</Dialog.Content>
-
 // --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
 <!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
 <script lang="ts">
@@ -4995,8 +5253,25 @@ describe('EditQuantitiesDialog.svelte', () => {
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
+	import { browser } from '$app/environment';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	// Función robusta para parsear los pasos, que ya vienen como array desde el servidor
+	const getRecipeSteps = (stepsData: unknown): string[] => {
+		if (Array.isArray(stepsData)) {
+			return stepsData.map(String);
+		}
+		// Fallback por si en el cliente llega como string JSON
+		if (browser && typeof stepsData === 'string') {
+			try {
+				const parsed = JSON.parse(stepsData);
+				return Array.isArray(parsed) ? parsed.map(String) : [String(stepsData)];
+			} catch (e) {
+				return [String(stepsData)]; // No era JSON, tratar como texto plano
+			}
+		}
+		return [];
+	};
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string; imageUrl: string | null };
 	type SearchResult = {
 		id: string;
 		name: string;
@@ -5006,8 +5281,7 @@ describe('EditQuantitiesDialog.svelte', () => {
 	};
 	// --- Estado del formulario ---
 	let title = $state(data.recipe.title);
-	let description = $state(data.recipe.description ?? '');
-	let steps = $state(data.recipe.steps);
+	let steps = $state(getRecipeSteps(data.recipe.steps));
 	let imageUrl = $state(data.recipe.imageUrl ?? '');
 	let urls = $state(data.recipe.urls.map((u) => u.url) ?? []);
 	const initialIngredients = data.recipe.ingredients
@@ -5022,7 +5296,8 @@ describe('EditQuantitiesDialog.svelte', () => {
 					calories: ing.customIngredient.calories ?? 0,
 					protein: ing.customIngredient.protein ?? 0,
 					fat: ing.customIngredient.fat ?? 0,
-					carbs: ing.customIngredient.carbs ?? 0
+					carbs: ing.customIngredient.carbs ?? 0,
+					imageUrl: null
 				};
 			}
 			if (ing.product) {
@@ -5034,7 +5309,8 @@ describe('EditQuantitiesDialog.svelte', () => {
 					calories: ing.product.calories ?? 0,
 					protein: ing.product.protein ?? 0,
 					fat: ing.product.fat ?? 0,
-					carbs: ing.product.carbs ?? 0
+					carbs: ing.product.carbs ?? 0,
+					imageUrl: ing.product.imageUrl
 				};
 			}
 			return null;
@@ -5104,18 +5380,6 @@ describe('EditQuantitiesDialog.svelte', () => {
 	function removeIngredient(index: number) {
 		ingredients.splice(index, 1);
 	}
-	// --- Gestión de subida de imagen ---
-	function handleImageUpload(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				imageUrl = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
-	}
 	// --- Cálculos y envío ---
 	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
 	let isSubmitting = $state(false);
@@ -5139,21 +5403,25 @@ describe('EditQuantitiesDialog.svelte', () => {
 			class="space-y-6"
 		>
 			<!-- Campos ocultos para enviar datos complejos -->
-			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
-			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input
+				type="hidden"
+				name="ingredients"
+				value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))}
+			/>
+			<input type="hidden" name="urls" value={JSON.stringify(urls.filter((u) => u.trim() !== ''))} />
+			<input
+				type="hidden"
+				name="steps"
+				value={JSON.stringify(steps.filter((s) => s.trim() !== ''))}
+			/>
 			<input type="hidden" name="imageUrl" value={imageUrl} />
 			<!-- Campos del formulario -->
 			<div class="space-y-2">
 				<Label for="title">Título</Label>
 				<Input id="title" name="title" bind:value={title} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
 				{#if form?.errors?.title}
 					<p class="text-sm text-red-500">{form.errors.title}</p>
 				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" name="description" bind:value={description} />
 			</div>
 			<div class="space-y-2">
 				<Label for="image">Imagen de la Receta</Label>
@@ -5165,10 +5433,11 @@ describe('EditQuantitiesDialog.svelte', () => {
 							class="h-24 w-24 rounded-md object-cover"
 						/>
 					{/if}
-					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
+					<Input id="image" type="file" accept="image/*" />
 				</div>
 				<p class="text-sm text-gray-500">
-					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
+					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de
+					referencia.
 				</p>
 			</div>
 			<div class="space-y-2">
@@ -5178,10 +5447,33 @@ describe('EditQuantitiesDialog.svelte', () => {
 					<p class="text-sm text-red-500">{form.errors.urls}</p>
 				{/if}
 			</div>
-			<div class="space-y-2">
-				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+			<div class="space-y-4">
+				<Label class="text-lg font-medium">Pasos de la Receta</Label>
+				{#each steps as step, i}
+					<div class="flex items-start gap-2">
+						<div class="flex-1 space-y-1">
+							<Label for={`step-${i}`} class="text-sm font-normal text-gray-600">Paso {i + 1}</Label>
+							<Textarea
+								id={`step-${i}`}
+								name={`step-${i}`}
+								bind:value={steps[i]}
+								rows={3}
+								placeholder="Describe este paso... (soporta Markdown)"
+							/>
+						</div>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onclick={() => steps.splice(i, 1)}
+							class="mt-6"
+							aria-label="Eliminar paso"
+						>
+							<Trash2 class="h-4 w-4" />
+						</Button>
+					</div>
+				{/each}
+				<Button type="button" variant="outline" onclick={() => steps.push('')}>Añadir Paso</Button>
 				{#if form?.errors?.steps}
 					<p class="text-sm text-red-500">{form.errors.steps}</p>
 				{/if}
@@ -5276,7 +5568,6 @@ describe('EditQuantitiesDialog.svelte', () => {
 						{/if}
 					</TableBody>
 				</Table>
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
 				{#if form?.errors?.ingredients}
 					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
 				{/if}
@@ -5339,7 +5630,8 @@ export const actions: Actions = {
 		const dataToValidate = {
 			...data,
 			ingredients: JSON.parse(data.ingredients as string),
-			urls: JSON.parse(data.urls as string)
+			urls: JSON.parse(data.urls as string),
+			steps: JSON.parse(data.steps as string)
 		};
 		const validation = RecipeSchema.safeParse(dataToValidate);
 		if (!validation.success) {
@@ -5362,6 +5654,24 @@ export const actions: Actions = {
 			const response = createFailResponse('No se pudo actualizar la receta.');
 			return fail(500, response);
 		}
+	}
+};
+
+// --- Ruta: src/routes/api/products/[id]/+server.ts ---
+// Ruta: src/routes/api/products/[id]/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { productService } from '$lib/server/services/productService';
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+	if (!id) {
+		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
+	}
+	try {
+		await productService.deleteById(id);
+		return new Response(null, { status: 204 }); // No Content
+	} catch (error) {
+		console.error(`Error deleting product ${id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
 	}
 };
 
@@ -5498,6 +5808,70 @@ export const POST: RequestHandler = async ({ cookies }) => {
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Error desconocido en el servidor';
 		return json({ message: errorMessage }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/details/+server.ts ---
+// src/routes/api/ingredients/details/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { ingredientService } from '$lib/server/services/ingredientService';
+export const GET: RequestHandler = async ({ url }) => {
+	const idsParam = url.searchParams.get('ids');
+	if (!idsParam) {
+		return json({ message: 'Missing "ids" query parameter' }, { status: 400 });
+	}
+	const ids = idsParam.split(',');
+	if (ids.length === 0) {
+		return json([]);
+	}
+	try {
+		const ingredients = await ingredientService.getByIds(ids);
+		return json(ingredients);
+	} catch (error) {
+		console.error('Failed to fetch ingredient details:', error);
+		return json({ message: 'An error occurred while fetching ingredient details.' }, { status: 500 });
+	}
+};
+
+// --- Ruta: src/routes/api/ingredients/autocomplete/+server.ts ---
+// Fichero: src/routes/api/ingredients/autocomplete/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { ingredientService } from '$lib/server/services/ingredientService';
+/**
+ * Endpoint GET para el autocompletado de ingredientes.
+ * Devuelve una lista plana de ingredientes en formato JSON.
+ */
+export const GET: RequestHandler = async ({ url }) => {
+	const query = url.searchParams.get('q');
+	if (!query) {
+		return json({ error: 'Query parameter "q" is required' }, { status: 400 });
+	}
+	try {
+		const { customIngredients, cachedProducts } = await ingredientService.searchByName(query);
+		// Justificación: Se aplanan los resultados de ambas fuentes (custom y productos)
+		// en un único array, que es el formato que espera el componente combobox.
+		const results = [
+			...customIngredients.map((ing) => ({
+				id: ing.id,
+				name: ing.name,
+				type: 'custom',
+				source: 'local',
+				imageUrl: null
+			})),
+			...cachedProducts.map((prod) => ({
+				id: prod.id,
+				name: prod.name,
+				type: 'product',
+				source: 'local',
+				imageUrl: prod.imageUrl
+			}))
+		];
+		return json(results);
+	} catch (error) {
+		console.error('Error en el endpoint de autocompletado de ingredientes:', error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
 	}
 };
 
@@ -5795,128 +6169,6 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 	});
 };
 
-// --- Ruta: src/routes/api/ingredients/details/+server.ts ---
-// src/routes/api/ingredients/details/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { ingredientService } from '$lib/server/services/ingredientService';
-export const GET: RequestHandler = async ({ url }) => {
-	const idsParam = url.searchParams.get('ids');
-	if (!idsParam) {
-		return json({ message: 'Missing "ids" query parameter' }, { status: 400 });
-	}
-	const ids = idsParam.split(',');
-	if (ids.length === 0) {
-		return json([]);
-	}
-	try {
-		const ingredients = await ingredientService.getByIds(ids);
-		return json(ingredients);
-	} catch (error) {
-		console.error('Failed to fetch ingredient details:', error);
-		return json({ message: 'An error occurred while fetching ingredient details.' }, { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/ingredients/autocomplete/+server.ts ---
-// Fichero: src/routes/api/ingredients/autocomplete/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { ingredientService } from '$lib/server/services/ingredientService';
-/**
- * Endpoint GET para el autocompletado de ingredientes.
- * Devuelve una lista plana de ingredientes en formato JSON.
- */
-export const GET: RequestHandler = async ({ url }) => {
-	const query = url.searchParams.get('q');
-	if (!query) {
-		return json({ error: 'Query parameter "q" is required' }, { status: 400 });
-	}
-	try {
-		const { customIngredients, cachedProducts } = await ingredientService.searchByName(query);
-		// Justificación: Se aplanan los resultados de ambas fuentes (custom y productos)
-		// en un único array, que es el formato que espera el componente combobox.
-		const results = [
-			...customIngredients.map((ing) => ({
-				id: ing.id,
-				name: ing.name,
-				type: 'custom',
-				source: 'local',
-				imageUrl: null
-			})),
-			...cachedProducts.map((prod) => ({
-				id: prod.id,
-				name: prod.name,
-				type: 'product',
-				source: 'local',
-				imageUrl: prod.imageUrl
-			}))
-		];
-		return json(results);
-	} catch (error) {
-		console.error('Error en el endpoint de autocompletado de ingredientes:', error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/ingredients/[id]/+server.ts ---
-// Ruta: src/routes/api/ingredients/[id]/+server.ts
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { ingredientService } from '$lib/server/services/ingredientService';
-import { IngredientSchema } from '$lib/schemas/ingredientSchema';
-import { ZodError } from 'zod';
-// Justificación: Se importa la nueva utilidad unificada.
-import { createFailResponse } from '$lib/server/zodErrors';
-export const PUT: RequestHandler = async ({ request, params }) => {
-	const { id } = params;
-	if (!id) {
-		return json(createFailResponse('ID de ingrediente es requerido'), { status: 400 });
-	}
-	try {
-		const body = await request.json();
-		const validatedData = IngredientSchema.parse(body);
-		const updatedIngredient = await ingredientService.update(id, validatedData);
-		return json(updatedIngredient);
-	} catch (error) {
-		if (error instanceof ZodError) {
-			return json(createFailResponse('La validación falló', error), { status: 400 });
-		}
-		console.error(`Error updating ingredient with id ${id}:`, error);
-		return json(createFailResponse('Error interno del servidor'), { status: 500 });
-	}
-};
-export const DELETE: RequestHandler = async ({ params }) => {
-	const { id } = params;
-	if (!id) {
-		return json(createFailResponse('ID de ingrediente es requerido'), { status: 400 });
-	}
-	try {
-		await ingredientService.deleteById(id);
-		return new Response(null, { status: 204 }); // 204 No Content
-	} catch (error) {
-		console.error(`Error deleting ingredient ${id}:`, error);
-		return json(createFailResponse('Error interno del servidor'), { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/products/[id]/+server.ts ---
-// Ruta: src/routes/api/products/[id]/+server.ts
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { productService } from '$lib/server/services/productService';
-export const DELETE: RequestHandler = async ({ params }) => {
-	const { id } = params;
-	if (!id) {
-		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
-	}
-	try {
-		await productService.deleteById(id);
-		return new Response(null, { status: 204 }); // No Content
-	} catch (error) {
-		console.error(`Error deleting product ${id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
 // --- Ruta: src/routes/admin/ingredientes/off/+page.svelte ---
 <script lang="ts">
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -6079,41 +6331,44 @@ export {
 	Root as Textarea,
 };
 
-// --- Ruta: src/lib/components/ui/switch/switch.svelte ---
-<script lang="ts">
-	import { Switch as SwitchPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		checked = $bindable(false),
-		...restProps
-	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> = $props();
-</script>
-<SwitchPrimitive.Root
-	bind:ref
-	bind:checked
-	data-slot="switch"
-	class={cn(
-		"data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 shadow-xs peer inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent outline-none transition-all focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-		className
-	)}
-	{...restProps}
->
-	<SwitchPrimitive.Thumb
-		data-slot="switch-thumb"
-		class={cn(
-			"bg-background dark:data-[state=unchecked]:bg-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0"
-		)}
-	/>
-</SwitchPrimitive.Root>
-
-// --- Ruta: src/lib/components/ui/switch/index.ts ---
-import Root from "./switch.svelte";
-export {
-	Root,
-	//
-	Root as Switch,
+// --- Ruta: src/routes/api/ingredients/[id]/+server.ts ---
+// Ruta: src/routes/api/ingredients/[id]/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import { IngredientSchema } from '$lib/schemas/ingredientSchema';
+import { ZodError } from 'zod';
+// Justificación: Se importa la nueva utilidad unificada.
+import { createFailResponse } from '$lib/server/zodErrors';
+export const PUT: RequestHandler = async ({ request, params }) => {
+	const { id } = params;
+	if (!id) {
+		return json(createFailResponse('ID de ingrediente es requerido'), { status: 400 });
+	}
+	try {
+		const body = await request.json();
+		const validatedData = IngredientSchema.parse(body);
+		const updatedIngredient = await ingredientService.update(id, validatedData);
+		return json(updatedIngredient);
+	} catch (error) {
+		if (error instanceof ZodError) {
+			return json(createFailResponse('La validación falló', error), { status: 400 });
+		}
+		console.error(`Error updating ingredient with id ${id}:`, error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
+};
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+	if (!id) {
+		return json(createFailResponse('ID de ingrediente es requerido'), { status: 400 });
+	}
+	try {
+		await ingredientService.deleteById(id);
+		return new Response(null, { status: 204 }); // 204 No Content
+	} catch (error) {
+		console.error(`Error deleting ingredient ${id}:`, error);
+		return json(createFailResponse('Error interno del servidor'), { status: 500 });
+	}
 };
 
 // --- Ruta: src/lib/components/ui/table/table.svelte ---
@@ -6314,6 +6569,43 @@ export {
 	Head as TableHead,
 	Header as TableHeader,
 	Row as TableRow,
+};
+
+// --- Ruta: src/lib/components/ui/switch/switch.svelte ---
+<script lang="ts">
+	import { Switch as SwitchPrimitive } from "bits-ui";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		checked = $bindable(false),
+		...restProps
+	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> = $props();
+</script>
+<SwitchPrimitive.Root
+	bind:ref
+	bind:checked
+	data-slot="switch"
+	class={cn(
+		"data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 shadow-xs peer inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent outline-none transition-all focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+		className
+	)}
+	{...restProps}
+>
+	<SwitchPrimitive.Thumb
+		data-slot="switch-thumb"
+		class={cn(
+			"bg-background dark:data-[state=unchecked]:bg-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0"
+		)}
+	/>
+</SwitchPrimitive.Root>
+
+// --- Ruta: src/lib/components/ui/switch/index.ts ---
+import Root from "./switch.svelte";
+export {
+	Root,
+	//
+	Root as Switch,
 };
 
 // --- Ruta: src/lib/components/ui/popover/popover-trigger.svelte ---
@@ -6803,193 +7095,6 @@ export {
 	{/snippet}
 </DropdownMenuPrimitive.CheckboxItem>
 
-// --- Ruta: src/lib/components/ui/dialog/index.ts ---
-import * as DialogPrimitive from "bits-ui";
-import Title from "./dialog-title.svelte";
-import Footer from "./dialog-footer.svelte";
-import Header from "./dialog-header.svelte";
-import Overlay from "./dialog-overlay.svelte";
-import Content from "./dialog-content.svelte";
-import Description from "./dialog-description.svelte";
-import Trigger from "./dialog-trigger.svelte";
-import Close from "./dialog-close.svelte";
-const Root = DialogPrimitive.Dialog.Root;
-const Portal = DialogPrimitive.Dialog.Portal;
-export {
-	Root,
-	Title,
-	Portal,
-	Footer,
-	Header,
-	Trigger,
-	Overlay,
-	Content,
-	Description,
-	Close,
-	//
-	Root as Dialog,
-	Title as DialogTitle,
-	Portal as DialogPortal,
-	Footer as DialogFooter,
-	Header as DialogHeader,
-	Trigger as DialogTrigger,
-	Overlay as DialogOverlay,
-	Content as DialogContent,
-	Description as DialogDescription,
-	Close as DialogClose,
-};
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-trigger.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	let { ref = $bindable(null), ...restProps }: DialogPrimitive.TriggerProps = $props();
-</script>
-<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {...restProps} />
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-title.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: DialogPrimitive.TitleProps = $props();
-</script>
-<DialogPrimitive.Title
-	bind:ref
-	data-slot="dialog-title"
-	class={cn("text-lg font-semibold leading-none", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-overlay.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: DialogPrimitive.OverlayProps = $props();
-</script>
-<DialogPrimitive.Overlay
-	bind:ref
-	data-slot="dialog-overlay"
-	class={cn(
-		"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-		className
-	)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-header.svelte ---
-<script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="dialog-header"
-	class={cn("flex flex-col gap-2 text-center sm:text-left", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-footer.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		class: className,
-		children,
-		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
-</script>
-<div
-	bind:this={ref}
-	data-slot="dialog-footer"
-	class={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
-	{...restProps}
->
-	{@render children?.()}
-</div>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-description.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		...restProps
-	}: DialogPrimitive.DescriptionProps = $props();
-</script>
-<DialogPrimitive.Description
-	bind:ref
-	data-slot="dialog-description"
-	class={cn("text-muted-foreground text-sm", className)}
-	{...restProps}
-/>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-content.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import XIcon from "@lucide/svelte/icons/x";
-	import type { Snippet } from "svelte";
-	import * as Dialog from "./index.js";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		class: className,
-		portalProps,
-		children,
-		showCloseButton = true,
-		...restProps
-	}: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
-		portalProps?: DialogPrimitive.PortalProps;
-		children: Snippet;
-		showCloseButton?: boolean;
-	} = $props();
-</script>
-<Dialog.Portal {...portalProps}>
-	<Dialog.Overlay />
-	<DialogPrimitive.Content
-		bind:ref
-		data-slot="dialog-content"
-		class={cn(
-			"bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
-			className
-		)}
-		{...restProps}
-	>
-		{@render children?.()}
-		{#if showCloseButton}
-			<DialogPrimitive.Close
-				class="ring-offset-background focus:ring-ring rounded-xs focus:outline-hidden absolute right-4 top-4 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
-			>
-				<XIcon />
-				<span class="sr-only">Close</span>
-			</DialogPrimitive.Close>
-		{/if}
-	</DialogPrimitive.Content>
-</Dialog.Portal>
-
-// --- Ruta: src/lib/components/ui/dialog/dialog-close.svelte ---
-<script lang="ts">
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	let { ref = $bindable(null), ...restProps }: DialogPrimitive.CloseProps = $props();
-</script>
-<DialogPrimitive.Close bind:ref data-slot="dialog-close" {...restProps} />
-
 // --- Ruta: src/lib/components/ui/command/index.ts ---
 import { Command as CommandPrimitive } from "bits-ui";
 import Root from "./command.svelte";
@@ -7260,6 +7365,193 @@ export {
 	</Dialog.Content>
 </Dialog.Root>
 
+// --- Ruta: src/lib/components/ui/dialog/index.ts ---
+import * as DialogPrimitive from "bits-ui";
+import Title from "./dialog-title.svelte";
+import Footer from "./dialog-footer.svelte";
+import Header from "./dialog-header.svelte";
+import Overlay from "./dialog-overlay.svelte";
+import Content from "./dialog-content.svelte";
+import Description from "./dialog-description.svelte";
+import Trigger from "./dialog-trigger.svelte";
+import Close from "./dialog-close.svelte";
+const Root = DialogPrimitive.Dialog.Root;
+const Portal = DialogPrimitive.Dialog.Portal;
+export {
+	Root,
+	Title,
+	Portal,
+	Footer,
+	Header,
+	Trigger,
+	Overlay,
+	Content,
+	Description,
+	Close,
+	//
+	Root as Dialog,
+	Title as DialogTitle,
+	Portal as DialogPortal,
+	Footer as DialogFooter,
+	Header as DialogHeader,
+	Trigger as DialogTrigger,
+	Overlay as DialogOverlay,
+	Content as DialogContent,
+	Description as DialogDescription,
+	Close as DialogClose,
+};
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-trigger.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	let { ref = $bindable(null), ...restProps }: DialogPrimitive.TriggerProps = $props();
+</script>
+<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {...restProps} />
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-title.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.TitleProps = $props();
+</script>
+<DialogPrimitive.Title
+	bind:ref
+	data-slot="dialog-title"
+	class={cn("text-lg font-semibold leading-none", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-overlay.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.OverlayProps = $props();
+</script>
+<DialogPrimitive.Overlay
+	bind:ref
+	data-slot="dialog-overlay"
+	class={cn(
+		"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+		className
+	)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-header.svelte ---
+<script lang="ts">
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="dialog-header"
+	class={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-footer.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+</script>
+<div
+	bind:this={ref}
+	data-slot="dialog-footer"
+	class={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+	{...restProps}
+>
+	{@render children?.()}
+</div>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-description.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: DialogPrimitive.DescriptionProps = $props();
+</script>
+<DialogPrimitive.Description
+	bind:ref
+	data-slot="dialog-description"
+	class={cn("text-muted-foreground text-sm", className)}
+	{...restProps}
+/>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-content.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import XIcon from "@lucide/svelte/icons/x";
+	import type { Snippet } from "svelte";
+	import * as Dialog from "./index.js";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		class: className,
+		portalProps,
+		children,
+		showCloseButton = true,
+		...restProps
+	}: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
+		portalProps?: DialogPrimitive.PortalProps;
+		children: Snippet;
+		showCloseButton?: boolean;
+	} = $props();
+</script>
+<Dialog.Portal {...portalProps}>
+	<Dialog.Overlay />
+	<DialogPrimitive.Content
+		bind:ref
+		data-slot="dialog-content"
+		class={cn(
+			"bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+			className
+		)}
+		{...restProps}
+	>
+		{@render children?.()}
+		{#if showCloseButton}
+			<DialogPrimitive.Close
+				class="ring-offset-background focus:ring-ring rounded-xs focus:outline-hidden absolute right-4 top-4 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+			>
+				<XIcon />
+				<span class="sr-only">Close</span>
+			</DialogPrimitive.Close>
+		{/if}
+	</DialogPrimitive.Content>
+</Dialog.Portal>
+
+// --- Ruta: src/lib/components/ui/dialog/dialog-close.svelte ---
+<script lang="ts">
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	let { ref = $bindable(null), ...restProps }: DialogPrimitive.CloseProps = $props();
+</script>
+<DialogPrimitive.Close bind:ref data-slot="dialog-close" {...restProps} />
+
 // --- Ruta: src/lib/components/ui/button/index.ts ---
 import Root, {
 	type ButtonProps,
@@ -7522,57 +7814,6 @@ export {
 	{@render children?.()}
 </div>
 
-// --- Ruta: src/lib/components/ui/badge/index.ts ---
-export { default as Badge } from "./badge.svelte";
-export { badgeVariants, type BadgeVariant } from "./badge.svelte";
-
-// --- Ruta: src/lib/components/ui/badge/badge.svelte ---
-<script lang="ts" module>
-	import { type VariantProps, tv } from "tailwind-variants";
-	export const badgeVariants = tv({
-		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-medium transition-[color,box-shadow] focus-visible:ring-[3px] [&>svg]:pointer-events-none [&>svg]:size-3",
-		variants: {
-			variant: {
-				default:
-					"bg-primary text-primary-foreground [a&]:hover:bg-primary/90 border-transparent",
-				secondary:
-					"bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 border-transparent",
-				destructive:
-					"bg-destructive [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/70 border-transparent text-white",
-				outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-		},
-	});
-	export type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
-</script>
-<script lang="ts">
-	import type { HTMLAnchorAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	let {
-		ref = $bindable(null),
-		href,
-		class: className,
-		variant = "default",
-		children,
-		...restProps
-	}: WithElementRef<HTMLAnchorAttributes> & {
-		variant?: BadgeVariant;
-	} = $props();
-</script>
-<svelte:element
-	this={href ? "a" : "span"}
-	bind:this={ref}
-	data-slot="badge"
-	{href}
-	class={cn(badgeVariants({ variant }), className)}
-	{...restProps}
->
-	{@render children?.()}
-</svelte:element>
-
 // --- Ruta: src/lib/components/ui/alert-dialog/index.ts ---
 import { AlertDialog as AlertDialogPrimitive } from "bits-ui";
 import Trigger from "./alert-dialog-trigger.svelte";
@@ -7775,6 +8016,57 @@ export {
 	class={cn(buttonVariants(), className)}
 	{...restProps}
 />
+
+// --- Ruta: src/lib/components/ui/badge/index.ts ---
+export { default as Badge } from "./badge.svelte";
+export { badgeVariants, type BadgeVariant } from "./badge.svelte";
+
+// --- Ruta: src/lib/components/ui/badge/badge.svelte ---
+<script lang="ts" module>
+	import { type VariantProps, tv } from "tailwind-variants";
+	export const badgeVariants = tv({
+		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-medium transition-[color,box-shadow] focus-visible:ring-[3px] [&>svg]:pointer-events-none [&>svg]:size-3",
+		variants: {
+			variant: {
+				default:
+					"bg-primary text-primary-foreground [a&]:hover:bg-primary/90 border-transparent",
+				secondary:
+					"bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 border-transparent",
+				destructive:
+					"bg-destructive [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/70 border-transparent text-white",
+				outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+			},
+		},
+		defaultVariants: {
+			variant: "default",
+		},
+	});
+	export type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+</script>
+<script lang="ts">
+	import type { HTMLAnchorAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	let {
+		ref = $bindable(null),
+		href,
+		class: className,
+		variant = "default",
+		children,
+		...restProps
+	}: WithElementRef<HTMLAnchorAttributes> & {
+		variant?: BadgeVariant;
+	} = $props();
+</script>
+<svelte:element
+	this={href ? "a" : "span"}
+	bind:this={ref}
+	data-slot="badge"
+	{href}
+	class={cn(badgeVariants({ variant }), className)}
+	{...restProps}
+>
+	{@render children?.()}
+</svelte:element>
 
 // --- Ruta: src/routes/api/products/search/[barcode]/+server.ts ---
 // Ruta: src/routes/api/products/search/[barcode]/+server.ts
