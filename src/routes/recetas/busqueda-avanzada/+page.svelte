@@ -42,26 +42,23 @@
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController | undefined;
 
-	// --- DERIVADO: Verificar si hay filtros de macros aplicados ---
-	const hasMacroFilters = $derived(() => {
-		const hasGrams = Object.values(filters.gramFilters).some(
+	// --- FUNCIÓN DE COMPROBACIÓN (en lugar de $derived) ---
+	// Justificación: Se usa una función pura para evitar condiciones de carrera
+	// en la inicialización de los $derived stores, garantizando que el estado
+	// se compruebe en el momento exacto de la ejecución del efecto.
+	function areFiltersActive() {
+		const hasMacroGrams = Object.values(filters.gramFilters).some(
 			(range) => range && (range.min != null || range.max != null)
 		);
-		const hasPercent = Object.values(filters.percentFilters).some(
+		const hasMacroPercent = Object.values(filters.percentFilters).some(
 			(range) => range && (range.min != null || range.max != null)
 		);
-		return hasGrams || hasPercent;
-	});
-
-	// --- DERIVADO: Verificar si hay algún filtro activo ---
-	const hasActiveFilters = $derived(
-		filters.selectedIngredients.length > 0 || hasMacroFilters
-	);
+		return filters.selectedIngredients.length > 0 || hasMacroGrams || hasMacroPercent;
+	}
 
 	// --- LÓGICA DE BÚSQUEDA ---
 	async function performSearch(payload: SearchPayload) {
-		// Guardia: No buscar si no hay filtros.
-		if (!hasActiveFilters) {
+		if (!areFiltersActive()) {
 			recipes = [];
 			hasMore = false;
 			return;
@@ -90,8 +87,7 @@
 	}
 
 	async function loadMore(payload: SearchPayload) {
-		// Guardia de seguridad: No cargar más si no hay una búsqueda activa o si ya se está cargando.
-		if (!hasActiveFilters || isLoading) return;
+		if (!areFiltersActive() || isLoading) return;
 		isLoading = true;
 		try {
 			const body = { ...payload, offset: recipes.length };
@@ -115,8 +111,7 @@
 	$effect(() => {
 		if (!browser) return;
 
-		// Guardia: Si no hay filtros activos, limpiar resultados y detener.
-		if (!hasActiveFilters) {
+		if (!areFiltersActive()) {
 			recipes = [];
 			hasMore = false;
 			return;
@@ -142,8 +137,7 @@
 	$effect(() => {
 		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
-			// Guardia adicional: solo cargar más si hay una búsqueda activa.
-			if (entries[0].isIntersecting && hasMore && !isLoading && hasActiveFilters) {
+			if (entries[0].isIntersecting && hasMore && !isLoading && areFiltersActive()) {
 				const payload: SearchPayload = {
 					ingredients: filters.selectedIngredients.map((i) => i.id),
 					grams: filters.gramFilters,
@@ -255,7 +249,7 @@
 				{:else if !isLoading}
 					<div class="rounded-lg border p-8 text-center">
 						<p class="text-muted-foreground">
-							{#if hasActiveFilters}
+							{#if areFiltersActive()}
 								No se encontraron recetas con estos criterios.
 							{:else}
 								Selecciona uno o más filtros para empezar a buscar.
