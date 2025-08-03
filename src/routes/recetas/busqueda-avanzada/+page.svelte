@@ -54,12 +54,13 @@
 	});
 
 	// --- DERIVADO: Verificar si hay algún filtro activo ---
-	const hasActiveFilters = $derived(() => {
-		return filters.selectedIngredients.length > 0 || hasMacroFilters;
-	});
+	const hasActiveFilters = $derived(
+		filters.selectedIngredients.length > 0 || hasMacroFilters
+	);
 
 	// --- LÓGICA DE BÚSQUEDA ---
 	async function performSearch(payload: SearchPayload) {
+		// Guardia: No buscar si no hay filtros.
 		if (!hasActiveFilters) {
 			recipes = [];
 			hasMore = false;
@@ -89,7 +90,8 @@
 	}
 
 	async function loadMore(payload: SearchPayload) {
-		if (isLoading) return;
+		// Guardia de seguridad: No cargar más si no hay una búsqueda activa o si ya se está cargando.
+		if (!hasActiveFilters || isLoading) return;
 		isLoading = true;
 		try {
 			const body = { ...payload, offset: recipes.length };
@@ -101,7 +103,8 @@
 			const result = await response.json();
 			recipes.push(...result.recipes);
 			hasMore = result.hasMore;
-		} catch (error) {
+		} catch (error)
+		{
 			console.error('Error al cargar más recetas:', error);
 		} finally {
 			isLoading = false;
@@ -112,15 +115,7 @@
 	$effect(() => {
 		if (!browser) return;
 
-		// El payload para la búsqueda debe construirse explícitamente
-		// para que coincida con el tipo SearchPayload.
-		const payload: SearchPayload = {
-			ingredients: filters.selectedIngredients.map((i) => i.id),
-			grams: filters.gramFilters,
-			percent: filters.percentFilters,
-			sortBy: filters.sortBy
-		};
-
+		// Guardia: Si no hay filtros activos, limpiar resultados y detener.
 		if (!hasActiveFilters) {
 			recipes = [];
 			hasMore = false;
@@ -129,6 +124,13 @@
 
 		controller?.abort();
 		controller = new AbortController();
+
+		const payload: SearchPayload = {
+			ingredients: filters.selectedIngredients.map((i) => i.id),
+			grams: filters.gramFilters,
+			percent: filters.percentFilters,
+			sortBy: filters.sortBy
+		};
 
 		const timerId = setTimeout(() => {
 			performSearch(payload);
@@ -140,7 +142,8 @@
 	$effect(() => {
 		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
-			if (entries[0].isIntersecting && hasMore && !isLoading) {
+			// Guardia adicional: solo cargar más si hay una búsqueda activa.
+			if (entries[0].isIntersecting && hasMore && !isLoading && hasActiveFilters) {
 				const payload: SearchPayload = {
 					ingredients: filters.selectedIngredients.map((i) => i.id),
 					grams: filters.gramFilters,
@@ -251,7 +254,13 @@
 					</div>
 				{:else if !isLoading}
 					<div class="rounded-lg border p-8 text-center">
-						<p class="text-muted-foreground">No se encontraron recetas con estos criterios.</p>
+						<p class="text-muted-foreground">
+							{#if hasActiveFilters}
+								No se encontraron recetas con estos criterios.
+							{:else}
+								Selecciona uno o más filtros para empezar a buscar.
+							{/if}
+						</p>
 					</div>
 				{/if}
 
