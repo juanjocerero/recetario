@@ -212,5 +212,41 @@ export const ingredientService = {
 		}
 
 		return { updatedIngredients, failedIngredients };
+	},
+
+	/**
+	 * Obtiene los detalles completos de una lista de ingredientes por sus IDs.
+	 * @param ids - Un array de IDs, con prefijo 'product-' o 'custom-'.
+	 */
+	async getByIds(ids: string[]) {
+		const productIds = ids
+			.filter((id) => id.startsWith('product-'))
+			.map((id) => id.replace('product-', ''));
+		const customIngredientIds = ids
+			.filter((id) => id.startsWith('custom-'))
+			.map((id) => id.replace('custom-', ''));
+
+		const [products, customIngredients] = await prisma.$transaction([
+			prisma.product.findMany({ where: { id: { in: productIds } } }),
+			prisma.customIngredient.findMany({ where: { id: { in: customIngredientIds } } })
+		]);
+
+		const combined = [
+			...products.map((p) => ({
+				...p,
+				id: `product-${p.id}`,
+				type: 'product' as const,
+				source: 'off' as const
+			})),
+			...customIngredients.map((ci) => ({
+				...ci,
+				id: `custom-${ci.id}`,
+				type: 'custom' as const,
+				source: 'local' as const,
+				imageUrl: null
+			}))
+		];
+
+		return combined;
 	}
 };

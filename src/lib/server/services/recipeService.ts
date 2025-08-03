@@ -193,30 +193,41 @@ export const recipeService = {
 		const whereConditions: Prisma.Sql[] = [];
 
 		if (ingredients && ingredients.length > 0) {
-			const productIds: string[] = [];
-			const customIngredientIds: string[] = [];
-			ingredients.forEach((id) => {
-				if (id.startsWith('product-')) productIds.push(id.replace('product-', ''));
-				else if (id.startsWith('custom-')) customIngredientIds.push(id.replace('custom-', ''));
-			});
+			// Justificación: Se itera sobre cada ID de ingrediente para construir una
+			// subconsulta `EXISTS`. Esto asegura que la receta contenga TODOS los
+			// ingredientes seleccionados. La lógica se ha hecho robusta para
+			// manejar IDs con o sin prefijo, infiriendo el tipo si este falta.
+			ingredients.forEach((ingredientId) => {
+				let isProduct = false;
+				let id = ingredientId;
 
-			const totalIngredientsToMatch = productIds.length + customIngredientIds.length;
-			if (totalIngredientsToMatch > 0) {
-				const ingredientConditions: Prisma.Sql[] = [];
-				if (productIds.length > 0) {
-					ingredientConditions.push(Prisma.sql`ri."productId" IN (${Prisma.join(productIds)})`);
+				if (id.startsWith('product-')) {
+					isProduct = true;
+					id = id.replace('product-', '');
+				} else if (id.startsWith('custom-')) {
+					id = id.replace('custom-', '');
+				} else if (!isNaN(Number(id))) {
+					// Si no hay prefijo pero es numérico, asumimos que es un producto (código de barras).
+					isProduct = true;
 				}
-				if (customIngredientIds.length > 0) {
-					ingredientConditions.push(Prisma.sql`ri."customIngredientId" IN (${Prisma.join(customIngredientIds)})`);
+				// Si no tiene prefijo y no es numérico, se asume que es un CUID de un ingrediente custom.
+
+				if (isProduct) {
+					whereConditions.push(Prisma.sql`
+						EXISTS (
+							SELECT 1 FROM "RecipeIngredient" ri
+							WHERE ri."recipeId" = r.id AND ri."productId" = ${id}
+						)
+					`);
+				} else {
+					whereConditions.push(Prisma.sql`
+						EXISTS (
+							SELECT 1 FROM "RecipeIngredient" ri
+							WHERE ri."recipeId" = r.id AND ri."customIngredientId" = ${id}
+						)
+					`);
 				}
-				whereConditions.push(Prisma.sql`
-					r.id IN (
-						SELECT "recipeId" FROM "RecipeIngredient" ri
-						WHERE ${Prisma.join(ingredientConditions, ' OR ')}
-						GROUP BY "recipeId" HAVING COUNT(*) = ${totalIngredientsToMatch}
-					)
-				`);
-			}
+			});
 		}
 
 		if (grams?.calories?.min != null) whereConditions.push(Prisma.sql`rt."totalCalories" >= ${grams.calories.min}`);
