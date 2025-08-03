@@ -332,7 +332,13 @@
 							<TableRow>
 								<TableCell>{ingredient.name}</TableCell>
 								<TableCell>
-									<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
+									<Input
+										type="number"
+										bind:value={ingredient.quantity}
+										min="1"
+										step="any"
+										class="w-full"
+									/>
 								</TableCell>
 								<TableCell class="text-right">
 									<Button
