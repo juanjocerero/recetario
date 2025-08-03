@@ -65,21 +65,30 @@
 		sortBy: sortBy
 	});
 	
+	// --- DERIVADO: Verificar si hay filtros de macros aplicados ---
+	const hasMacroFilters = $derived(() => {
+		const hasGrams = Object.values(uiFilters.grams).some(
+		(range) => range && (range.min != null || range.max != null)
+		);
+		const hasPercent = Object.values(uiFilters.percent).some(
+		(range) => range && (range.min != null || range.max != null)
+		);
+		return hasGrams || hasPercent;
+	});
+	
+	// --- DERIVADO: Verificar si hay algún filtro activo ---
+	const hasActiveFilters = $derived(() => {
+		return uiFilters.ingredients.length > 0 || hasMacroFilters();
+	});
+	
 	// --- LÓGICA DE BÚSQUEDA ---
 	async function performSearch(filters: SearchPayload) {
-		const hasGrams = Object.values(filters.grams).some(
-		(range) => range && (range.min != null || range.max != null)
-		);
-		const hasPercent = Object.values(filters.percent).some(
-		(range) => range && (range.min != null || range.max != null)
-		);
-		const hasMacroFilters = hasGrams || hasPercent;
-		
-		if (filters.ingredients.length === 0 && !hasMacroFilters) {
-			recipes = [];
-			hasMore = false;
-			return;
-		}
+
+    if (!hasActiveFilters()) {
+        recipes = [];
+        hasMore = false;
+        return;
+    }
 		
 		isLoading = true;
 		const signal = controller?.signal;
@@ -127,6 +136,14 @@
 	
 	$effect(() => {
 		if (!browser) return;
+
+    // No ejecutar búsqueda si no hay filtros activos
+    if (!hasActiveFilters()) {
+        recipes = [];
+        hasMore = false;
+        return;
+    }
+		
 		const filtersToSync = uiFilters;
 		
 		controller?.abort();
