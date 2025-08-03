@@ -3,9 +3,7 @@
 // --- VERSIÓN FINAL CON PATRONES SVELTE 5 CORRECTOS ---
 -->
 <script lang="ts">
-	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
-	import { pushState } from '$app/navigation';
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
 	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
 	import type {
@@ -15,7 +13,7 @@
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import X from 'lucide-svelte/icons/x';
-
+	
 	type Ingredient = {
 		id: string;
 		name: string;
@@ -24,50 +22,41 @@
 		imageUrl: string | null;
 	};
 	type Recipe = any;
-
+	
 	// --- TIPOS LOCALES ---
 	type InitialState = {
 		selectedIngredients: Ingredient[];
 		gramFilters: GramFilters;
 		percentFilters: PercentFilters;
 		sortBy: string;
-		initialIngredientIds: string[];
 	};
+	
 	type SearchPayload = {
 		ingredients: string[];
 		grams: GramFilters;
 		percent: PercentFilters;
 		sortBy: string;
 	};
-
-	// --- ESTADO DE LA UI (HIDRATADO DESDE LA URL) ---
+	
+	// --- ESTADO DE LA UI (sin URL) ---
 	function getInitialState(): InitialState {
-		const params = $page.url.searchParams;
-		// Al cargar, solo obtenemos los IDs. Los detalles completos se obtendrán en un efecto.
-		const ingredientIds = JSON.parse(params.get('ingredientIds') || '[]');
 		return {
-			// selectedIngredients se inicializa vacío y se llena después del fetch.
 			selectedIngredients: [],
-			gramFilters: JSON.parse(
-				params.get('grams') || '{"calories":{},"protein":{},"carbs":{},"fat":{}}'
-			),
-			percentFilters: JSON.parse(
-				params.get('percent') || '{"protein":{},"carbs":{},"fat":{}}'
-			),
-			sortBy: params.get('sortBy') || 'title_asc',
-			// Campo temporal para la carga inicial
-			initialIngredientIds: ingredientIds
+			gramFilters: { calories:{}, protein:{}, carbs:{}, fat:{} },
+			percentFilters: { protein:{}, carbs:{}, fat:{} },
+			sortBy: 'title_asc'
 		};
 	}
-	let { selectedIngredients, gramFilters, percentFilters, sortBy, initialIngredientIds } = $state(getInitialState());
-
+	let { selectedIngredients, gramFilters, percentFilters, sortBy } =
+	$state(getInitialState());
+	
 	// --- ESTADO DE RESULTADOS Y CONTROL ---
 	let recipes = $state<Recipe[]>([]);
 	let isLoading = $state(false);
 	let hasMore = $state(true);
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController | undefined;
-
+	
 	// --- FILTROS DERIVADOS DE LA UI ---
 	const uiFilters = $derived({
 		ingredients: selectedIngredients,
@@ -75,23 +64,23 @@
 		percent: percentFilters,
 		sortBy: sortBy
 	});
-
+	
 	// --- LÓGICA DE BÚSQUEDA ---
 	async function performSearch(filters: SearchPayload) {
 		const hasGrams = Object.values(filters.grams).some(
-			(range) => range && (range.min != null || range.max != null)
+		(range) => range && (range.min != null || range.max != null)
 		);
 		const hasPercent = Object.values(filters.percent).some(
-			(range) => range && (range.min != null || range.max != null)
+		(range) => range && (range.min != null || range.max != null)
 		);
 		const hasMacroFilters = hasGrams || hasPercent;
-
+		
 		if (filters.ingredients.length === 0 && !hasMacroFilters) {
 			recipes = [];
 			hasMore = false;
 			return;
 		}
-
+		
 		isLoading = true;
 		const signal = controller?.signal;
 		try {
@@ -113,7 +102,7 @@
 			if (!signal?.aborted) isLoading = false;
 		}
 	}
-
+	
 	async function loadMore(filters: SearchPayload) {
 		if (isLoading) return;
 		isLoading = true;
@@ -133,75 +122,27 @@
 			isLoading = false;
 		}
 	}
-
+	
 	// --- EFECTOS ---
-
-	// Justificación: Este efecto se ejecuta una sola vez al montar el componente en el navegador.
-	// Su propósito es "rehidratar" el estado de los ingredientes seleccionados si se cargó
-	// la página con IDs en la URL, obteniendo sus detalles completos desde la API.
-	$effect(() => {
-		if (!browser || initialIngredientIds.length === 0) return;
-
-		let active = true;
-		async function fetchInitialIngredients() {
-			try {
-				const response = await fetch(`/api/ingredients/details?ids=${initialIngredientIds.join(',')}`);
-				if (!response.ok) throw new Error('Failed to fetch initial ingredients');
-				const ingredientsDetails: Ingredient[] = await response.json();
-				if (active) {
-					selectedIngredients = ingredientsDetails;
-				}
-			} catch (e) {
-				console.error(e);
-				if (active) {
-					selectedIngredients = []; // Limpiar si hay error
-				}
-			}
-		}
-
-		fetchInitialIngredients();
-
-		return () => {
-			active = false;
-		};
-	});
-
+	
 	$effect(() => {
 		if (!browser) return;
 		const filtersToSync = uiFilters;
-
+		
 		controller?.abort();
 		controller = new AbortController();
-
+		
 		const timerId = setTimeout(() => {
 			const payload: SearchPayload = {
 				...filtersToSync,
 				ingredients: filtersToSync.ingredients.map((i) => i.id)
 			};
 			performSearch(payload);
-
-			const params = new URLSearchParams();
-			const ingredientIds = filtersToSync.ingredients.map((i) => i.id);
-			if (ingredientIds.length > 0) {
-				// Guardamos solo los IDs en la URL para que sea más corta y limpia.
-				params.set('ingredientIds', JSON.stringify(ingredientIds));
-			}
-			if (Object.values(filtersToSync.grams).some(v => v && (v.min != null || v.max != null))) {
-				params.set('grams', JSON.stringify(filtersToSync.grams));
-			}
-			if (Object.values(filtersToSync.percent).some(v => v && (v.min != null || v.max != null))) {
-				params.set('percent', JSON.stringify(filtersToSync.percent));
-			}
-			if (filtersToSync.sortBy !== 'title_asc') {
-				params.set('sortBy', filtersToSync.sortBy);
-			}
-			const newUrl = `${$page.url.pathname}?${params.toString()}`;
-			pushState(newUrl, {});
 		}, 350);
-
+		
 		return () => clearTimeout(timerId);
 	});
-
+	
 	$effect(() => {
 		if (!sentinel) return;
 		const observer = new IntersectionObserver((entries) => {
@@ -217,7 +158,7 @@
 		observer.observe(sentinel);
 		return () => observer.disconnect();
 	});
-
+	
 	// --- MANEJADORES DE EVENTOS ---
 	function handleAddIngredient(ingredient: Ingredient) {
 		if (!selectedIngredients.some((i) => i.id === ingredient.id)) {
@@ -241,58 +182,58 @@
 			</p>
 		</div>
 	</header>
-
+	
 	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
 		<aside class="lg:col-span-1">
 			<div class="space-y-6 rounded-lg border p-4 sticky top-4">
 				<div class="space-y-2">
 					<h3 class="text-lg font-semibold">Ingredientes</h3>
 					<IngredientCombobox
-						onSelect={handleAddIngredient}
-						selectedIds={selectedIngredients.map((i) => i.id)}
-						onClear={clearIngredients}
+					onSelect={handleAddIngredient}
+					selectedIds={selectedIngredients.map((i) => i.id)}
+					onClear={clearIngredients}
 					/>
 					<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
 						{#each selectedIngredients as ingredient (ingredient.id)}
-							<Badge variant="secondary" class="flex items-center gap-2">
-								{ingredient.name}
-								<button
-									onclick={() => handleRemoveIngredient(ingredient.id)}
-									class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-								>
-									<X class="h-3 w-3" />
-								</button>
-							</Badge>
-						{/each}
-					</div>
+						<Badge variant="secondary" class="flex items-center gap-2">
+							{ingredient.name}
+							<button
+							onclick={() => handleRemoveIngredient(ingredient.id)}
+							class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+							>
+							<X class="h-3 w-3" />
+						</button>
+					</Badge>
+					{/each}
 				</div>
-				<hr />
-				<MacroFilters bind:gramFilters bind:percentFilters />
 			</div>
-		</aside>
-
-		<main class="lg:col-span-2">
-			<div class="space-y-4">
-				{#if recipes.length > 0}
-					<div class="columns-1 md:columns-2 gap-4">
-						{#each recipes as recipe (recipe.id)}
-							<div class="mb-4 break-inside-avoid">
-								<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
-							</div>
-						{/each}
+			<hr />
+			<MacroFilters bind:gramFilters bind:percentFilters />
+		</div>
+	</aside>
+	
+	<main class="lg:col-span-2">
+		<div class="space-y-4">
+			{#if recipes.length > 0}
+			<div class="columns-1 md:columns-2 gap-4">
+				{#each recipes as recipe (recipe.id)}
+				<div class="mb-4 break-inside-avoid">
+					<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
 					</div>
+					{/each}
+				</div>
 				{:else if !isLoading}
-					<div class="rounded-lg border p-8 text-center">
-						<p class="text-muted-foreground">No se encontraron recetas con estos criterios.</p>
-					</div>
+				<div class="rounded-lg border p-8 text-center">
+					<p class="text-muted-foreground">No se encontraron recetas con estos criterios.</p>
+				</div>
 				{/if}
-
+				
 				{#if hasMore}
-					<div bind:this={sentinel} class="h-10 flex justify-center items-center text-muted-foreground">
-						{#if isLoading}
-							<span>Cargando...</span>
-						{/if}
-					</div>
+				<div bind:this={sentinel} class="h-10 flex justify-center items-center text-muted-foreground">
+					{#if isLoading}
+					<span>Cargando...</span>
+					{/if}
+				</div>
 				{/if}
 			</div>
 		</main>
