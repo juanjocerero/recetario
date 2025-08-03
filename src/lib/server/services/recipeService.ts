@@ -58,11 +58,11 @@ export const recipeService = {
 		});
 	},
 
-	async create(data: RecipeData) {
+	async create(data: RecipeData): Promise<FullRecipe> {
 		const { title, steps, ingredients, urls, imageUrl } = data;
 		const slug = await generateUniqueSlug(title);
 
-		return await prisma.$transaction(async (tx) => {
+		const createdRecipe = await prisma.$transaction(async (tx) => {
 			const newRecipe = await tx.recipe.create({
 				data: {
 					title,
@@ -76,18 +76,34 @@ export const recipeService = {
 				}
 			});
 
-			for (const ingredient of ingredients) {
-				await tx.recipeIngredient.create({
-					data: {
-						recipeId: newRecipe.id,
-						quantity: ingredient.quantity,
-						productId: ingredient.type === 'product' ? ingredient.id : null,
-						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
-					}
-				});
-			}
+			// Preparamos los datos para la inserción en lote
+			const ingredientsData = ingredients.map((ingredient) => ({
+				recipeId: newRecipe.id,
+				quantity: ingredient.quantity,
+				productId: ingredient.type === 'product' ? ingredient.id : null,
+				customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
+			}));
+
+			// Insertamos todos los ingredientes en una sola operación
+			await tx.recipeIngredient.createMany({
+				data: ingredientsData
+			});
+
 			return newRecipe;
 		});
+
+		// Después de la transacción, obtenemos la receta completa con todas sus relaciones
+		const fullNewRecipe = await prisma.recipe.findUnique({
+			where: { id: createdRecipe.id },
+			include: recipeInclude
+		});
+
+		if (!fullNewRecipe) {
+			// Esto no debería ocurrir si la transacción tuvo éxito, pero es un seguro
+			throw new Error('No se pudo encontrar la receta recién creada.');
+		}
+
+		return fullNewRecipe;
 	},
 
 	async update(id: string, data: RecipeData) {

@@ -11,7 +11,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
-	import { enhance } from '$app/forms';
+	import { enhance, applyAction } from '$app/forms';
 	import type { ActionData } from './$types';
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 
@@ -136,11 +136,10 @@
 			use:enhance={() => {
 				isSubmitting = true;
 				return async ({ result }) => {
-					// La redirección se maneja automáticamente por el servidor en caso de éxito.
-					// Solo necesitamos gestionar el estado de `isSubmitting`.
-					if (result.type === 'failure' || result.type === 'error') {
-						isSubmitting = false;
-					}
+					// `applyAction` se encarga del comportamiento por defecto,
+					// como resetear el formulario en caso de éxito o aplicar la redirección.
+					await applyAction(result);
+					isSubmitting = false;
 				};
 			}}
 			class="space-y-6"

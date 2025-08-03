@@ -176,7 +176,7 @@
 				isSubmitting = true;
 				return async ({ result }) => {
 					if (result.type === 'success') {
-						await goto(`/recetas/${data.recipe.id}`);
+						await goto(`/recetas/${data.recipe.slug}`);
 					}
 					isSubmitting = false;
 				};
