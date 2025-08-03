@@ -57,6 +57,17 @@ export const productService = {
 			}
 
 			const productFromApi = response.product;
+
+			// Helper para parsear valores que pueden ser string o number
+			const parseNutriment = (value: unknown): number => {
+				if (typeof value === 'number') return value;
+				if (typeof value === 'string') {
+					const parsed = parseFloat(value);
+					return isNaN(parsed) ? 0 : parsed;
+				}
+				return 0;
+			};
+
 			const calories =
 				productFromApi.nutriments['energy-kcal_100g'] ??
 				productFromApi.nutriments.energy_kcal_100g;
@@ -69,10 +80,10 @@ export const productService = {
 				normalizedName: normalizeText(productFromApi.product_name),
 				brand: productFromApi.brands,
 				imageUrl: productFromApi.image_url,
-				calories: calories,
-				fat: productFromApi.nutriments.fat_100g,
-				protein: productFromApi.nutriments.proteins_100g,
-				carbs: productFromApi.nutriments.carbohydrates_100g,
+				calories: parseNutriment(calories),
+				fat: parseNutriment(productFromApi.nutriments.fat_100g),
+				protein: parseNutriment(productFromApi.nutriments.proteins_100g),
+				carbs: parseNutriment(productFromApi.nutriments.carbohydrates_100g),
 				// Justificación (Prisma.InputJsonValue): Hacemos un type casting a `InputJsonValue`
 				// para asegurar a TypeScript que la estructura del objeto de la API
 				// es compatible con el tipo `Json` que Prisma espera.
