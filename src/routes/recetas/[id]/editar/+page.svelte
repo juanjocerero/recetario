@@ -15,10 +15,28 @@
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
+	import { browser } from '$app/environment';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	// Función robusta para parsear los pasos, que ya vienen como array desde el servidor
+	const getRecipeSteps = (stepsData: unknown): string[] => {
+		if (Array.isArray(stepsData)) {
+			return stepsData.map(String);
+		}
+		// Fallback por si en el cliente llega como string JSON
+		if (browser && typeof stepsData === 'string') {
+			try {
+				const parsed = JSON.parse(stepsData);
+				return Array.isArray(parsed) ? parsed.map(String) : [String(stepsData)];
+			} catch (e) {
+				return [String(stepsData)]; // No era JSON, tratar como texto plano
+			}
+		}
+		return [];
+	};
+
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string; imageUrl: string | null };
 	type SearchResult = {
 		id: string;
 		name: string;
@@ -29,8 +47,7 @@
 
 	// --- Estado del formulario ---
 	let title = $state(data.recipe.title);
-	let description = $state(data.recipe.description ?? '');
-	let steps = $state(data.recipe.steps);
+	let steps = $state(getRecipeSteps(data.recipe.steps));
 	let imageUrl = $state(data.recipe.imageUrl ?? '');
 	let urls = $state(data.recipe.urls.map((u) => u.url) ?? []);
 
@@ -46,7 +63,8 @@
 					calories: ing.customIngredient.calories ?? 0,
 					protein: ing.customIngredient.protein ?? 0,
 					fat: ing.customIngredient.fat ?? 0,
-					carbs: ing.customIngredient.carbs ?? 0
+					carbs: ing.customIngredient.carbs ?? 0,
+					imageUrl: null
 				};
 			}
 			if (ing.product) {
@@ -58,7 +76,8 @@
 					calories: ing.product.calories ?? 0,
 					protein: ing.product.protein ?? 0,
 					fat: ing.product.fat ?? 0,
-					carbs: ing.product.carbs ?? 0
+					carbs: ing.product.carbs ?? 0,
+					imageUrl: ing.product.imageUrl
 				};
 			}
 			return null;
@@ -141,19 +160,6 @@
 		ingredients.splice(index, 1);
 	}
 
-	// --- Gestión de subida de imagen ---
-	function handleImageUpload(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				imageUrl = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
-	}
-
 	// --- Cálculos y envío ---
 	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
 	let isSubmitting = $state(false);
@@ -178,22 +184,26 @@
 			class="space-y-6"
 		>
 			<!-- Campos ocultos para enviar datos complejos -->
-			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
-			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input
+				type="hidden"
+				name="ingredients"
+				value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))}
+			/>
+			<input type="hidden" name="urls" value={JSON.stringify(urls.filter((u) => u.trim() !== ''))} />
+			<input
+				type="hidden"
+				name="steps"
+				value={JSON.stringify(steps.filter((s) => s.trim() !== ''))}
+			/>
 			<input type="hidden" name="imageUrl" value={imageUrl} />
 
 			<!-- Campos del formulario -->
 			<div class="space-y-2">
 				<Label for="title">Título</Label>
 				<Input id="title" name="title" bind:value={title} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
 				{#if form?.errors?.title}
 					<p class="text-sm text-red-500">{form.errors.title}</p>
 				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" name="description" bind:value={description} />
 			</div>
 
 			<div class="space-y-2">
@@ -206,10 +216,11 @@
 							class="h-24 w-24 rounded-md object-cover"
 						/>
 					{/if}
-					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
+					<Input id="image" type="file" accept="image/*" />
 				</div>
 				<p class="text-sm text-gray-500">
-					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
+					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de
+					referencia.
 				</p>
 			</div>
 
@@ -221,10 +232,33 @@
 				{/if}
 			</div>
 
-			<div class="space-y-2">
-				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
+			<div class="space-y-4">
+				<Label class="text-lg font-medium">Pasos de la Receta</Label>
+				{#each steps as step, i}
+					<div class="flex items-start gap-2">
+						<div class="flex-1 space-y-1">
+							<Label for={`step-${i}`} class="text-sm font-normal text-gray-600">Paso {i + 1}</Label>
+							<Textarea
+								id={`step-${i}`}
+								name={`step-${i}`}
+								bind:value={steps[i]}
+								rows={3}
+								placeholder="Describe este paso... (soporta Markdown)"
+							/>
+						</div>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onclick={() => steps.splice(i, 1)}
+							class="mt-6"
+							aria-label="Eliminar paso"
+						>
+							<Trash2 class="h-4 w-4" />
+						</Button>
+					</div>
+				{/each}
+				<Button type="button" variant="outline" onclick={() => steps.push('')}>Añadir Paso</Button>
 				{#if form?.errors?.steps}
 					<p class="text-sm text-red-500">{form.errors.steps}</p>
 				{/if}
@@ -321,7 +355,6 @@
 						{/if}
 					</TableBody>
 				</Table>
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
 				{#if form?.errors?.ingredients}
 					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
 				{/if}

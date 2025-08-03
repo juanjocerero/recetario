@@ -26,7 +26,8 @@ export const actions: Actions = {
 		const dataToValidate = {
 			...data,
 			ingredients: JSON.parse(data.ingredients as string),
-			urls: JSON.parse(data.urls as string)
+			urls: JSON.parse(data.urls as string),
+			steps: JSON.parse(data.steps as string)
 		};
 
 		const validation = RecipeSchema.safeParse(dataToValidate);

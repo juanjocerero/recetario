@@ -17,7 +17,8 @@ export const actions: Actions = {
 			...data,
 			// Los datos complejos se envían como JSON string desde el cliente.
 			ingredients: JSON.parse(data.ingredients as string),
-			urls: JSON.parse(data.urls as string)
+			urls: JSON.parse(data.urls as string),
+			steps: JSON.parse(data.steps as string)
 		};
 
 		const validation = RecipeSchema.safeParse(dataToValidate);

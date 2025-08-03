@@ -43,8 +43,7 @@ model Recipe {
   id              String             @id @default(cuid())
   title           String
   normalizedTitle String // Para búsqueda case/accent-insensitive
-  description     String?
-  steps           String
+  steps           Json
   // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.
   // Es opcional para permitir recetas sin imagen o para usar la imagen de una URL de referencia.
   imageUrl    String?

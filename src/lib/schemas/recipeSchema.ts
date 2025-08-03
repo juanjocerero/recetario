@@ -13,8 +13,9 @@ const RecipeIngredientSchema = z.object({
 // Valida la estructura completa del objeto que se enviará a la API.
 export const RecipeSchema = z.object({
 	title: z.string().min(1, { message: 'El título no puede estar vacío.' }),
-	description: z.string().optional(),
-	steps: z.string().min(1, { message: 'Debe haber al menos un paso.' }),
+	steps: z
+		.array(z.string().min(1, { message: 'El paso no puede estar vacío.' }))
+		.min(1, { message: 'Debe haber al menos un paso.' }),
 	ingredients: z
 		.array(RecipeIngredientSchema)
 		.min(1, { message: 'La receta debe tener al menos un ingrediente.' }),

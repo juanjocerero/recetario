@@ -51,14 +51,13 @@ export const recipeService = {
 	},
 
 	async create(data: RecipeData) {
-		const { title, description, steps, ingredients, urls, imageUrl } = data;
+		const { title, steps, ingredients, urls, imageUrl } = data;
 
 		return await prisma.$transaction(async (tx) => {
 			const newRecipe = await tx.recipe.create({
 				data: {
 					title,
 					normalizedTitle: title.toLowerCase(),
-					description,
 					steps,
 					imageUrl,
 					urls: {
@@ -82,7 +81,7 @@ export const recipeService = {
 	},
 
 	async update(id: string, data: RecipeData) {
-		const { title, description, steps, ingredients, urls, imageUrl } = data;
+		const { title, steps, ingredients, urls, imageUrl } = data;
 
 		return await prisma.$transaction(async (tx) => {
 			await tx.recipe.update({
@@ -90,7 +89,6 @@ export const recipeService = {
 				data: {
 					title,
 					normalizedTitle: title.toLowerCase(),
-					description,
 					steps,
 					imageUrl
 				}

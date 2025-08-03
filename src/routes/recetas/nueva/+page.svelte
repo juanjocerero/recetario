@@ -28,8 +28,7 @@
 
 	// --- Estado del formulario ---
 	let title = $state('');
-	let description = $state('');
-	let steps = $state('');
+	let steps = $state(['']);
 	let imageUrl = $state('');
 	let urls = $state<string[]>([]);
 	let ingredients = $state<IngredientWithDetails[]>([]);
@@ -149,6 +148,7 @@
 			<!-- Campos ocultos para enviar datos complejos -->
 			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
 			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input type="hidden" name="steps" value={JSON.stringify(steps.filter(s => s.trim() !== ''))} />
 			<input type="hidden" name="imageUrl" value={imageUrl} />
 
 			<!-- Campos del formulario -->
@@ -158,10 +158,6 @@
 				{#if form?.errors?.title}
 					<p class="text-sm text-red-500">{form.errors.title}</p>
 				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" name="description" bind:value={description} />
 			</div>
 
 			<div class="space-y-2">
@@ -189,9 +185,35 @@
 				{/if}
 			</div>
 
-			<div class="space-y-2">
-				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
+			<div class="space-y-4">
+				<Label class="text-lg font-medium">Pasos de la Receta</Label>
+				{#each steps as step, i}
+					<div class="flex items-start gap-2">
+						<div class="flex-1 space-y-1">
+							<Label for={`step-${i}`} class="text-sm font-normal text-gray-600">Paso {i + 1}</Label>
+							<Textarea
+								id={`step-${i}`}
+								name={`step-${i}`}
+								bind:value={steps[i]}
+								rows={3}
+								placeholder="Describe este paso... (soporta Markdown)"
+							/>
+						</div>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onclick={() => steps.splice(i, 1)}
+							class="mt-6"
+							aria-label="Eliminar paso"
+						>
+							<Trash2 class="h-4 w-4" />
+						</Button>
+					</div>
+				{/each}
+				<Button type="button" variant="outline" onclick={() => steps.push('')}>
+					Añadir Paso
+				</Button>
 				{#if form?.errors?.steps}
 					<p class="text-sm text-red-500">{form.errors.steps}</p>
 				{/if}

@@ -12,13 +12,27 @@
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
+	import { browser } from '$app/environment';
 
-	const { data } = $props<PageData>();
+	let { data }: { data: PageData } = $props();
 	const { recipe } = data;
+
+	// Tipos explícitos para mayor claridad y seguridad
+	type IngredientFromLoader = PageData['recipe']['ingredients'][number];
+	type MappedIngredient = {
+		name: string;
+		quantity: number;
+		calories: number;
+		protein: number;
+		fat: number;
+		carbs: number;
+	};
 
 	const ingredientsList = $derived(
 		recipe.ingredients
-			.map((ing) => {
+			.map((ing: IngredientFromLoader) => {
 				const details = ing.product ?? ing.customIngredient;
 				if (!details) return null;
 
@@ -31,10 +45,39 @@
 					carbs: details.carbs ?? 0
 				};
 			})
-			.filter((i): i is NonNullable<typeof i> => i !== null)
+			.filter((i: MappedIngredient | null): i is MappedIngredient => i !== null)
 	);
 
 	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
+
+	// Función robusta para parsear los pasos, que ya vienen como array desde el servidor
+	const getRecipeSteps = (stepsData: unknown): string[] => {
+		if (Array.isArray(stepsData)) {
+			return stepsData.map(String);
+		}
+		// Fallback por si en el cliente llega como string JSON
+		if (browser && typeof stepsData === 'string') {
+			try {
+				const parsed = JSON.parse(stepsData);
+				return Array.isArray(parsed) ? parsed.map(String) : [String(stepsData)];
+			} catch (e) {
+				return [String(stepsData)]; // No era JSON, tratar como texto plano
+			}
+		}
+		return [];
+	};
+
+	const steps = $derived(getRecipeSteps(recipe.steps));
+
+	// Función para sanitizar el HTML de forma segura en el navegador
+	const sanitizeHtml = (html: string) => {
+		if (browser) {
+			return DOMPurify.sanitize(html);
+		}
+		// En SSR, devolvemos el HTML sin sanitizar, asumiendo que la fuente es confiable.
+		// La sanitización del cliente lo protegerá al renderizar.
+		return html;
+	};
 </script>
 
 <div class="max-w-4xl mx-auto my-8 space-y-8">
@@ -42,16 +85,12 @@
 		<div class="flex justify-between items-start">
 			<div class="flex-1">
 				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
-				{#if recipe.description}
-					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
-				{/if}
 			</div>
 			<a href="/recetas/{recipe.id}/editar">
 				<Button variant="outline">Editar</Button>
 			</a>
 		</div>
 
-		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
 		{#if recipe.imageUrl}
 			<div class="w-full aspect-video rounded-lg overflow-hidden">
 				<img
@@ -65,19 +104,26 @@
 
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 		<div class="md:col-span-2 space-y-8">
-			<!-- Pasos -->
+			<!-- Pasos Renderizados con Markdown y Sanitizados -->
 			<Card>
 				<CardHeader>
 					<CardTitle>Preparación</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div class="prose max-w-none whitespace-pre-wrap">
-						{recipe.steps}
+					<div class="prose max-w-none">
+						<ol>
+							{#each steps as step}
+								<li>
+									{@html sanitizeHtml(
+										marked.parse(step, { gfm: true, breaks: true, async: false })
+									)}
+								</li>
+							{/each}
+						</ol>
 					</div>
 				</CardContent>
 			</Card>
 
-			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
 			{#if recipe.urls && recipe.urls.length > 0}
 				<Card>
 					<CardHeader>

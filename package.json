@@ -33,6 +33,8 @@
 		"@testing-library/svelte": "^5.2.8",
 		"@types/bcryptjs": "^2.4.6",
 		"@types/cheerio": "^0.22.35",
+		"@types/dompurify": "^3.0.5",
+		"@types/marked": "^5.0.2",
 		"@types/node": "^24.1.0",
 		"autoprefixer": "^10.4.21",
 		"bits-ui": "^2.8.13",
@@ -75,9 +77,11 @@
 		"@prisma/client": "^6.13.0",
 		"bcryptjs": "^3.0.2",
 		"cheerio": "^1.1.2",
+		"dompurify": "^3.2.6",
 		"jose": "^6.0.12",
 		"ky": "^1.8.2",
 		"lucide-svelte": "^0.535.0",
+		"marked": "^16.1.1",
 		"sharp": "^0.34.3",
 		"zod": "^4.0.14"
 	}
