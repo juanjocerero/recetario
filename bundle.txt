@@ -1,7 +1,7 @@
 /* --- Bundle de Código Generado ---
  * Modo: full
  * Ficheros Incluidos: 161
- * Fecha: 2025-08-03T02:33:16.438Z
+ * Fecha: 2025-08-03T15:07:30.214Z
  */
 
 // --- Ruta: vitest.config.ts ---
@@ -1122,34 +1122,6 @@ export async function verifyToken(token: string) {
 	}
 }
 
-// --- Ruta: src/lib/runes/useDebounce.svelte.ts ---
-// Fichero: src/lib/runes/useDebounce.svelte.ts
-/**
- * Una runa de Svelte 5 personalizada que retrasa la actualización de un valor.
- * @param value La señal reactiva cuyo valor se quiere retrasar.
- * @param delay El tiempo de espera en milisegundos.
- * @returns Una nueva señal que contiene el valor retrasado.
- */
-export function useDebounce<T>(value: () => T, delay: number): () => T {
-	let debouncedValue = $state(value());
-	let timeoutId: ReturnType<typeof setTimeout> | null = null;
-	$effect(() => {
-		const currentValue = value();
-		if (timeoutId) {
-			clearTimeout(timeoutId);
-		}
-		timeoutId = setTimeout(() => {
-			debouncedValue = currentValue;
-		}, delay);
-		return () => {
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-			}
-		};
-	});
-	return () => debouncedValue;
-}
-
 // --- Ruta: src/lib/schemas/searchSchema.ts ---
 // Fichero: src/lib/schemas/searchSchema.ts
 import { z } from 'zod';
@@ -1229,6 +1201,34 @@ export const IngredientSchema = z.object({
 // Exportamos también el tipo inferido para usarlo en el frontend o donde se necesite
 // la forma de los datos sin importar el validador.
 export type Ingredient = z.infer<typeof IngredientSchema>;
+
+// --- Ruta: src/lib/runes/useDebounce.svelte.ts ---
+// Fichero: src/lib/runes/useDebounce.svelte.ts
+/**
+ * Una runa de Svelte 5 personalizada que retrasa la actualización de un valor.
+ * @param value La señal reactiva cuyo valor se quiere retrasar.
+ * @param delay El tiempo de espera en milisegundos.
+ * @returns Una nueva señal que contiene el valor retrasado.
+ */
+export function useDebounce<T>(value: () => T, delay: number): () => T {
+	let debouncedValue = $state(value());
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
+	$effect(() => {
+		const currentValue = value();
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+		timeoutId = setTimeout(() => {
+			debouncedValue = currentValue;
+		}, delay);
+		return () => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+		};
+	});
+	return () => debouncedValue;
+}
 
 // --- Ruta: prisma/migrations/20250802143934_add_normalized_title_to_recipe/migration.sql ---
 /*
@@ -1402,6 +1402,711 @@ CREATE TABLE "RecipeIngredient" (
 -- CreateIndex
 CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "CustomIngredient"("name");
 
+// --- Ruta: src/routes/recetas/nueva/+page.svelte ---
+<!-- Ruta: src/routes/recetas/nueva/+page.svelte -->
+<script lang="ts">
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '$lib/components/ui/command';
+	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
+	import { enhance } from '$app/forms';
+	import type { ActionData } from './$types';
+	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
+	let { form }: { form: ActionData } = $props();
+	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	type SearchResult = {
+		id: string;
+		name: string;
+		source: 'local' | 'off';
+		type: 'custom' | 'product';
+		imageUrl: string | null;
+	};
+	// --- Estado del formulario ---
+	let title = $state('');
+	let description = $state('');
+	let steps = $state('');
+	let imageUrl = $state('');
+	let urls = $state<string[]>([]);
+	let ingredients = $state<IngredientWithDetails[]>([]);
+	// --- Estado del buscador de ingredientes ---
+	let searchResults = $state<SearchResult[]>([]);
+	let isSearching = $state(false);
+	let open = $state(false);
+	let inputValue = $state('');
+	let searchTerm = $state('');
+	$effect(() => {
+		let eventSource: EventSource | null = null;
+		if (searchTerm.length < 3) {
+			searchResults = [];
+			isSearching = false;
+		} else {
+			isSearching = true;
+			searchResults = [];
+			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource.addEventListener('message', (e) => {
+				const newResults = JSON.parse(e.data);
+				searchResults = [...searchResults, ...newResults];
+			});
+			eventSource.addEventListener('stream_error', (e) => {
+				const errorData = JSON.parse((e as MessageEvent).data);
+				console.error('Error de stream recibido:', errorData);
+			});
+			eventSource.onerror = (err) => {
+				console.error('Error en la conexión de EventSource:', err);
+				isSearching = false;
+				eventSource?.close();
+			};
+			eventSource.addEventListener('close', () => {
+				isSearching = false;
+				eventSource?.close();
+			});
+		}
+		return () => {
+			eventSource?.close();
+		};
+	});
+	async function addIngredient(result: SearchResult) {
+		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
+		try {
+			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			if (!response.ok) throw new Error('Failed to fetch ingredient details');
+			const details: CalculableIngredient = await response.json();
+			ingredients.push({
+				...result,
+				quantity: 100,
+				calories: details.calories,
+				protein: details.protein,
+				fat: details.fat,
+				carbs: details.carbs
+			});
+		} catch (error) {
+			console.error('Error adding ingredient:', error);
+		} finally {
+			open = false;
+			searchResults = [];
+			searchTerm = '';
+			inputValue = '';
+		}
+	}
+	function removeIngredient(index: number) {
+		ingredients.splice(index, 1);
+	}
+	// --- Gestión de subida de imagen ---
+	function handleImageUpload(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				imageUrl = e.target?.result as string;
+			};
+			reader.readAsDataURL(file);
+		}
+	}
+	// --- Cálculos y envío ---
+	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
+	let isSubmitting = $state(false);
+</script>
+<Card class="max-w-4xl mx-auto my-8">
+	<CardHeader>
+		<CardTitle>Crear Nueva Receta</CardTitle>
+	</CardHeader>
+	<CardContent>
+		<form
+			method="POST"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ result }) => {
+					// La redirección se maneja automáticamente por el servidor en caso de éxito.
+					// Solo necesitamos gestionar el estado de `isSubmitting`.
+					if (result.type === 'failure' || result.type === 'error') {
+						isSubmitting = false;
+					}
+				};
+			}}
+			class="space-y-6"
+		>
+			<!-- Campos ocultos para enviar datos complejos -->
+			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
+			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
+			<input type="hidden" name="imageUrl" value={imageUrl} />
+			<!-- Campos del formulario -->
+			<div class="space-y-2">
+				<Label for="title">Título</Label>
+				<Input id="title" name="title" bind:value={title} required />
+				{#if form?.errors?.title}
+					<p class="text-sm text-red-500">{form.errors.title}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="description">Descripción (Opcional)</Label>
+				<Textarea id="description" name="description" bind:value={description} />
+			</div>
+			<div class="space-y-2">
+				<Label for="image">Imagen de la Receta</Label>
+				<div class="flex items-center gap-4">
+					{#if imageUrl}
+						<img
+							src={imageUrl}
+							alt="Previsualización de la receta"
+							class="h-24 w-24 rounded-md object-cover"
+						/>
+					{/if}
+					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
+				</div>
+				<p class="text-sm text-gray-500">
+					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
+				</p>
+			</div>
+			<div class="space-y-2">
+				<Label>URLs de Referencia</Label>
+				<UrlImageFetcher bind:urls bind:imageUrl />
+				{#if form?.errors?.urls}
+					<p class="text-sm text-red-500">{form.errors.urls}</p>
+				{/if}
+			</div>
+			<div class="space-y-2">
+				<Label for="steps">Pasos</Label>
+				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
+				{#if form?.errors?.steps}
+					<p class="text-sm text-red-500">{form.errors.steps}</p>
+				{/if}
+			</div>
+			<!-- Buscador y tabla de ingredientes -->
+			<div class="space-y-2">
+				<Label>Añadir Ingrediente</Label>
+				<Popover.Root bind:open>
+					<Popover.Trigger
+						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+						role="combobox"
+						aria-expanded={open}
+					>
+						<div class="flex items-center justify-between w-full">
+							{inputValue || 'Seleccionar ingrediente...'}
+							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+						</div>
+					</Popover.Trigger>
+					<Popover.Content class="w-[--trigger-width] p-0">
+						<Command.Root filter={() => 1}>
+							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
+							<Command.List>
+								{#if searchResults.length > 0}
+									{#each searchResults as result (result.id + result.type)}
+										<Command.Item
+											value={result.name}
+											onSelect={() => {
+												inputValue = result.name;
+												addIngredient(result);
+											}}
+											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+										>
+											<img
+												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+												alt={result.name}
+												class="h-8 w-8 rounded-sm object-cover"
+											/>
+											<span>{result.name}</span>
+										</Command.Item>
+									{/each}
+								{:else}
+									<div class="p-4 text-sm text-center text-gray-500">
+										{#if isSearching}
+											Buscando...
+										{:else if searchTerm.length < 3}
+											Escribe al menos 3 caracteres para buscar...
+										{:else}
+											No se encontraron resultados.
+										{/if}
+									</div>
+								{/if}
+							</Command.List>
+						</Command.Root>
+					</Popover.Content>
+				</Popover.Root>
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Nombre</TableHead>
+							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
+							<TableHead class="w-[100px] text-right">Acciones</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each ingredients as ingredient, i}
+							<TableRow>
+								<TableCell>{ingredient.name}</TableCell>
+								<TableCell>
+									<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
+								</TableCell>
+								<TableCell class="text-right">
+									<Button
+										type="button"
+										variant="destructive"
+										size="sm"
+										onclick={() => removeIngredient(i)}
+									>
+										Quitar
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+						{#if ingredients.length === 0}
+							<TableRow>
+								<TableCell colspan={3} class="text-center text-gray-500">
+									Añade ingredientes usando el buscador.
+								</TableCell>
+							</TableRow>
+						{/if}
+					</TableBody>
+				</Table>
+				{#if form?.errors?.ingredients}
+					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
+				{/if}
+			</div>
+			<!-- Información nutricional -->
+			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</div>
+			</div>
+			<div class="flex justify-end">
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? 'Guardando...' : 'Guardar Receta'}
+				</Button>
+			</div>
+			{#if form?.message}
+				<p class="text-sm text-red-500 text-right">{form.message}</p>
+			{/if}
+		</form>
+	</CardContent>
+</Card>
+
+// --- Ruta: src/routes/recetas/nueva/+page.server.ts ---
+// Ruta: src/routes/recetas/nueva/+page.server.ts
+import { fail, redirect } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { Actions } from './$types';
+import { RecipeSchema } from '$lib/schemas/recipeSchema';
+import { createFailResponse } from '$lib/server/zodErrors';
+// Justificación: Se crea un `actions` object para manejar la creación de la receta.
+// Esto alinea la página de 'nueva receta' con las mejores prácticas de SvelteKit
+// que ya implementamos en la página de 'editar'.
+export const actions: Actions = {
+	default: async ({ request }) => {
+		const formData = await request.formData();
+		const data = Object.fromEntries(formData.entries());
+		const dataToValidate = {
+			...data,
+			// Los datos complejos se envían como JSON string desde el cliente.
+			ingredients: JSON.parse(data.ingredients as string),
+			urls: JSON.parse(data.urls as string)
+		};
+		const validation = RecipeSchema.safeParse(dataToValidate);
+		if (!validation.success) {
+			const response = createFailResponse(
+				'La validación falló. Revisa los campos.',
+				validation.error
+			);
+			return fail(400, response);
+		}
+		try {
+			const newRecipe = await recipeService.create(validation.data);
+			if (newRecipe) {
+				// Justificación: En caso de éxito, se redirige al usuario a la página
+				// de la receta recién creada usando `redirect` de SvelteKit.
+				throw redirect(303, `/recetas/${newRecipe.id}`);
+			}
+			// Este caso no debería ocurrir si el servicio funciona, pero es un fallback.
+			return fail(500, createFailResponse('La receta no se pudo crear.'));
+		} catch (err) {
+			// Si el error es una redirección, SvelteKit la manejará.
+			if ((err as { status?: number })?.status === 303) {
+				throw err;
+			}
+			console.error(err);
+			const response = createFailResponse('No se pudo crear la receta en el servidor.');
+			return fail(500, response);
+		}
+	}
+};
+
+// --- Ruta: src/routes/recetas/busqueda-avanzada/+page.svelte ---
+<script lang="ts">
+	// --- LECCIONES APRENDIDAS Y PATRONES DE SVELTE 5 ---
+	// Este componente ha sido objeto de una depuración intensiva que ha revelado
+	// varias sutilezas importantes sobre Svelte 5 y SvelteKit. A continuación,
+	// se documentan los patrones clave utilizados y las lecciones aprendidas.
+	//
+	// 1. GESTIÓN DEL ESTADO:
+	//    - Se utiliza `$state` para toda la información que puede cambiar y debe
+	//      provocar una actualización de la UI.
+	//    - El estado se divide conceptualmente entre la "causa" (los filtros que
+	//      el usuario modifica) y el "efecto" (los resultados de la búsqueda y
+	//      el estado de la UI, como `isLoading`). Esto mejora la claridad del
+	//      flujo de datos.
+	//
+	// 2. EL PROBLEMA DE LA CARGA INICIAL (BUG RESUELTO):
+	//    - PROBLEMA: Inicialmente, la página mostraba brevemente todas las recetas
+	//      antes de vaciar la lista. Esto ocurría porque la lógica del scroll
+	//      infinito se activaba prematuramente.
+	//    - SOLUCIÓN: La variable `hasMore` se inicializa en `false`. Esto previene
+	//      que el `div` "sentinel" del IntersectionObserver se renderice en la
+	//      carga inicial, evitando así la llamada a `loadMore()` con filtros vacíos.
+	//
+	// 3. PERSISTENCIA DE ESTADO EN NAVEGACIÓN (`snapshot`):
+	//    - PROBLEMA: Se necesita mantener el estado de la búsqueda (filtros y
+	//      resultados) cuando el usuario navega a una receta y vuelve atrás.
+	//    - INTENTO FALLIDO 1: Usar `history.replaceState` directamente. Esto entra
+	//      en conflicto con el router de SvelteKit, que es el dueño del historial,
+	//      provocando warnings y comportamiento errático.
+	//    - INTENTO FALLIDO 2: Usar `replaceState` de `$app/navigation` en un `$effect`.
+	//      Esto causó un bucle infinito porque el efecto dependía de datos (`$page`)
+	//      que él mismo modificaba, y además provocaba un "hydration mismatch"
+	//      al intentar restaurar el estado antes de que el componente se montara
+	//      de forma consistente en el cliente y el servidor.
+	//    - SOLUCIÓN CORRECTA: Utilizar el objeto `snapshot` exportado. SvelteKit
+	//      gestiona este ciclo de vida de forma segura:
+	//        - `capture()`: Se llama ANTES de salir de la página. Guardamos una
+	//          copia del estado. SvelteKit se encarga de almacenarla.
+	//        - `restore()`: Se llama AL VOLVER a la página. SvelteKit nos devuelve
+	//          los datos que guardamos para que podamos restaurar el estado.
+	//      Este es el patrón canónico y robusto para la persistencia de estado
+	//      de UI en SvelteKit.
+	//
+	// 4. REACTIVIDAD: `$derived` vs. FUNCIONES PURAS:
+	//    - PROBLEMA: Durante la depuración, se sospechó de una condición de carrera
+	//      en la inicialización de los `$derived` stores, donde un `$effect` podía
+	//      ejecutarse antes de que el valor derivado se hubiera estabilizado.
+	//    - SOLUCIÓN DE DEPURACIÓN: Reemplazar `$derived` por una función pura
+	//      (`areFiltersActive()`) para asegurar que el cálculo se realizara en el
+	//      momento exacto de la llamada. Esto resolvió el problema, confirmando
+	//      la hipótesis de la condición de carrera.
+	//    - CONCLUSIÓN: Aunque `$derived` es potente, para lógica crítica que se
+	//      ejecuta en la inicialización y que controla si se realizan o no
+	//      peticiones de red, una función pura puede ser más segura y predecible,
+	//      evitando posibles bugs de timing en el ciclo de vida.
+	//
+	// 5. COMUNICACIÓN ENTRE COMPONENTES:
+	//    - Se sigue un patrón de "callbacks" (eventos). El componente padre
+	//      (`+page.svelte`) mantiene la propiedad del estado (`filters`) y pasa
+	//      funciones (`onGramsChange`, etc.) al hijo (`MacroFilters.svelte`).
+	//    - El hijo, en lugar de modificar los datos directamente (lo que Svelte 5
+	//      desaconseja y marca con un warning), llama a estas funciones para
+	//      notificar al padre de que debe realizar un cambio. Esto mantiene un
+	//      flujo de datos unidireccional y predecible.
+	import { browser } from '$app/environment';
+	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
+	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
+	import type {
+		GramFilters,
+		PercentFilters
+	} from '$lib/components/recipes/MacroFilters.svelte';
+	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import X from 'lucide-svelte/icons/x';
+	type Ingredient = {
+		id: string;
+		name: string;
+		type: 'product' | 'custom';
+		source: 'local' | 'off';
+		imageUrl: string | null;
+	};
+	type Recipe = any;
+	// --- TIPOS LOCALES ---
+	type SearchPayload = {
+		ingredients: string[];
+		grams: GramFilters;
+		percent: PercentFilters;
+		sortBy: string;
+	};
+	// --- ESTADO DE FILTROS (LA "CAUSA") ---
+	let filters = $state({
+		selectedIngredients: [] as Ingredient[],
+		gramFilters: { calories: {}, protein: {}, carbs: {}, fat: {} } as GramFilters,
+		percentFilters: { protein: {}, carbs: {}, fat: {} } as PercentFilters,
+		sortBy: 'title_asc'
+	});
+	// --- ESTADO DE RESULTADOS Y UI (EL "EFECTO") ---
+	let recipes = $state<Recipe[]>([]);
+	let isLoading = $state(false);
+	let hasMore = $state(false);
+	let sentinel: HTMLDivElement | undefined = $state();
+	let controller: AbortController | undefined;
+	// --- PERSISTENCIA DE ESTADO CON SNAPSHOT ---
+	// Este es el mecanismo oficial de SvelteKit para guardar y restaurar el estado
+	// de un componente durante la navegación del historial (ej. botón "atrás").
+	export const snapshot = {
+		capture: () => {
+			// SvelteKit llama a esta función ANTES de que el usuario navegue fuera de esta página.
+			// Devolvemos un objeto serializable con los datos que queremos preservar.
+			// Usamos JSON.parse/stringify para crear una copia profunda y evitar problemas de referencias.
+			return {
+				filters: JSON.parse(JSON.stringify(filters)),
+				recipes: JSON.parse(JSON.stringify(recipes))
+			};
+		},
+		restore: (data: any) => {
+			// SvelteKit llama a esta función CUANDO el usuario vuelve a esta página.
+			// 'data' es el objeto que devolvimos en `capture`.
+			// Restauramos el estado del componente con estos datos.
+			if (data && data.filters && data.recipes) {
+				filters = data.filters;
+				recipes = data.recipes;
+			}
+		}
+	};
+	// --- FUNCIÓN DE COMPROBACIÓN ---
+	// Se utiliza una función pura en lugar de un `$derived` store para determinar si hay filtros activos.
+	// Esto resolvió un bug de condición de carrera donde los `$effect` se ejecutaban
+	// antes de que el valor de `$derived` se estabilizara en la carga inicial.
+	// Llamar a una función nos da la garantía de que el cálculo se hace en el momento preciso.
+	function areFiltersActive() {
+		const hasMacroGrams = Object.values(filters.gramFilters).some(
+			(range) => range && (range.min != null || range.max != null)
+		);
+		const hasMacroPercent = Object.values(filters.percentFilters).some(
+			(range) => range && (range.min != null || range.max != null)
+		);
+		return filters.selectedIngredients.length > 0 || hasMacroGrams || hasMacroPercent;
+	}
+	// --- LÓGICA DE BÚSQUEDA ---
+	async function performSearch(payload: SearchPayload) {
+		// Guardia de seguridad para no hacer peticiones a la API sin filtros.
+		if (!areFiltersActive()) {
+			recipes = [];
+			hasMore = false;
+			return;
+		}
+		isLoading = true;
+		const signal = controller?.signal;
+		try {
+			const body = { ...payload, offset: 0 };
+			const response = await fetch('/api/recipes/search', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body),
+				signal
+			});
+			const result = await response.json();
+			if (signal?.aborted) return;
+			recipes = result.recipes;
+			hasMore = result.hasMore;
+		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') return;
+			console.error('Error en la búsqueda:', error);
+		} finally {
+			if (!signal?.aborted) isLoading = false;
+		}
+	}
+	async function loadMore(payload: SearchPayload) {
+		// Doble guardia: no cargar más si no hay filtros o si ya se está cargando.
+		if (!areFiltersActive() || isLoading) return;
+		isLoading = true;
+		try {
+			const body = { ...payload, offset: recipes.length };
+			const response = await fetch('/api/recipes/search', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+			const result = await response.json();
+			recipes.push(...result.recipes);
+			hasMore = result.hasMore;
+		} catch (error) {
+			console.error('Error al cargar más recetas:', error);
+		} finally {
+			isLoading = false;
+		}
+	}
+	// --- EFECTOS ---
+	// Efecto principal para la búsqueda. Se activa cuando los filtros cambian.
+	$effect(() => {
+		if (!browser) return;
+		// Si no hay filtros, se limpia el estado de los resultados.
+		// Esto previene una búsqueda en la carga inicial.
+		if (!areFiltersActive()) {
+			recipes = [];
+			hasMore = false;
+			return;
+		}
+		// AbortController para cancelar peticiones en curso si el usuario sigue escribiendo.
+		controller?.abort();
+		controller = new AbortController();
+		const payload: SearchPayload = {
+			ingredients: filters.selectedIngredients.map((i) => i.id),
+			grams: filters.gramFilters,
+			percent: filters.percentFilters,
+			sortBy: filters.sortBy
+		};
+		// Debounce para no lanzar una petición en cada pulsación de tecla.
+		const timerId = setTimeout(() => {
+			performSearch(payload);
+		}, 350);
+		// Función de limpieza: se ejecuta antes de la siguiente ejecución del efecto.
+		return () => clearTimeout(timerId);
+	});
+	// Efecto para el scroll infinito.
+	$effect(() => {
+		if (!sentinel) return;
+		const observer = new IntersectionObserver((entries) => {
+			// Solo carga más si el sentinel es visible, hay más resultados, no se está
+			// cargando ya, y (crucialmente) hay filtros activos.
+			if (entries[0].isIntersecting && hasMore && !isLoading && areFiltersActive()) {
+				const payload: SearchPayload = {
+					ingredients: filters.selectedIngredients.map((i) => i.id),
+					grams: filters.gramFilters,
+					percent: filters.percentFilters,
+					sortBy: filters.sortBy
+				};
+				loadMore(payload);
+			}
+		});
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	});
+	// --- MANEJADORES DE EVENTOS ---
+	// Estos manejadores actualizan el estado `filters` de forma inmutable,
+	// lo que garantiza que la reactividad de Svelte 5 se dispare correctamente.
+	function handleAddIngredient(ingredient: Ingredient) {
+		if (!filters.selectedIngredients.some((i) => i.id === ingredient.id)) {
+			filters.selectedIngredients = [...filters.selectedIngredients, ingredient];
+		}
+	}
+	function handleRemoveIngredient(ingredientId: string) {
+		filters.selectedIngredients = filters.selectedIngredients.filter((i) => i.id !== ingredientId);
+	}
+	function clearIngredients() {
+		filters.selectedIngredients = [];
+	}
+	function handleGramsChange(macro: keyof GramFilters, key: 'min' | 'max', value: number | undefined) {
+		filters.gramFilters = {
+			...filters.gramFilters,
+			[macro]: {
+				...filters.gramFilters[macro],
+				[key]: value
+			}
+		};
+	}
+	function handlePercentChange(
+		macro: keyof PercentFilters,
+		key: 'min' | 'max',
+		value: number | undefined
+	) {
+		filters.percentFilters = {
+			...filters.percentFilters,
+			[macro]: {
+				...filters.percentFilters[macro],
+				[key]: value
+			}
+		};
+	}
+	function handleClearMacros() {
+		filters.gramFilters = { calories: {}, protein: {}, carbs: {}, fat: {} };
+		filters.percentFilters = { protein: {}, carbs: {}, fat: {} };
+	}
+</script>
+<div class="container mx-auto p-4 md:p-8">
+	<header class="mb-8 flex items-center justify-between">
+		<div>
+			<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
+			<p class="text-muted-foreground">
+				Filtra por ingredientes, macronutrientes y más.
+			</p>
+		</div>
+	</header>
+	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+		<aside class="lg:col-span-1">
+			<div class="space-y-6 rounded-lg border p-4 sticky top-4">
+				<div class="space-y-2">
+					<h3 class="text-lg font-semibold">Ingredientes</h3>
+					<IngredientCombobox
+						onSelect={handleAddIngredient}
+						selectedIds={filters.selectedIngredients.map((i) => i.id)}
+						onClear={clearIngredients}
+					/>
+					<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
+						{#each filters.selectedIngredients as ingredient (ingredient.id)}
+							<Badge variant="secondary" class="flex items-center gap-2">
+								{ingredient.name}
+								<button
+									onclick={() => handleRemoveIngredient(ingredient.id)}
+									class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+								>
+									<X class="h-3 w-3" />
+								</button>
+							</Badge>
+						{/each}
+					</div>
+				</div>
+				<hr />
+				<MacroFilters
+					gramFilters={filters.gramFilters}
+					percentFilters={filters.percentFilters}
+					onGramsChange={handleGramsChange}
+					onPercentChange={handlePercentChange}
+					onClear={handleClearMacros}
+				/>
+			</div>
+		</aside>
+		<main class="lg:col-span-2">
+			<div class="space-y-4">
+				{#if recipes.length > 0}
+					<div class="columns-1 md:columns-2 gap-4">
+						{#each recipes as recipe (recipe.id)}
+							<div class="mb-4 break-inside-avoid">
+								<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
+							</div>
+						{/each}
+					</div>
+				{:else if !isLoading}
+					<div class="rounded-lg border p-8 text-center">
+						<p class="text-muted-foreground">
+							{#if areFiltersActive()}
+								No se encontraron recetas con estos criterios.
+							{:else}
+								Selecciona uno o más filtros para empezar a buscar.
+							{/if}
+						</p>
+					</div>
+				{/if}
+				{#if hasMore}
+					<div bind:this={sentinel} class="h-10 flex justify-center items-center text-muted-foreground">
+						{#if isLoading}
+							<span>Cargando...</span>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		</main>
+	</div>
+</div>
+
 // --- Ruta: src/routes/api/scrape-image/api.spec.ts ---
 // Ruta: src/routes/api/scrape-image/api.spec.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -1508,6 +2213,175 @@ export const POST: RequestHandler = async ({ request }) => {
 		console.error('Error scraping image:', e);
 		throw error(500, 'Error interno al procesar la imagen');
 	}
+};
+
+// --- Ruta: src/routes/recetas/[id]/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
+<script lang="ts">
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Table,
+		TableBody,
+		TableCell,
+		TableHead,
+		TableHeader,
+		TableRow
+	} from '$lib/components/ui/table';
+	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
+	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button';
+	const { data } = $props<PageData>();
+	const { recipe } = data;
+	const ingredientsList = $derived(
+		recipe.ingredients
+			.map((ing) => {
+				const details = ing.product ?? ing.customIngredient;
+				if (!details) return null;
+				return {
+					name: details.name,
+					quantity: ing.quantity,
+					calories: details.calories ?? 0,
+					protein: details.protein ?? 0,
+					fat: details.fat ?? 0,
+					carbs: details.carbs ?? 0
+				};
+			})
+			.filter((i): i is NonNullable<typeof i> => i !== null)
+	);
+	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
+</script>
+<div class="max-w-4xl mx-auto my-8 space-y-8">
+	<header class="space-y-4">
+		<div class="flex justify-between items-start">
+			<div class="flex-1">
+				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
+				{#if recipe.description}
+					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
+				{/if}
+			</div>
+			<a href="/recetas/{recipe.id}/editar">
+				<Button variant="outline">Editar</Button>
+			</a>
+		</div>
+		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
+		{#if recipe.imageUrl}
+			<div class="w-full aspect-video rounded-lg overflow-hidden">
+				<img
+					src={recipe.imageUrl}
+					alt="Foto de {recipe.title}"
+					class="w-full h-full object-cover"
+				/>
+			</div>
+		{/if}
+	</header>
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+		<div class="md:col-span-2 space-y-8">
+			<!-- Pasos -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Preparación</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div class="prose max-w-none whitespace-pre-wrap">
+						{recipe.steps}
+					</div>
+				</CardContent>
+			</Card>
+			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
+			{#if recipe.urls && recipe.urls.length > 0}
+				<Card>
+					<CardHeader>
+						<CardTitle>Referencias</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ul class="list-disc pl-5 space-y-2">
+							{#each recipe.urls as ref}
+								<li>
+									<a
+										href={ref.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-blue-600 hover:underline"
+									>
+										{ref.url}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</CardContent>
+				</Card>
+			{/if}
+		</div>
+		<div class="space-y-8">
+			<!-- Información Nutricional -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Información Nutricional</CardTitle>
+					<CardDescription>Valores totales para la receta.</CardDescription>
+				</CardHeader>
+				<CardContent class="grid grid-cols-2 gap-4">
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
+						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Proteínas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Grasas</p>
+					</div>
+					<div>
+						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
+						<p class="text-sm text-gray-600">Carbohidratos</p>
+					</div>
+				</CardContent>
+			</Card>
+			<!-- Ingredientes -->
+			<Card>
+				<CardHeader>
+					<CardTitle>Ingredientes</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Nombre</TableHead>
+								<TableHead class="text-right">Cantidad</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{#each ingredientsList as ingredient}
+								<TableRow>
+									<TableCell class="font-medium">{ingredient.name}</TableCell>
+									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
+								</TableRow>
+							{/each}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
+		</div>
+	</div>
+</div>
+
+// --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/+page.server.ts
+import { error } from '@sveltejs/kit';
+import { recipeService } from '$lib/server/services/recipeService';
+import type { PageServerLoad } from './$types';
+// Justificación: La función `load` del servidor es ideal para cargar los datos
+// de una receta específica antes de que la página se renderice.
+// Esto asegura que los datos estén disponibles inmediatamente y mejora el SEO.
+export const load: PageServerLoad = async ({ params }) => {
+	const recipe = await recipeService.getById(params.id);
+	if (!recipe) {
+		throw error(404, 'Receta no encontrada');
+	}
+	return {
+		recipe
+	};
 };
 
 // --- Ruta: src/routes/api/recipes/server.spec.ts ---
@@ -3510,10 +4384,6 @@ describe('imageService', () => {
 </Card.Root>
 
 // --- Ruta: src/lib/components/recipes/MacroFilters.svelte ---
-<!--
-// Fichero: src/lib/components/recipes/MacroFilters.svelte
-// --- VERSIÓN FINAL CON FILTROS COMBINADOS ---
--->
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -3534,46 +4404,36 @@ describe('imageService', () => {
 	};
 	// --- Props (Svelte 5) ---
 	let {
-		gramFilters = $bindable(),
-		percentFilters = $bindable()
+		gramFilters,
+		percentFilters,
+		onGramsChange,
+		onPercentChange,
+		onClear
 	}: {
 		gramFilters: GramFilters;
 		percentFilters: PercentFilters;
+		onGramsChange: (macro: keyof GramFilters, key: 'min' | 'max', value: number | undefined) => void;
+		onPercentChange: (macro: keyof PercentFilters, key: 'min' | 'max', value: number | undefined) => void;
+		onClear: () => void;
 	} = $props();
-	function clearFilters() {
-		gramFilters = { calories: {}, protein: {}, carbs: {}, fat: {} };
-		percentFilters = { protein: {}, carbs: {}, fat: {} };
-	}
-	// Justificación: Se sigue un patrón de actualización inmutable. En lugar de mutar
-	// el objeto de filtros, se crea una copia nueva con el valor actualizado.
-	// Esto garantiza que Svelte 5 detecte el cambio y lo propague al componente padre.
+	// Justificación: Los manejadores de eventos ahora invocan los callbacks
+	// pasados por el padre en lugar de mutar props. Esto respeta la propiedad
+	// del estado y sigue el flujo de datos unidireccional de Svelte 5.
 	function handleGramsInput(macro: keyof GramFilters, key: 'min' | 'max', e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
 		const value = target.valueAsNumber;
-		gramFilters = {
-			...gramFilters,
-			[macro]: {
-				...gramFilters[macro],
-				[key]: isNaN(value) ? undefined : value
-			}
-		};
+		onGramsChange(macro, key, isNaN(value) ? undefined : value);
 	}
 	function handlePercentInput(macro: keyof PercentFilters, key: 'min' | 'max', e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
 		const value = target.valueAsNumber;
-		percentFilters = {
-			...percentFilters,
-			[macro]: {
-				...percentFilters[macro],
-				[key]: isNaN(value) ? undefined : value
-			}
-		};
+		onPercentChange(macro, key, isNaN(value) ? undefined : value);
 	}
 </script>
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h3 class="text-lg font-semibold">Macronutrientes</h3>
-		<Button onclick={clearFilters} variant="ghost" size="icon" aria-label="Limpiar filtros de macros">
+		<Button onclick={onClear} variant="ghost" size="icon" aria-label="Limpiar filtros de macros">
 			<Trash2 class="h-4 w-4" />
 		</Button>
 	</div>
@@ -4117,231 +4977,10 @@ describe('EditQuantitiesDialog.svelte', () => {
 	{/if}
 </Dialog.Content>
 
-// --- Ruta: src/routes/recetas/busqueda-avanzada/+page.svelte ---
-<!--
-// Fichero: src/routes/recetas/busqueda-avanzada/+page.svelte
-// --- VERSIÓN FINAL CON PATRONES SVELTE 5 CORRECTOS ---
--->
+// --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
+<!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
-	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
-	import type {
-		GramFilters,
-		PercentFilters
-	} from '$lib/components/recipes/MacroFilters.svelte';
-	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import X from 'lucide-svelte/icons/x';
-	type Ingredient = {
-		id: string;
-		name: string;
-		type: 'product' | 'custom';
-		source: 'local' | 'off';
-		imageUrl: string | null;
-	};
-	type Recipe = any;
-	// --- TIPOS LOCALES ---
-	type InitialState = {
-		selectedIngredients: Ingredient[];
-		gramFilters: GramFilters;
-		percentFilters: PercentFilters;
-		sortBy: string;
-	};
-	type SearchPayload = {
-		ingredients: string[];
-		grams: GramFilters;
-		percent: PercentFilters;
-		sortBy: string;
-	};
-	// --- ESTADO DE LA UI (sin URL) ---
-	function getInitialState(): InitialState {
-		return {
-			selectedIngredients: [],
-			gramFilters: { calories:{}, protein:{}, carbs:{}, fat:{} },
-			percentFilters: { protein:{}, carbs:{}, fat:{} },
-			sortBy: 'title_asc'
-		};
-	}
-	let { selectedIngredients, gramFilters, percentFilters, sortBy } =
-	$state(getInitialState());
-	// --- ESTADO DE RESULTADOS Y CONTROL ---
-	let recipes = $state<Recipe[]>([]);
-	let isLoading = $state(false);
-	let hasMore = $state(true);
-	let sentinel: HTMLDivElement | undefined = $state();
-	let controller: AbortController | undefined;
-	// --- FILTROS DERIVADOS DE LA UI ---
-	const uiFilters = $derived({
-		ingredients: selectedIngredients,
-		grams: gramFilters,
-		percent: percentFilters,
-		sortBy: sortBy
-	});
-	// --- LÓGICA DE BÚSQUEDA ---
-	async function performSearch(filters: SearchPayload) {
-		const hasGrams = Object.values(filters.grams).some(
-		(range) => range && (range.min != null || range.max != null)
-		);
-		const hasPercent = Object.values(filters.percent).some(
-		(range) => range && (range.min != null || range.max != null)
-		);
-		const hasMacroFilters = hasGrams || hasPercent;
-		if (filters.ingredients.length === 0 && !hasMacroFilters) {
-			recipes = [];
-			hasMore = false;
-			return;
-		}
-		isLoading = true;
-		const signal = controller?.signal;
-		try {
-			const body = { ...filters, offset: 0 };
-			const response = await fetch('/api/recipes/search', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(body),
-				signal
-			});
-			const result = await response.json();
-			if (signal?.aborted) return;
-			recipes = result.recipes;
-			hasMore = result.hasMore;
-		} catch (error) {
-			if (error instanceof DOMException && error.name === 'AbortError') return;
-			console.error('Error en la búsqueda:', error);
-		} finally {
-			if (!signal?.aborted) isLoading = false;
-		}
-	}
-	async function loadMore(filters: SearchPayload) {
-		if (isLoading) return;
-		isLoading = true;
-		try {
-			const body = { ...filters, offset: recipes.length };
-			const response = await fetch('/api/recipes/search', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(body)
-			});
-			const result = await response.json();
-			recipes.push(...result.recipes);
-			hasMore = result.hasMore;
-		} catch (error) {
-			console.error('Error al cargar más recetas:', error);
-		} finally {
-			isLoading = false;
-		}
-	}
-	// --- EFECTOS ---
-	$effect(() => {
-		if (!browser) return;
-		const filtersToSync = uiFilters;
-		controller?.abort();
-		controller = new AbortController();
-		const timerId = setTimeout(() => {
-			const payload: SearchPayload = {
-				...filtersToSync,
-				ingredients: filtersToSync.ingredients.map((i) => i.id)
-			};
-			performSearch(payload);
-		}, 350);
-		return () => clearTimeout(timerId);
-	});
-	$effect(() => {
-		if (!sentinel) return;
-		const observer = new IntersectionObserver((entries) => {
-			if (entries[0].isIntersecting && hasMore && !isLoading) {
-				const filters = uiFilters;
-				const payload: SearchPayload = {
-					...filters,
-					ingredients: filters.ingredients.map((i) => i.id)
-				};
-				loadMore(payload);
-			}
-		});
-		observer.observe(sentinel);
-		return () => observer.disconnect();
-	});
-	// --- MANEJADORES DE EVENTOS ---
-	function handleAddIngredient(ingredient: Ingredient) {
-		if (!selectedIngredients.some((i) => i.id === ingredient.id)) {
-			selectedIngredients = [...selectedIngredients, ingredient];
-		}
-	}
-	function handleRemoveIngredient(ingredientId: string) {
-		selectedIngredients = selectedIngredients.filter((i) => i.id !== ingredientId);
-	}
-	function clearIngredients() {
-		selectedIngredients = [];
-	}
-</script>
-<div class="container mx-auto p-4 md:p-8">
-	<header class="mb-8 flex items-center justify-between">
-		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
-			<p class="text-muted-foreground">
-				Filtra por ingredientes, macronutrientes y más.
-			</p>
-		</div>
-	</header>
-	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-		<aside class="lg:col-span-1">
-			<div class="space-y-6 rounded-lg border p-4 sticky top-4">
-				<div class="space-y-2">
-					<h3 class="text-lg font-semibold">Ingredientes</h3>
-					<IngredientCombobox
-					onSelect={handleAddIngredient}
-					selectedIds={selectedIngredients.map((i) => i.id)}
-					onClear={clearIngredients}
-					/>
-					<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
-						{#each selectedIngredients as ingredient (ingredient.id)}
-						<Badge variant="secondary" class="flex items-center gap-2">
-							{ingredient.name}
-							<button
-							onclick={() => handleRemoveIngredient(ingredient.id)}
-							class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-							>
-							<X class="h-3 w-3" />
-						</button>
-					</Badge>
-					{/each}
-				</div>
-			</div>
-			<hr />
-			<MacroFilters bind:gramFilters bind:percentFilters />
-		</div>
-	</aside>
-	<main class="lg:col-span-2">
-		<div class="space-y-4">
-			{#if recipes.length > 0}
-			<div class="columns-1 md:columns-2 gap-4">
-				{#each recipes as recipe (recipe.id)}
-				<div class="mb-4 break-inside-avoid">
-					<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
-					</div>
-					{/each}
-				</div>
-				{:else if !isLoading}
-				<div class="rounded-lg border p-8 text-center">
-					<p class="text-muted-foreground">No se encontraron recetas con estos criterios.</p>
-				</div>
-				{/if}
-				{#if hasMore}
-				<div bind:this={sentinel} class="h-10 flex justify-center items-center text-muted-foreground">
-					{#if isLoading}
-					<span>Cargando...</span>
-					{/if}
-				</div>
-				{/if}
-			</div>
-		</main>
-	</div>
-</div>
-
-// --- Ruta: src/routes/recetas/nueva/+page.svelte ---
-<!-- Ruta: src/routes/recetas/nueva/+page.svelte -->
-<script lang="ts">
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
@@ -4353,10 +4992,10 @@ describe('EditQuantitiesDialog.svelte', () => {
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
+	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
-	import type { ActionData } from './$types';
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
 	type SearchResult = {
 		id: string;
@@ -4366,12 +5005,42 @@ describe('EditQuantitiesDialog.svelte', () => {
 		imageUrl: string | null;
 	};
 	// --- Estado del formulario ---
-	let title = $state('');
-	let description = $state('');
-	let steps = $state('');
-	let imageUrl = $state('');
-	let urls = $state<string[]>([]);
-	let ingredients = $state<IngredientWithDetails[]>([]);
+	let title = $state(data.recipe.title);
+	let description = $state(data.recipe.description ?? '');
+	let steps = $state(data.recipe.steps);
+	let imageUrl = $state(data.recipe.imageUrl ?? '');
+	let urls = $state(data.recipe.urls.map((u) => u.url) ?? []);
+	const initialIngredients = data.recipe.ingredients
+		.map((ing): IngredientWithDetails | null => {
+			const quantity = ing.quantity;
+			if (ing.customIngredient) {
+				return {
+					id: ing.customIngredient.id,
+					type: 'custom',
+					quantity,
+					name: ing.customIngredient.name,
+					calories: ing.customIngredient.calories ?? 0,
+					protein: ing.customIngredient.protein ?? 0,
+					fat: ing.customIngredient.fat ?? 0,
+					carbs: ing.customIngredient.carbs ?? 0
+				};
+			}
+			if (ing.product) {
+				return {
+					id: ing.product.id,
+					type: 'product',
+					quantity,
+					name: ing.product.name,
+					calories: ing.product.calories ?? 0,
+					protein: ing.product.protein ?? 0,
+					fat: ing.product.fat ?? 0,
+					carbs: ing.product.carbs ?? 0
+				};
+			}
+			return null;
+		})
+		.filter((ing): ing is IngredientWithDetails => ing !== null);
+	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
 	// --- Estado del buscador de ingredientes ---
 	let searchResults = $state<SearchResult[]>([]);
 	let isSearching = $state(false);
@@ -4453,7 +5122,7 @@ describe('EditQuantitiesDialog.svelte', () => {
 </script>
 <Card class="max-w-4xl mx-auto my-8">
 	<CardHeader>
-		<CardTitle>Crear Nueva Receta</CardTitle>
+		<CardTitle>Editar Receta</CardTitle>
 	</CardHeader>
 	<CardContent>
 		<form
@@ -4461,11 +5130,10 @@ describe('EditQuantitiesDialog.svelte', () => {
 			use:enhance={() => {
 				isSubmitting = true;
 				return async ({ result }) => {
-					// La redirección se maneja automáticamente por el servidor en caso de éxito.
-					// Solo necesitamos gestionar el estado de `isSubmitting`.
-					if (result.type === 'failure' || result.type === 'error') {
-						isSubmitting = false;
+					if (result.type === 'success') {
+						await goto(`/recetas/${data.recipe.id}`);
 					}
+					isSubmitting = false;
 				};
 			}}
 			class="space-y-6"
@@ -4478,6 +5146,7 @@ describe('EditQuantitiesDialog.svelte', () => {
 			<div class="space-y-2">
 				<Label for="title">Título</Label>
 				<Input id="title" name="title" bind:value={title} required />
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
 				{#if form?.errors?.title}
 					<p class="text-sm text-red-500">{form.errors.title}</p>
 				{/if}
@@ -4512,6 +5181,7 @@ describe('EditQuantitiesDialog.svelte', () => {
 			<div class="space-y-2">
 				<Label for="steps">Pasos</Label>
 				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
 				{#if form?.errors?.steps}
 					<p class="text-sm text-red-500">{form.errors.steps}</p>
 				{/if}
@@ -4606,6 +5276,7 @@ describe('EditQuantitiesDialog.svelte', () => {
 						{/if}
 					</TableBody>
 				</Table>
+				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
 				{#if form?.errors?.ingredients}
 					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
 				{/if}
@@ -4634,7 +5305,7 @@ describe('EditQuantitiesDialog.svelte', () => {
 			</div>
 			<div class="flex justify-end">
 				<Button type="submit" disabled={isSubmitting}>
-					{isSubmitting ? 'Guardando...' : 'Guardar Receta'}
+					{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
 				</Button>
 			</div>
 			{#if form?.message}
@@ -4644,214 +5315,14 @@ describe('EditQuantitiesDialog.svelte', () => {
 	</CardContent>
 </Card>
 
-// --- Ruta: src/routes/recetas/nueva/+page.server.ts ---
-// Ruta: src/routes/recetas/nueva/+page.server.ts
-import { fail, redirect } from '@sveltejs/kit';
+// --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
+// Ruta: src/routes/recetas/[id]/editar/+page.server.ts
+import { error, fail } from '@sveltejs/kit';
 import { recipeService } from '$lib/server/services/recipeService';
-import type { Actions } from './$types';
+import type { PageServerLoad, Actions } from './$types';
 import { RecipeSchema } from '$lib/schemas/recipeSchema';
+// Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
 import { createFailResponse } from '$lib/server/zodErrors';
-// Justificación: Se crea un `actions` object para manejar la creación de la receta.
-// Esto alinea la página de 'nueva receta' con las mejores prácticas de SvelteKit
-// que ya implementamos en la página de 'editar'.
-export const actions: Actions = {
-	default: async ({ request }) => {
-		const formData = await request.formData();
-		const data = Object.fromEntries(formData.entries());
-		const dataToValidate = {
-			...data,
-			// Los datos complejos se envían como JSON string desde el cliente.
-			ingredients: JSON.parse(data.ingredients as string),
-			urls: JSON.parse(data.urls as string)
-		};
-		const validation = RecipeSchema.safeParse(dataToValidate);
-		if (!validation.success) {
-			const response = createFailResponse(
-				'La validación falló. Revisa los campos.',
-				validation.error
-			);
-			return fail(400, response);
-		}
-		try {
-			const newRecipe = await recipeService.create(validation.data);
-			if (newRecipe) {
-				// Justificación: En caso de éxito, se redirige al usuario a la página
-				// de la receta recién creada usando `redirect` de SvelteKit.
-				throw redirect(303, `/recetas/${newRecipe.id}`);
-			}
-			// Este caso no debería ocurrir si el servicio funciona, pero es un fallback.
-			return fail(500, createFailResponse('La receta no se pudo crear.'));
-		} catch (err) {
-			// Si el error es una redirección, SvelteKit la manejará.
-			if ((err as { status?: number })?.status === 303) {
-				throw err;
-			}
-			console.error(err);
-			const response = createFailResponse('No se pudo crear la receta en el servidor.');
-			return fail(500, response);
-		}
-	}
-};
-
-// --- Ruta: src/routes/recetas/[id]/+page.svelte ---
-<!-- Ruta: src/routes/recetas/[id]/+page.svelte -->
-<script lang="ts">
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow
-	} from '$lib/components/ui/table';
-	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
-	import type { PageData } from './$types';
-	import { Button } from '$lib/components/ui/button';
-	const { data } = $props<PageData>();
-	const { recipe } = data;
-	const ingredientsList = $derived(
-		recipe.ingredients
-			.map((ing) => {
-				const details = ing.product ?? ing.customIngredient;
-				if (!details) return null;
-				return {
-					name: details.name,
-					quantity: ing.quantity,
-					calories: details.calories ?? 0,
-					protein: details.protein ?? 0,
-					fat: details.fat ?? 0,
-					carbs: details.carbs ?? 0
-				};
-			})
-			.filter((i): i is NonNullable<typeof i> => i !== null)
-	);
-	const nutritionalInfo = $derived(calculateNutritionalInfo(ingredientsList));
-</script>
-<div class="max-w-4xl mx-auto my-8 space-y-8">
-	<header class="space-y-4">
-		<div class="flex justify-between items-start">
-			<div class="flex-1">
-				<h1 class="text-4xl font-bold tracking-tight">{recipe.title}</h1>
-				{#if recipe.description}
-					<p class="text-lg text-gray-600 mt-2">{recipe.description}</p>
-				{/if}
-			</div>
-			<a href="/recetas/{recipe.id}/editar">
-				<Button variant="outline">Editar</Button>
-			</a>
-		</div>
-		<!-- Justificación (Paso 3.4): Se muestra la imagen de la receta si existe. -->
-		{#if recipe.imageUrl}
-			<div class="w-full aspect-video rounded-lg overflow-hidden">
-				<img
-					src={recipe.imageUrl}
-					alt="Foto de {recipe.title}"
-					class="w-full h-full object-cover"
-				/>
-			</div>
-		{/if}
-	</header>
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-		<div class="md:col-span-2 space-y-8">
-			<!-- Pasos -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Preparación</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div class="prose max-w-none whitespace-pre-wrap">
-						{recipe.steps}
-					</div>
-				</CardContent>
-			</Card>
-			<!-- Justificación (Paso 3.4): Se muestra la lista de URLs de referencia si existen. -->
-			{#if recipe.urls && recipe.urls.length > 0}
-				<Card>
-					<CardHeader>
-						<CardTitle>Referencias</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ul class="list-disc pl-5 space-y-2">
-							{#each recipe.urls as ref}
-								<li>
-									<a
-										href={ref.url}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="text-blue-600 hover:underline"
-									>
-										{ref.url}
-									</a>
-								</li>
-							{/each}
-						</ul>
-					</CardContent>
-				</Card>
-			{/if}
-		</div>
-		<div class="space-y-8">
-			<!-- Información Nutricional -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Información Nutricional</CardTitle>
-					<CardDescription>Valores totales para la receta.</CardDescription>
-				</CardHeader>
-				<CardContent class="grid grid-cols-2 gap-4">
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCalories.toFixed(0)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalFat.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
-					</div>
-					<div>
-						<p class="font-bold text-lg">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
-					</div>
-				</CardContent>
-			</Card>
-			<!-- Ingredientes -->
-			<Card>
-				<CardHeader>
-					<CardTitle>Ingredientes</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Nombre</TableHead>
-								<TableHead class="text-right">Cantidad</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{#each ingredientsList as ingredient}
-								<TableRow>
-									<TableCell class="font-medium">{ingredient.name}</TableCell>
-									<TableCell class="text-right">{ingredient.quantity} g</TableCell>
-								</TableRow>
-							{/each}
-						</TableBody>
-					</Table>
-				</CardContent>
-			</Card>
-		</div>
-	</div>
-</div>
-
-// --- Ruta: src/routes/recetas/[id]/+page.server.ts ---
-// Ruta: src/routes/recetas/[id]/+page.server.ts
-import { error } from '@sveltejs/kit';
-import { recipeService } from '$lib/server/services/recipeService';
-import type { PageServerLoad } from './$types';
-// Justificación: La función `load` del servidor es ideal para cargar los datos
-// de una receta específica antes de que la página se renderice.
-// Esto asegura que los datos estén disponibles inmediatamente y mejora el SEO.
 export const load: PageServerLoad = async ({ params }) => {
 	const recipe = await recipeService.getById(params.id);
 	if (!recipe) {
@@ -4860,6 +5331,88 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		recipe
 	};
+};
+export const actions: Actions = {
+	default: async ({ request, params }) => {
+		const formData = await request.formData();
+		const data = Object.fromEntries(formData.entries());
+		const dataToValidate = {
+			...data,
+			ingredients: JSON.parse(data.ingredients as string),
+			urls: JSON.parse(data.urls as string)
+		};
+		const validation = RecipeSchema.safeParse(dataToValidate);
+		if (!validation.success) {
+			// Justificación: Se usa la nueva utilidad para el fallo de validación.
+			const response = createFailResponse('La validación falló. Revisa los campos.', validation.error);
+			return fail(400, response);
+		}
+		try {
+			const updatedRecipe = await recipeService.update(params.id, validation.data);
+			return {
+				status: 200,
+				body: {
+					recipe: updatedRecipe
+				}
+			};
+		} catch (err) {
+			console.error(err);
+			// Justificación: Se usa la misma utilidad para el fallo del servidor,
+			// garantizando una estructura de respuesta 100% consistente.
+			const response = createFailResponse('No se pudo actualizar la receta.');
+			return fail(500, response);
+		}
+	}
+};
+
+// --- Ruta: src/routes/api/recipes/search/+server.ts ---
+// Fichero: src/routes/api/recipes/search/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { recipeService } from '$lib/server/services/recipeService';
+import { SearchFiltersSchema } from '$lib/schemas/searchSchema';
+import { ZodError } from 'zod';
+const RECIPES_PER_PAGE = 50;
+/**
+ * Endpoint POST para la búsqueda avanzada de recetas.
+ * Acepta un cuerpo JSON con filtros estructurados.
+ */
+export const POST: RequestHandler = async ({ request }) => {
+	// --- LOGGING: ID único para la petición ---
+	const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+	console.log(`\n--- [${requestId}] INICIO: Petición de búsqueda recibida ---`);
+	try {
+		const body = await request.json();
+		// --- LOGGING: Cuerpo de la petición recibido ---
+		console.log(`[${requestId}] BODY RECIBIDO:`, JSON.stringify(body, null, 2));
+		const filters = SearchFiltersSchema.parse(body);
+		// --- LOGGING: Filtros validados por Zod ---
+		console.log(`[${requestId}] FILTROS VALIDADOS:`, JSON.stringify(filters, null, 2));
+		const queryOptions = {
+			...filters,
+			limit: RECIPES_PER_PAGE + 1
+		};
+		// --- LOGGING: Opciones de consulta a la base de datos ---
+		// Esto es lo que se pasará a Prisma
+		console.log(`[${requestId}] QUERY OPTIONS (para recipeService):`, JSON.stringify(queryOptions, null, 2));
+		const recipesPlusOne = await recipeService.findAdvanced(queryOptions);
+		const hasMore = recipesPlusOne.length > RECIPES_PER_PAGE;
+		const recipes = recipesPlusOne.slice(0, RECIPES_PER_PAGE);
+		// --- LOGGING: Resultado de la operación ---
+		console.log(`[${requestId}] RESULTADO: ${recipes.length} recetas encontradas. ¿Hay más?: ${hasMore}`);
+		console.log(`--- [${requestId}] FIN: Petición completada exitosamente ---`);
+		return json({
+			recipes,
+			hasMore
+		});
+	} catch (error) {
+		// --- LOGGING: Error en el proceso ---
+		console.error(`--- [${requestId}] ERROR: Ha ocurrido un error en el endpoint ---`, error);
+		if (error instanceof ZodError) {
+			return json({ message: 'Datos de búsqueda inválidos', errors: error.flatten() }, { status: 400 });
+		}
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
 };
 
 // --- Ruta: src/routes/api/recipes/[id]/+server.ts ---
@@ -4916,74 +5469,6 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	} catch (error) {
 		console.error(`Error deleting recipe ${params.id}:`, error);
 		return json(createFailResponse('Error interno del servidor'), { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/recipes/search/+server.ts ---
-// Fichero: src/routes/api/recipes/search/+server.ts
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { recipeService } from '$lib/server/services/recipeService';
-import { SearchFiltersSchema } from '$lib/schemas/searchSchema';
-import { ZodError } from 'zod';
-const RECIPES_PER_PAGE = 50;
-/**
- * Endpoint POST para la búsqueda avanzada de recetas.
- * Acepta un cuerpo JSON con filtros estructurados.
- */
-export const POST: RequestHandler = async ({ request }) => {
-	// --- LOGGING: ID único para la petición ---
-	const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-	console.log(`\n--- [${requestId}] INICIO: Petición de búsqueda recibida ---`);
-	try {
-		const body = await request.json();
-		// --- LOGGING: Cuerpo de la petición recibido ---
-		console.log(`[${requestId}] BODY RECIBIDO:`, JSON.stringify(body, null, 2));
-		const filters = SearchFiltersSchema.parse(body);
-		// --- LOGGING: Filtros validados por Zod ---
-		console.log(`[${requestId}] FILTROS VALIDADOS:`, JSON.stringify(filters, null, 2));
-		const queryOptions = {
-			...filters,
-			limit: RECIPES_PER_PAGE + 1
-		};
-		// --- LOGGING: Opciones de consulta a la base de datos ---
-		// Esto es lo que se pasará a Prisma
-		console.log(`[${requestId}] QUERY OPTIONS (para recipeService):`, JSON.stringify(queryOptions, null, 2));
-		const recipesPlusOne = await recipeService.findAdvanced(queryOptions);
-		const hasMore = recipesPlusOne.length > RECIPES_PER_PAGE;
-		const recipes = recipesPlusOne.slice(0, RECIPES_PER_PAGE);
-		// --- LOGGING: Resultado de la operación ---
-		console.log(`[${requestId}] RESULTADO: ${recipes.length} recetas encontradas. ¿Hay más?: ${hasMore}`);
-		console.log(`--- [${requestId}] FIN: Petición completada exitosamente ---`);
-		return json({
-			recipes,
-			hasMore
-		});
-	} catch (error) {
-		// --- LOGGING: Error en el proceso ---
-		console.error(`--- [${requestId}] ERROR: Ha ocurrido un error en el endpoint ---`, error);
-		if (error instanceof ZodError) {
-			return json({ message: 'Datos de búsqueda inválidos', errors: error.flatten() }, { status: 400 });
-		}
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
-	}
-};
-
-// --- Ruta: src/routes/api/products/[id]/+server.ts ---
-// Ruta: src/routes/api/products/[id]/+server.ts
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { productService } from '$lib/server/services/productService';
-export const DELETE: RequestHandler = async ({ params }) => {
-	const { id } = params;
-	if (!id) {
-		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
-	}
-	try {
-		await productService.deleteById(id);
-		return new Response(null, { status: 204 }); // No Content
-	} catch (error) {
-		console.error(`Error deleting product ${id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
 	}
 };
 
@@ -5414,6 +5899,24 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	}
 };
 
+// --- Ruta: src/routes/api/products/[id]/+server.ts ---
+// Ruta: src/routes/api/products/[id]/+server.ts
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { productService } from '$lib/server/services/productService';
+export const DELETE: RequestHandler = async ({ params }) => {
+	const { id } = params;
+	if (!id) {
+		return json({ message: 'El ID del producto es requerido.' }, { status: 400 });
+	}
+	try {
+		await productService.deleteById(id);
+		return new Response(null, { status: 204 }); // No Content
+	} catch (error) {
+		console.error(`Error deleting product ${id}:`, error);
+		return json({ message: 'Error interno del servidor' }, { status: 500 });
+	}
+};
+
 // --- Ruta: src/routes/admin/ingredientes/off/+page.svelte ---
 <script lang="ts">
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -5546,6 +6049,36 @@ export const actions: Actions = {
 	}
 };
 
+// --- Ruta: src/lib/components/ui/textarea/textarea.svelte ---
+<script lang="ts">
+	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
+	import type { HTMLTextareaAttributes } from "svelte/elements";
+	let {
+		ref = $bindable(null),
+		value = $bindable(),
+		class: className,
+		...restProps
+	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
+</script>
+<textarea
+	bind:this={ref}
+	data-slot="textarea"
+	class={cn(
+		"border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 field-sizing-content shadow-xs flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+		className
+	)}
+	bind:value
+	{...restProps}
+></textarea>
+
+// --- Ruta: src/lib/components/ui/textarea/index.ts ---
+import Root from "./textarea.svelte";
+export {
+	Root,
+	//
+	Root as Textarea,
+};
+
 // --- Ruta: src/lib/components/ui/switch/switch.svelte ---
 <script lang="ts">
 	import { Switch as SwitchPrimitive } from "bits-ui";
@@ -5581,36 +6114,6 @@ export {
 	Root,
 	//
 	Root as Switch,
-};
-
-// --- Ruta: src/lib/components/ui/textarea/textarea.svelte ---
-<script lang="ts">
-	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
-	import type { HTMLTextareaAttributes } from "svelte/elements";
-	let {
-		ref = $bindable(null),
-		value = $bindable(),
-		class: className,
-		...restProps
-	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
-</script>
-<textarea
-	bind:this={ref}
-	data-slot="textarea"
-	class={cn(
-		"border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 field-sizing-content shadow-xs flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-		className
-	)}
-	bind:value
-	{...restProps}
-></textarea>
-
-// --- Ruta: src/lib/components/ui/textarea/index.ts ---
-import Root from "./textarea.svelte";
-export {
-	Root,
-	//
-	Root as Textarea,
 };
 
 // --- Ruta: src/lib/components/ui/table/table.svelte ---
@@ -6757,6 +7260,101 @@ export {
 	</Dialog.Content>
 </Dialog.Root>
 
+// --- Ruta: src/lib/components/ui/button/index.ts ---
+import Root, {
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant,
+	buttonVariants,
+} from "./button.svelte";
+export {
+	Root,
+	type ButtonProps as Props,
+	//
+	Root as Button,
+	buttonVariants,
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant,
+};
+
+// --- Ruta: src/lib/components/ui/button/button.svelte ---
+<script lang="ts" module>
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
+	import { type VariantProps, tv } from "tailwind-variants";
+	export const buttonVariants = tv({
+		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		variants: {
+			variant: {
+				default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+				destructive:
+					"bg-destructive shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white",
+				outline:
+					"bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border",
+				secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+				ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+				link: "text-primary underline-offset-4 hover:underline",
+			},
+			size: {
+				default: "h-9 px-4 py-2 has-[>svg]:px-3",
+				sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
+				lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+				icon: "size-9",
+			},
+		},
+		defaultVariants: {
+			variant: "default",
+			size: "default",
+		},
+	});
+	export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
+	export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
+	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
+		WithElementRef<HTMLAnchorAttributes> & {
+			variant?: ButtonVariant;
+			size?: ButtonSize;
+		};
+</script>
+<script lang="ts">
+	let {
+		class: className,
+		variant = "default",
+		size = "default",
+		ref = $bindable(null),
+		href = undefined,
+		type = "button",
+		disabled,
+		children,
+		...restProps
+	}: ButtonProps = $props();
+</script>
+{#if href}
+	<a
+		bind:this={ref}
+		data-slot="button"
+		class={cn(buttonVariants({ variant, size }), className)}
+		href={disabled ? undefined : href}
+		aria-disabled={disabled}
+		role={disabled ? "link" : undefined}
+		tabindex={disabled ? -1 : undefined}
+		{...restProps}
+	>
+		{@render children?.()}
+	</a>
+{:else}
+	<button
+		bind:this={ref}
+		data-slot="button"
+		class={cn(buttonVariants({ variant, size }), className)}
+		{type}
+		{disabled}
+		{...restProps}
+	>
+		{@render children?.()}
+	</button>
+{/if}
+
 // --- Ruta: src/lib/components/ui/card/index.ts ---
 import Root from "./card.svelte";
 import Content from "./card-content.svelte";
@@ -6923,101 +7521,6 @@ export {
 >
 	{@render children?.()}
 </div>
-
-// --- Ruta: src/lib/components/ui/button/index.ts ---
-import Root, {
-	type ButtonProps,
-	type ButtonSize,
-	type ButtonVariant,
-	buttonVariants,
-} from "./button.svelte";
-export {
-	Root,
-	type ButtonProps as Props,
-	//
-	Root as Button,
-	buttonVariants,
-	type ButtonProps,
-	type ButtonSize,
-	type ButtonVariant,
-};
-
-// --- Ruta: src/lib/components/ui/button/button.svelte ---
-<script lang="ts" module>
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
-	import { type VariantProps, tv } from "tailwind-variants";
-	export const buttonVariants = tv({
-		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		variants: {
-			variant: {
-				default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
-				destructive:
-					"bg-destructive shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white",
-				outline:
-					"bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border",
-				secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-				ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-				link: "text-primary underline-offset-4 hover:underline",
-			},
-			size: {
-				default: "h-9 px-4 py-2 has-[>svg]:px-3",
-				sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-				lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-				icon: "size-9",
-			},
-		},
-		defaultVariants: {
-			variant: "default",
-			size: "default",
-		},
-	});
-	export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
-	export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
-	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
-		WithElementRef<HTMLAnchorAttributes> & {
-			variant?: ButtonVariant;
-			size?: ButtonSize;
-		};
-</script>
-<script lang="ts">
-	let {
-		class: className,
-		variant = "default",
-		size = "default",
-		ref = $bindable(null),
-		href = undefined,
-		type = "button",
-		disabled,
-		children,
-		...restProps
-	}: ButtonProps = $props();
-</script>
-{#if href}
-	<a
-		bind:this={ref}
-		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
-		href={disabled ? undefined : href}
-		aria-disabled={disabled}
-		role={disabled ? "link" : undefined}
-		tabindex={disabled ? -1 : undefined}
-		{...restProps}
-	>
-		{@render children?.()}
-	</a>
-{:else}
-	<button
-		bind:this={ref}
-		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
-		{type}
-		{disabled}
-		{...restProps}
-	>
-		{@render children?.()}
-	</button>
-{/if}
 
 // --- Ruta: src/lib/components/ui/badge/index.ts ---
 export { default as Badge } from "./badge.svelte";
@@ -7272,394 +7775,6 @@ export {
 	class={cn(buttonVariants(), className)}
 	{...restProps}
 />
-
-// --- Ruta: src/routes/recetas/[id]/editar/+page.svelte ---
-<!-- Ruta: src/routes/recetas/[id]/editar/+page.svelte -->
-<script lang="ts">
-	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
-	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
-	import * as Popover from '$lib/components/ui/popover';
-	import * as Command from '$lib/components/ui/command';
-	import { ChevronsUpDown, Trash2 } from 'lucide-svelte';
-	import type { PageData, ActionData } from './$types';
-	import { enhance } from '$app/forms';
-	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
-	type SearchResult = {
-		id: string;
-		name: string;
-		source: 'local' | 'off';
-		type: 'custom' | 'product';
-		imageUrl: string | null;
-	};
-	// --- Estado del formulario ---
-	let title = $state(data.recipe.title);
-	let description = $state(data.recipe.description ?? '');
-	let steps = $state(data.recipe.steps);
-	let imageUrl = $state(data.recipe.imageUrl ?? '');
-	let urls = $state(data.recipe.urls.map((u) => u.url) ?? []);
-	const initialIngredients = data.recipe.ingredients
-		.map((ing): IngredientWithDetails | null => {
-			const quantity = ing.quantity;
-			if (ing.customIngredient) {
-				return {
-					id: ing.customIngredient.id,
-					type: 'custom',
-					quantity,
-					name: ing.customIngredient.name,
-					calories: ing.customIngredient.calories ?? 0,
-					protein: ing.customIngredient.protein ?? 0,
-					fat: ing.customIngredient.fat ?? 0,
-					carbs: ing.customIngredient.carbs ?? 0
-				};
-			}
-			if (ing.product) {
-				return {
-					id: ing.product.id,
-					type: 'product',
-					quantity,
-					name: ing.product.name,
-					calories: ing.product.calories ?? 0,
-					protein: ing.product.protein ?? 0,
-					fat: ing.product.fat ?? 0,
-					carbs: ing.product.carbs ?? 0
-				};
-			}
-			return null;
-		})
-		.filter((ing): ing is IngredientWithDetails => ing !== null);
-	let ingredients = $state<IngredientWithDetails[]>(initialIngredients);
-	// --- Estado del buscador de ingredientes ---
-	let searchResults = $state<SearchResult[]>([]);
-	let isSearching = $state(false);
-	let open = $state(false);
-	let inputValue = $state('');
-	let searchTerm = $state('');
-	$effect(() => {
-		let eventSource: EventSource | null = null;
-		if (searchTerm.length < 3) {
-			searchResults = [];
-			isSearching = false;
-		} else {
-			isSearching = true;
-			searchResults = [];
-			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
-			eventSource.addEventListener('message', (e) => {
-				const newResults = JSON.parse(e.data);
-				searchResults = [...searchResults, ...newResults];
-			});
-			eventSource.addEventListener('stream_error', (e) => {
-				const errorData = JSON.parse((e as MessageEvent).data);
-				console.error('Error de stream recibido:', errorData);
-			});
-			eventSource.onerror = (err) => {
-				console.error('Error en la conexión de EventSource:', err);
-				isSearching = false;
-				eventSource?.close();
-			};
-			eventSource.addEventListener('close', () => {
-				isSearching = false;
-				eventSource?.close();
-			});
-		}
-		return () => {
-			eventSource?.close();
-		};
-	});
-	async function addIngredient(result: SearchResult) {
-		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
-		try {
-			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
-			if (!response.ok) throw new Error('Failed to fetch ingredient details');
-			const details: CalculableIngredient = await response.json();
-			ingredients.push({
-				...result,
-				quantity: 100,
-				calories: details.calories,
-				protein: details.protein,
-				fat: details.fat,
-				carbs: details.carbs
-			});
-		} catch (error) {
-			console.error('Error adding ingredient:', error);
-		} finally {
-			open = false;
-			searchResults = [];
-			searchTerm = '';
-			inputValue = '';
-		}
-	}
-	function removeIngredient(index: number) {
-		ingredients.splice(index, 1);
-	}
-	// --- Gestión de subida de imagen ---
-	function handleImageUpload(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				imageUrl = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
-	}
-	// --- Cálculos y envío ---
-	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
-	let isSubmitting = $state(false);
-</script>
-<Card class="max-w-4xl mx-auto my-8">
-	<CardHeader>
-		<CardTitle>Editar Receta</CardTitle>
-	</CardHeader>
-	<CardContent>
-		<form
-			method="POST"
-			use:enhance={() => {
-				isSubmitting = true;
-				return async ({ result }) => {
-					if (result.type === 'success') {
-						await goto(`/recetas/${data.recipe.id}`);
-					}
-					isSubmitting = false;
-				};
-			}}
-			class="space-y-6"
-		>
-			<!-- Campos ocultos para enviar datos complejos -->
-			<input type="hidden" name="ingredients" value={JSON.stringify(ingredients.map(({ id, quantity, type }) => ({ id, quantity, type })))} />
-			<input type="hidden" name="urls" value={JSON.stringify(urls.filter(u => u.trim() !== ''))} />
-			<input type="hidden" name="imageUrl" value={imageUrl} />
-			<!-- Campos del formulario -->
-			<div class="space-y-2">
-				<Label for="title">Título</Label>
-				<Input id="title" name="title" bind:value={title} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
-				{#if form?.errors?.title}
-					<p class="text-sm text-red-500">{form.errors.title}</p>
-				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="description">Descripción (Opcional)</Label>
-				<Textarea id="description" name="description" bind:value={description} />
-			</div>
-			<div class="space-y-2">
-				<Label for="image">Imagen de la Receta</Label>
-				<div class="flex items-center gap-4">
-					{#if imageUrl}
-						<img
-							src={imageUrl}
-							alt="Previsualización de la receta"
-							class="h-24 w-24 rounded-md object-cover"
-						/>
-					{/if}
-					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
-				</div>
-				<p class="text-sm text-gray-500">
-					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de referencia.
-				</p>
-			</div>
-			<div class="space-y-2">
-				<Label>URLs de Referencia</Label>
-				<UrlImageFetcher bind:urls bind:imageUrl />
-				{#if form?.errors?.urls}
-					<p class="text-sm text-red-500">{form.errors.urls}</p>
-				{/if}
-			</div>
-			<div class="space-y-2">
-				<Label for="steps">Pasos</Label>
-				<Textarea id="steps" name="steps" bind:value={steps} rows={8} required />
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
-				{#if form?.errors?.steps}
-					<p class="text-sm text-red-500">{form.errors.steps}</p>
-				{/if}
-			</div>
-			<!-- Buscador y tabla de ingredientes -->
-			<div class="space-y-2">
-				<Label>Añadir Ingrediente</Label>
-				<Popover.Root bind:open>
-					<Popover.Trigger
-						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
-						role="combobox"
-						aria-expanded={open}
-					>
-						<div class="flex items-center justify-between w-full">
-							{inputValue || 'Seleccionar ingrediente...'}
-							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-						</div>
-					</Popover.Trigger>
-					<Popover.Content class="w-[--trigger-width] p-0">
-						<Command.Root filter={() => 1}>
-							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
-							<Command.List>
-								{#if searchResults.length > 0}
-									{#each searchResults as result (result.id + result.type)}
-										<Command.Item
-											value={result.name}
-											onSelect={() => {
-												inputValue = result.name;
-												addIngredient(result);
-											}}
-											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
-										>
-											<img
-												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
-												alt={result.name}
-												class="h-8 w-8 rounded-sm object-cover"
-											/>
-											<span>{result.name}</span>
-										</Command.Item>
-									{/each}
-								{:else}
-									<div class="p-4 text-sm text-center text-gray-500">
-										{#if isSearching}
-											Buscando...
-										{:else if searchTerm.length < 3}
-											Escribe al menos 3 caracteres para buscar...
-										{:else}
-											No se encontraron resultados.
-										{/if}
-									</div>
-								{/if}
-							</Command.List>
-						</Command.Root>
-					</Popover.Content>
-				</Popover.Root>
-			</div>
-			<div class="space-y-2">
-				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Nombre</TableHead>
-							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
-							<TableHead class="w-[100px] text-right">Acciones</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each ingredients as ingredient, i}
-							<TableRow>
-								<TableCell>{ingredient.name}</TableCell>
-								<TableCell>
-									<Input type="number" bind:value={ingredient.quantity} min="1" class="w-full" />
-								</TableCell>
-								<TableCell class="text-right">
-									<Button
-										type="button"
-										variant="destructive"
-										size="sm"
-										onclick={() => removeIngredient(i)}
-									>
-										Quitar
-									</Button>
-								</TableCell>
-							</TableRow>
-						{/each}
-						{#if ingredients.length === 0}
-							<TableRow>
-								<TableCell colspan={3} class="text-center text-gray-500">
-									Añade ingredientes usando el buscador.
-								</TableCell>
-							</TableRow>
-						{/if}
-					</TableBody>
-				</Table>
-				<!-- Corrección: Se accede directamente al mensaje de error (string), no a un array. -->
-				{#if form?.errors?.ingredients}
-					<p class="text-sm text-red-500">{form.errors.ingredients}</p>
-				{/if}
-			</div>
-			<!-- Información nutricional -->
-			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
-				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
-				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
-					</div>
-					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
-					</div>
-				</div>
-			</div>
-			<div class="flex justify-end">
-				<Button type="submit" disabled={isSubmitting}>
-					{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-				</Button>
-			</div>
-			{#if form?.message}
-				<p class="text-sm text-red-500 text-right">{form.message}</p>
-			{/if}
-		</form>
-	</CardContent>
-</Card>
-
-// --- Ruta: src/routes/recetas/[id]/editar/+page.server.ts ---
-// Ruta: src/routes/recetas/[id]/editar/+page.server.ts
-import { error, fail } from '@sveltejs/kit';
-import { recipeService } from '$lib/server/services/recipeService';
-import type { PageServerLoad, Actions } from './$types';
-import { RecipeSchema } from '$lib/schemas/recipeSchema';
-// Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
-import { createFailResponse } from '$lib/server/zodErrors';
-export const load: PageServerLoad = async ({ params }) => {
-	const recipe = await recipeService.getById(params.id);
-	if (!recipe) {
-		throw error(404, 'Receta no encontrada');
-	}
-	return {
-		recipe
-	};
-};
-export const actions: Actions = {
-	default: async ({ request, params }) => {
-		const formData = await request.formData();
-		const data = Object.fromEntries(formData.entries());
-		const dataToValidate = {
-			...data,
-			ingredients: JSON.parse(data.ingredients as string),
-			urls: JSON.parse(data.urls as string)
-		};
-		const validation = RecipeSchema.safeParse(dataToValidate);
-		if (!validation.success) {
-			// Justificación: Se usa la nueva utilidad para el fallo de validación.
-			const response = createFailResponse('La validación falló. Revisa los campos.', validation.error);
-			return fail(400, response);
-		}
-		try {
-			const updatedRecipe = await recipeService.update(params.id, validation.data);
-			return {
-				status: 200,
-				body: {
-					recipe: updatedRecipe
-				}
-			};
-		} catch (err) {
-			console.error(err);
-			// Justificación: Se usa la misma utilidad para el fallo del servidor,
-			// garantizando una estructura de respuesta 100% consistente.
-			const response = createFailResponse('No se pudo actualizar la receta.');
-			return fail(500, response);
-		}
-	}
-};
 
 // --- Ruta: src/routes/api/products/search/[barcode]/+server.ts ---
 // Ruta: src/routes/api/products/search/[barcode]/+server.ts
