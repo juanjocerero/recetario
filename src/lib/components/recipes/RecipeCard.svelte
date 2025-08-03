@@ -127,7 +127,7 @@
 		</div>
 
 		<Card.Header>
-			<Card.Title class="text-lg pt-2">{recipe.title}</Card.Title>
+			<Card.Title class="font-heading text-lg pt-2">{recipe.title}</Card.Title>
 			<Card.Description class="py-2">{totals.totalCalories.toFixed(0)} kcal</Card.Description>
 		</Card.Header>
 

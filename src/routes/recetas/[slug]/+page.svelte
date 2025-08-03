@@ -39,13 +39,13 @@
 </script>
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-	<h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-8">{recipe.title}</h1>
+	<h1 class="font-heading text-3xl md:text-4xl font-extralight mb-8">{recipe.title}</h1>
 
 	<!-- Sección Superior: Nutrición e Ingredientes -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="mt-4">Información Nutricional</Card.Title>
+				<Card.Title class="font-heading mt-4">Información Nutricional</Card.Title>
 				<Card.Description>Valores totales para la receta</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
@@ -91,7 +91,7 @@
 
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="mt-4">Ingredientes</Card.Title>
+				<Card.Title class="font-heading mt-4">Ingredientes</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				<ul class="space-y-2 text-muted-foreground">
@@ -112,7 +112,7 @@
 		<main class="lg:col-span-2">
 			<Card.Root>
 				<Card.Header>
-					<Card.Title class="text-xl mt-4">Preparación</Card.Title>
+					<Card.Title class="font-heading text-xl mt-4">Preparación</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<div class="space-y-6">

@@ -49,7 +49,7 @@
 
 <div class="container mx-auto py-10">
 	<div class="flex justify-between items-center mb-6">
-		<h1 class="text-2xl font-bold">Gestión de Ingredientes</h1>
+		<h1 class="font-heading text-2xl font-bold">Gestión de Ingredientes</h1>
 		<div class="flex gap-2">
 			<!-- Botón de Sincronización -->
 			<Dialog.Root bind:open={isSyncDialogOpen}>
