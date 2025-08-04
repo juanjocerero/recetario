@@ -3,7 +3,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import type { PageData } from '../../../routes/admin/ingredientes/$types';
-	import { Search, ChevronDown } from 'lucide-svelte';
+	import { Search, ChevronDown, X } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import IngredientActions from '$lib/components/admin/IngredientActions.svelte';
 
@@ -36,7 +36,16 @@
 	<div class="mb-4 flex items-center justify-between gap-2">
 		<div class="relative flex-grow">
 			<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-			<Input class="pl-8" placeholder="Buscar..." bind:value={searchTerm} />
+			<Input class="pl-8 pr-8" placeholder="Buscar..." bind:value={searchTerm} />
+			{#if searchTerm}
+				<button
+					onclick={() => (searchTerm = '')}
+					class="absolute right-2.5 top-2.5 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted"
+					aria-label="Limpiar búsqueda"
+				>
+					<X class="h-4 w-4" />
+				</button>
+			{/if}
 		</div>
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline' })}

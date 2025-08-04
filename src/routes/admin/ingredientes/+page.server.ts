@@ -4,30 +4,24 @@ import type { PageServerLoad, Actions } from './$types';
 import { IngredientSchema } from '$lib/schemas/ingredientSchema';
 import { createFailResponse } from '$lib/server/zodErrors';
 
-export const load: PageServerLoad = async ({ fetch, url }) => {
+export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
 	const sort = url.searchParams.get('sort') ?? 'name';
 	const order = url.searchParams.get('order') ?? 'asc';
 
-	const apiURL = new URL(url.origin + '/api/ingredients');
-	apiURL.searchParams.set('search', search);
-	apiURL.searchParams.set('sort', sort);
-	apiURL.searchParams.set('order', order);
-
-	const response = await fetch(apiURL);
-
-	if (!response.ok) {
-		return { ingredients: [], search, sort, order };
+	try {
+		const ingredients = await ingredientService.getAllUnified(search, sort, order);
+		return {
+			ingredients,
+			search,
+			sort,
+			order
+		};
+	} catch (error) {
+		console.error('Error al cargar los ingredientes:', error);
+		// En caso de error, devolvemos un estado seguro para que la página no falle.
+		return { ingredients: [], search, sort, order, error: 'No se pudieron cargar los ingredientes' };
 	}
-
-	const ingredients = await response.json();
-
-	return {
-		ingredients,
-		search,
-		sort,
-		order
-	};
 };
 
 export const actions: Actions = {

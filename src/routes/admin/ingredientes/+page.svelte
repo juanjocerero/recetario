@@ -13,10 +13,15 @@
 	let searchTerm = $state(data.search ?? '');
 
 	$effect(() => {
+		// Capturamos el valor actual de searchTerm para asegurar la dependencia en el efecto.
+		// Esto previene un "Heisenbug" donde el compilador de Svelte podría optimizar
+		// incorrectamente la dependencia al estar solo dentro de un callback asíncrono.
+		const currentSearchTerm = searchTerm;
+
 		const handler = setTimeout(() => {
 			const url = new URL(page.url);
-			if (searchTerm) {
-				url.searchParams.set('search', searchTerm);
+			if (currentSearchTerm) {
+				url.searchParams.set('search', currentSearchTerm);
 			} else {
 				url.searchParams.delete('search');
 			}
