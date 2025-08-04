@@ -2,7 +2,7 @@ import { ingredientService } from '$lib/server/services/ingredientService';
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { IngredientSchema } from '$lib/schemas/ingredientSchema';
-import { zodErrors } from '$lib/server/zodErrors';
+import { createFailResponse } from '$lib/server/zodErrors';
 
 export const load: PageServerLoad = async ({ fetch, url }) => {
 	const search = url.searchParams.get('search') ?? '';
@@ -38,7 +38,7 @@ export const actions: Actions = {
 		if (!validation.success) {
 			return fail(400, {
 				data: formData,
-				errors: zodErrors(validation.error)
+				...createFailResponse('La validación falló', validation.error)
 			});
 		}
 
