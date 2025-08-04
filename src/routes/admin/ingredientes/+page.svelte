@@ -4,6 +4,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import * as Separator from '$lib/components/ui/separator';
 	import * as Table from '$lib/components/ui/table';
 	import type { ActionData, PageData } from './$types';
 	import SyncDialog from '$lib/components/admin/SyncDialog.svelte';
@@ -214,7 +215,7 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each data.ingredients as ingredient (ingredient.id)}
+						{#each data.ingredients as ingredient, i (ingredient.id)}
 							<Table.Row class="mb-4 block border-b md:table-row md:border-b-0 md:mb-0">
 								<Table.Cell
 									class="flex items-center justify-between font-medium md:table-cell"
@@ -399,6 +400,13 @@
 									</div>
 								</Table.Cell>
 							</Table.Row>
+							{#if i < data.ingredients.length - 1}
+								<tr class="border-none !bg-transparent hover:!bg-transparent">
+									<td class="p-0" colspan="7">
+										<Separator.Root />
+									</td>
+								</tr>
+							{/if}
 						{:else}
 							<Table.Row>
 								<Table.Cell colspan={7} class="text-center">No hay ingredientes.</Table.Cell>
