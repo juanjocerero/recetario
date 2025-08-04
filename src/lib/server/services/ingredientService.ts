@@ -62,12 +62,21 @@ export const ingredientService = {
 	/**
 	 * Obtiene todos los ingredientes (personalizados y cacheados) en una lista unificada.
 	 */
-	async getAllUnified() {
+	async getAllUnified(search?: string, sort: string = 'name', order: string = 'asc') {
+		const whereClause = search
+			? {
+					normalizedName: {
+						contains: normalizeText(search)
+					}
+			  }
+			: {};
+
 		const customIngredients = await prisma.customIngredient.findMany({
-			orderBy: { name: 'asc' }
+			where: whereClause
 		});
+
 		const cachedProducts = await prisma.product.findMany({
-			orderBy: { name: 'asc' }
+			where: whereClause
 		});
 
 		const unifiedList = [
@@ -75,7 +84,26 @@ export const ingredientService = {
 			...cachedProducts.map((p) => ({ ...p, source: 'product' as const }))
 		];
 
-		return unifiedList.sort((a, b) => a.name.localeCompare(b.name));
+		// Ordenación unificada en el servidor de aplicaciones
+		unifiedList.sort((a, b) => {
+			const aValue = a[sort as keyof typeof a];
+			const bValue = b[sort as keyof typeof b];
+
+			let compare = 0;
+			if (typeof aValue === 'string' && typeof bValue === 'string') {
+				compare = aValue.localeCompare(bValue);
+			} else if (typeof aValue === 'number' && typeof bValue === 'number') {
+				compare = aValue - bValue;
+			} else if (aValue === null || aValue === undefined) {
+				compare = 1; // Mover nulos al final
+			} else if (bValue === null || bValue === undefined) {
+				compare = -1; // Mover nulos al final
+			}
+
+			return order === 'asc' ? compare : -compare;
+		});
+
+		return unifiedList;
 	},
 
 	/**
