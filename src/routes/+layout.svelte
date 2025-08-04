@@ -5,6 +5,7 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import type { Snippet } from 'svelte';
 	import { Wrench } from 'lucide-svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -48,16 +49,18 @@
 	});
 </script>
 
-<div class="min-h-screen bg-background font-sans text-foreground antialiased">
-	<div class="fixed bottom-4 right-4 z-50 flex flex-col items-center gap-4">
-		<a
-			href="/admin/ingredientes"
-			class="inline-flex h-9 w-9 items-center justify-center whitespace-nowrap rounded-md border bg-background text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-			aria-label="Administrar ingredientes"
-		>
-			<Wrench class="h-[1.2rem] w-[1.2rem]" />
-		</a>
-		<ThemeToggle />
+<Tooltip.Provider>
+	<div class="min-h-screen bg-background font-sans text-foreground antialiased">
+		<div class="fixed bottom-4 right-4 z-50 flex flex-col items-center gap-4">
+			<a
+				href="/admin/ingredientes"
+				class="inline-flex h-9 w-9 items-center justify-center whitespace-nowrap rounded-md border bg-background text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+				aria-label="Administrar ingredientes"
+			>
+				<Wrench class="h-[1.2rem] w-[1.2rem]" />
+			</a>
+			<ThemeToggle />
+		</div>
+		{@render children()}
 	</div>
-	{@render children()}
-</div>
+</Tooltip.Provider>
