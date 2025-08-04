@@ -18,7 +18,8 @@
 	
 	let { form }: { form: ActionData } = $props();
 	
-	type IngredientWithDetails = RecipeIngredient & CalculableIngredient & { name: string };
+	type IngredientWithDetails = RecipeIngredient &
+		CalculableIngredient & { name: string; originalId?: string };
 	type SearchResult = {
 		id: string;
 		name: string;
@@ -35,25 +36,8 @@
 	let ingredients: IngredientWithDetails[] = $state([]);
 	
 	// --- Drag and Drop ---
-	let dndIngredients = $derived(
-	ingredients.map((ing) => ({ ...ing, id: ing.id + ing.type }))
-	);
-	
-	function handleDnd(
-	e: CustomEvent<{ items: (IngredientWithDetails & { id: string })[]; info: { id: string } }>
-	) {
-		const reorderedIds = e.detail.items.map((item) => item.id);
-		const reorderedIngredients = [...ingredients].sort((a, b) => {
-			const idA = a.id + a.type;
-			const idB = b.id + b.type;
-			return reorderedIds.indexOf(idA) - reorderedIds.indexOf(idB);
-		});
-		
-		// SOLUCIÓN: Retrasar la actualización del estado para el siguiente ciclo de eventos.
-		// Esto permite a svelte-dnd-action terminar su limpieza del DOM antes de que Svelte lo re-renderice.
-		setTimeout(() => {
-			ingredients = reorderedIngredients;
-		}, 0);
+	function handleDnd(e: CustomEvent<{ items: IngredientWithDetails[]; info: { id: string } }>) {
+		ingredients = e.detail.items;
 	}
 	
 	// --- Estado del buscador de ingredientes ---
@@ -325,10 +309,10 @@ async function addIngredient(result: SearchResult) {
 		</TableHeader>
 		<tbody
 		class="[&_tr:last-child]:border-0"
-		use:dndzone={{ items: dndIngredients }}
+		use:dndzone={{ items: ingredients }}
 		onfinalize={handleDnd}
 		>
-		{#each ingredients as ingredient, i (ingredient.id + ingredient.type)}
+		{#each ingredients as ingredient, i (ingredient.id)}
 		<tr
 		class="hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors"
 		>
