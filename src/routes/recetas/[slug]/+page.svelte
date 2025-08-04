@@ -39,7 +39,7 @@
 </script>
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-	<h1 class="font-heading text-3xl md:text-4xl font-extralight mb-8">{recipe.title}</h1>
+	<h1 class="font-heading font-light text-3xl md:text-4xl mb-8">{recipe.title}</h1>
 
 	<!-- Sección Superior: Nutrición e Ingredientes -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">

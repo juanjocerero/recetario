@@ -8,8 +8,8 @@ export default {
 	theme: {
 		extend: {
 			fontFamily: {
-				sans: ['Inter', ...defaultTheme.fontFamily.sans],
-				heading: ['Poppins', ...defaultTheme.fontFamily.sans]
+				sans: ['var(--font-sans)', ...defaultTheme.fontFamily.sans],
+				heading: ['var(--font-heading)', ...defaultTheme.fontFamily.sans]
 			}
 		}
 	},
