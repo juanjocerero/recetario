@@ -9,7 +9,12 @@ export default defineConfig({
 		// Al añadirlo a `noExternal`, forzamos a Vite a procesar y empaquetar este módulo
 		// junto con nuestro código de servidor, lo que resuelve el error `Cannot read properties of undefined`.
 		// Esta es la solución estándar para este tipo de problemas de compatibilidad de módulos.
-		noExternal: ['bits-ui']
+		noExternal: ['bits-ui', 'svelte-sonner']
+	},
+	server: {
+		allowedHosts: [
+			'dev.dev'
+		]
 	}
 });
 

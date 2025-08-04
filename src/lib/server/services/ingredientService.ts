@@ -1,5 +1,5 @@
 // Ruta: src/lib/server/services/ingredientService.ts
-import type { CustomIngredient, Product } from '@prisma/client';
+import type { CustomIngredient, Prisma, Product } from '@prisma/client';
 import prisma from '$lib/server/prisma';
 // Justificación: Importamos el 'const' IngredientSchema para la validación en tiempo de ejecución
 // y el 'type' Ingredient para las anotaciones de tipo estáticas, cumpliendo con verbatimModuleSyntax.
@@ -15,11 +15,13 @@ export const ingredientService = {
 	 * Busca ingredientes por nombre en la base de datos local (custom y cacheados).
 	 * @param query - El término de búsqueda.
 	 */
-	async searchByName(query: string): Promise<{ customIngredients: CustomIngredient[], cachedProducts: Product[] }> {
+	async searchByName(
+		query: string
+	): Promise<{ customIngredients: CustomIngredient[]; cachedProducts: Product[] }> {
 		const normalizedQuery = normalizeText(query);
 
 		// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
-		console.log(`[DEBUG] Buscando ingredientes con query normalizado: "${normalizedQuery}"`);
+		// console.log(`[DEBUG] Buscando ingredientes con query normalizado: "${normalizedQuery}"`);
 		// --- FIN DE CÓDIGO DE DEPURACIÓN ---
 
 		const customIngredients = await prisma.customIngredient.findMany({
@@ -39,8 +41,8 @@ export const ingredientService = {
 		});
 
 		// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
-		console.log(`[DEBUG] Encontrados ${customIngredients.length} ingredientes custom.`);
-		console.log(`[DEBUG] Encontrados ${cachedProducts.length} productos en caché.`);
+		// console.log(`[DEBUG] Encontrados ${customIngredients.length} ingredientes custom.`);
+		// console.log(`[DEBUG] Encontrados ${cachedProducts.length} productos en caché.`);
 		// --- FIN DE CÓDIGO DE DEPURACIÓN ---
 
 		return {
@@ -125,6 +127,16 @@ export const ingredientService = {
 	},
 
 	/**
+	 * Elimina un producto cacheado de Open Food Facts.
+	 * @param id - El ID del producto (código de barras).
+	 */
+	async deleteProductById(id: string) {
+		return await prisma.product.delete({
+			where: { id }
+		});
+	},
+
+	/**
 	 * Sincroniza los ingredientes de la base de datos local que provienen de Open Food Facts (OFF).
 	 * Compara los datos locales con los de la API de OFF y actualiza si hay diferencias.
 	 * Incluye un retardo para no sobrecargar la API y maneja errores por ingrediente.
@@ -172,9 +184,7 @@ export const ingredientService = {
 				// Justificación: Mapeamos los datos de OFF a nuestra estructura de Product.
 				// Usamos el operador de encadenamiento opcional y el de anulación (??)
 				// para manejar de forma segura la posible ausencia de datos en la respuesta de la API.
-				const newProductData = {
-					name: offProduct.product_name || product.name,
-					normalizedName: normalizeText(offProduct.product_name || product.name),
+				const newProductData: Prisma.ProductUpdateInput = {
 					brand: offProduct.brands || product.brand,
 					imageUrl: offProduct.image_url || product.imageUrl,
 					calories: offProduct.nutriments?.['energy-kcal_100g'] ?? product.calories,
@@ -184,10 +194,17 @@ export const ingredientService = {
 					fullPayload: offProduct
 				};
 
+				// Solo actualizamos el nombre si no ha sido modificado manualmente.
+				if (!product.isNameManuallySet) {
+					const nameFromOff = offProduct.product_name || product.name;
+					newProductData.name = nameFromOff;
+					newProductData.normalizedName = normalizeText(nameFromOff);
+				}
+
 				// Justificación: Comparamos los campos relevantes para ver si es necesaria una actualización.
 				// Se comparan los valores primitivos y el payload JSON completo para detectar cualquier cambio.
 				const isDifferent =
-					newProductData.name !== product.name ||
+					(newProductData.name && newProductData.name !== product.name) ||
 					newProductData.brand !== product.brand ||
 					newProductData.imageUrl !== product.imageUrl ||
 					newProductData.calories !== product.calories ||
@@ -212,6 +229,23 @@ export const ingredientService = {
 		}
 
 		return { updatedIngredients, failedIngredients };
+	},
+
+	/**
+	 * Actualiza el nombre de un producto y lo marca como modificado manualmente.
+	 * @param id - El ID del producto (código de barras).
+	 * @param newName - El nuevo nombre para el producto.
+	 */
+	async updateProductName(id: string, newName: string) {
+		const normalizedName = normalizeText(newName);
+		return await prisma.product.update({
+			where: { id },
+			data: {
+				name: newName,
+				normalizedName,
+				isNameManuallySet: true
+			}
+		});
 	},
 
 	/**

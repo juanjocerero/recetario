@@ -16,6 +16,7 @@ model Product {
   id                String             @id // Código de barras
   name              String
   normalizedName    String // Para búsqueda case/accent-insensitive
+  isNameManuallySet Boolean            @default(false)
   brand             String?
   imageUrl          String?
   calories          Float?             // Valor por 100g

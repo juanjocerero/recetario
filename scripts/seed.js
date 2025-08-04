@@ -78,6 +78,7 @@ async function fetchAndCreateProduct(searchTerm) {
 			id: barcode,
 			name: productData.product_name,
 			normalizedName: productData.product_name.toLowerCase(),
+			isNameManuallySet: false, // Valor por defecto
 			brand: productData.brands || 'Marca no especificada',
 			imageUrl: productData.image_url,
 			calories: productData.nutriments['energy-kcal_100g'] || 0,

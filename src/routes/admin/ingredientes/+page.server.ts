@@ -1,4 +1,4 @@
-// Ruta: src/routes/admin/ingredientes/+page.server.ts
+import { ingredientService } from '$lib/server/services/ingredientService';
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -45,8 +45,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const id = formData.get('id') as string;
 
-		const response = await fetch(`/api/ingredients/${id}`,
-		{
+		const response = await fetch(`/api/ingredients/${id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(Object.fromEntries(formData))
@@ -64,23 +63,27 @@ export const actions: Actions = {
 		return { success: true, message: 'Ingrediente actualizado con éxito' };
 	},
 
-	delete: async ({ request, fetch }) => {
+	delete: async ({ request }) => {
 		const formData = await request.formData();
 		const id = formData.get('id') as string;
 		const source = formData.get('source') as string;
 
-		// Justificación: La lógica para determinar qué endpoint llamar ahora reside aquí,
-		// basándose en el 'source' del ingrediente.
-		const apiPath = source === 'custom' ? `/api/ingredients/${id}` : `/api/products/${id}`;
-
-		const response = await fetch(apiPath, {
-			method: 'DELETE'
-		});
-
-		if (!response.ok) {
-			return fail(response.status, { message: 'Error al eliminar el ingrediente' });
+		try {
+			if (source === 'custom') {
+				// El ID de un custom ingredient es un CUID, no necesita prefijo.
+				await ingredientService.deleteById(id);
+			} else if (source === 'product') {
+				// El ID de un producto en el frontend es 'product-BARCODE'.
+				// Nos aseguramos de extraer solo el código de barras.
+				const productId = id.startsWith('product-') ? id.substring(8) : id;
+				await ingredientService.deleteProductById(productId);
+			} else {
+				return fail(400, { message: 'Tipo de ingrediente no válido.' });
+			}
+			return { success: true, message: 'Ingrediente eliminado con éxito' };
+		} catch (error) {
+			console.error('Error al eliminar el ingrediente:', error);
+			return fail(500, { message: 'Error al eliminar el ingrediente.' });
 		}
-
-		return { success: true, message: 'Ingrediente eliminado con éxito' };
 	}
 };
