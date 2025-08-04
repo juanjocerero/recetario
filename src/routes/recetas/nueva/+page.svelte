@@ -208,7 +208,11 @@
 				type="hidden"
 				name="ingredients"
 				value={JSON.stringify(
-					ingredients.map(({ id, quantity, type }) => ({ id, quantity, type }))
+					ingredients.map(({ id, quantity, type }) => ({
+						id: id.replace(type, ''), // Quitamos el sufijo para enviar el ID original
+						quantity,
+						type
+					}))
 				)}
 			/>
 			<input type="hidden" name="urls" value={JSON.stringify(urls.filter((u) => u.trim() !== ''))} />
@@ -407,24 +411,24 @@
 			</div>
 
 			<!-- Información nutricional -->
-			<div class="space-y-2 p-4 border rounded-lg bg-gray-50">
+			<div class="space-y-2 p-4 border rounded-lg bg-muted/20">
 				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
 				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 					<div>
 						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
-						<p class="text-sm text-gray-600">Calorías (kcal)</p>
+						<p class="text-sm text-muted-foreground">Calorías (kcal)</p>
 					</div>
 					<div>
 						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Proteínas</p>
+						<p class="text-sm text-muted-foreground">Proteínas</p>
 					</div>
 					<div>
 						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Grasas</p>
+						<p class="text-sm text-muted-foreground">Grasas</p>
 					</div>
 					<div>
 						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
-						<p class="text-sm text-gray-600">Carbohidratos</p>
+						<p class="text-sm text-muted-foreground">Carbohidratos</p>
 					</div>
 				</div>
 			</div>
