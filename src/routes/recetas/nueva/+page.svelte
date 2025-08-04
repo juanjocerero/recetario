@@ -43,13 +43,17 @@
 	e: CustomEvent<{ items: (IngredientWithDetails & { id: string })[]; info: { id: string } }>
 	) {
 		const reorderedIds = e.detail.items.map((item) => item.id);
-		// Create a new array to trigger reactivity, otherwise Svelte might not pick up the change.
 		const reorderedIngredients = [...ingredients].sort((a, b) => {
 			const idA = a.id + a.type;
 			const idB = b.id + b.type;
 			return reorderedIds.indexOf(idA) - reorderedIds.indexOf(idB);
 		});
-		ingredients = reorderedIngredients;
+		
+		// SOLUCIÓN: Retrasar la actualización del estado para el siguiente ciclo de eventos.
+		// Esto permite a svelte-dnd-action terminar su limpieza del DOM antes de que Svelte lo re-renderice.
+		setTimeout(() => {
+			ingredients = reorderedIngredients;
+		}, 0);
 	}
 	
 	// --- Estado del buscador de ingredientes ---
@@ -97,31 +101,38 @@
 		};
 	});
 	
-	async function addIngredient(result: SearchResult) {
-		if (ingredients.some((ing) => ing.id === result.id && ing.type === result.type)) return;
+	// En la sección <script>
+
+async function addIngredient(result: SearchResult) {
+	// Comprobamos si el ID combinado ya existe
+	const dndId = result.id + result.type;
+	if (ingredients.some((ing) => ing.id === dndId)) return;
+
+	try {
+		const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+		if (!response.ok) throw new Error('Failed to fetch ingredient details');
+		const details: CalculableIngredient = await response.json();
 		
-		try {
-			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
-			if (!response.ok) throw new Error('Failed to fetch ingredient details');
-			const details: CalculableIngredient = await response.json();
-			
-			ingredients.push({
-				...result,
-				quantity: 100,
-				calories: details.calories,
-				protein: details.protein,
-				fat: details.fat,
-				carbs: details.carbs
-			});
-		} catch (error) {
-			console.error('Error adding ingredient:', error);
-		} finally {
-			open = false;
-			searchResults = [];
-			searchTerm = '';
-			inputValue = '';
-		}
+		// Creamos el nuevo ingrediente y SOBREESCRIBIMOS su 'id'
+		// con el ID único que usará dndzone. Guardamos los originales si es necesario.
+		ingredients.push({
+			...result,
+			...details,
+			originalId: result.id, // Opcional: guardar el id original
+			id: dndId, // El ID estable y único para dndzone
+			quantity: 100
+		});
+		// ingredients se actualiza, la reactividad funciona como se espera.
+		
+	} catch (error) {
+		console.error('Error adding ingredient:', error);
+	} finally {
+		open = false;
+		searchResults = [];
+		searchTerm = '';
+		inputValue = '';
 	}
+}
 	
 	function removeIngredient(index: number) {
 		ingredients.splice(index, 1);
