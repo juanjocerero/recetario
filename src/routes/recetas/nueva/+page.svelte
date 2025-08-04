@@ -37,7 +37,16 @@
 	
 	// --- Drag and Drop ---
 	function handleDnd(e: CustomEvent<{ items: IngredientWithDetails[]; info: { id: string } }>) {
-		ingredients = e.detail.items;
+		const newOrder = e.detail.items;
+		const ingredientsMap = new Map(ingredients.map((ing) => [ing.id, ing]));
+		const reorderedIngredients = newOrder
+			.map((item) => ingredientsMap.get(item.id))
+			.filter(Boolean) as IngredientWithDetails[];
+
+		// Asegurarnos de que no hemos perdido ningún ingrediente en el proceso
+		if (reorderedIngredients.length === ingredients.length) {
+			ingredients = reorderedIngredients;
+		}
 	}
 	
 	// --- Estado del buscador de ingredientes ---
