@@ -62,29 +62,29 @@
 		<div class="space-y-2">
 			<Label for="calories-min">Calorías (kcal)</Label>
 			<div class="flex gap-2">
-				<Input id="calories-min" type="number" placeholder="Min" value={gramFilters.calories.min ?? ''} oninput={(e) => handleGramsInput('calories', 'min', e)} />
-				<Input id="calories-max" type="number" placeholder="Max" value={gramFilters.calories.max ?? ''} oninput={(e) => handleGramsInput('calories', 'max', e)} />
+				<Input id="calories-min" type="number" placeholder="Min" class="hide-arrows" value={gramFilters.calories.min ?? ''} oninput={(e) => handleGramsInput('calories', 'min', e)} />
+				<Input id="calories-max" type="number" placeholder="Max" class="hide-arrows" value={gramFilters.calories.max ?? ''} oninput={(e) => handleGramsInput('calories', 'max', e)} />
 			</div>
 		</div>
 		<div class="space-y-2">
 			<Label for="protein-grams-min">Proteínas (g)</Label>
 			<div class="flex gap-2">
-				<Input id="protein-grams-min" type="number" placeholder="Min" value={gramFilters.protein.min ?? ''} oninput={(e) => handleGramsInput('protein', 'min', e)} />
-				<Input id="protein-grams-max" type="number" placeholder="Max" value={gramFilters.protein.max ?? ''} oninput={(e) => handleGramsInput('protein', 'max', e)} />
+				<Input id="protein-grams-min" type="number" placeholder="Min" class="hide-arrows" value={gramFilters.protein.min ?? ''} oninput={(e) => handleGramsInput('protein', 'min', e)} />
+				<Input id="protein-grams-max" type="number" placeholder="Max" class="hide-arrows" value={gramFilters.protein.max ?? ''} oninput={(e) => handleGramsInput('protein', 'max', e)} />
 			</div>
 		</div>
 		<div class="space-y-2">
 			<Label for="carbs-grams-min">Carbohidratos (g)</Label>
 			<div class="flex gap-2">
-				<Input id="carbs-grams-min" type="number" placeholder="Min" value={gramFilters.carbs.min ?? ''} oninput={(e) => handleGramsInput('carbs', 'min', e)} />
-				<Input id="carbs-grams-max" type="number" placeholder="Max" value={gramFilters.carbs.max ?? ''} oninput={(e) => handleGramsInput('carbs', 'max', e)} />
+				<Input id="carbs-grams-min" type="number" placeholder="Min" class="hide-arrows" value={gramFilters.carbs.min ?? ''} oninput={(e) => handleGramsInput('carbs', 'min', e)} />
+				<Input id="carbs-grams-max" type="number" placeholder="Max" class="hide-arrows" value={gramFilters.carbs.max ?? ''} oninput={(e) => handleGramsInput('carbs', 'max', e)} />
 			</div>
 		</div>
 		<div class="space-y-2">
 			<Label for="fat-grams-min">Grasas (g)</Label>
 			<div class="flex gap-2">
-				<Input id="fat-grams-min" type="number" placeholder="Min" value={gramFilters.fat.min ?? ''} oninput={(e) => handleGramsInput('fat', 'min', e)} />
-				<Input id="fat-grams-max" type="number" placeholder="Max" value={gramFilters.fat.max ?? ''} oninput={(e) => handleGramsInput('fat', 'max', e)} />
+				<Input id="fat-grams-min" type="number" placeholder="Min" class="hide-arrows" value={gramFilters.fat.min ?? ''} oninput={(e) => handleGramsInput('fat', 'min', e)} />
+				<Input id="fat-grams-max" type="number" placeholder="Max" class="hide-arrows" value={gramFilters.fat.max ?? ''} oninput={(e) => handleGramsInput('fat', 'max', e)} />
 			</div>
 		</div>
 	</div>
@@ -96,23 +96,34 @@
 		<div class="space-y-2">
 			<Label for="protein-percent-min">Proteínas (%)</Label>
 			<div class="flex gap-2">
-				<Input id="protein-percent-min" type="number" placeholder="Min" value={percentFilters.protein.min ?? ''} oninput={(e) => handlePercentInput('protein', 'min', e)} />
-				<Input id="protein-percent-max" type="number" placeholder="Max" value={percentFilters.protein.max ?? ''} oninput={(e) => handlePercentInput('protein', 'max', e)} />
+				<Input id="protein-percent-min" type="number" placeholder="Min" class="hide-arrows" value={percentFilters.protein.min ?? ''} oninput={(e) => handlePercentInput('protein', 'min', e)} />
+				<Input id="protein-percent-max" type="number" placeholder="Max" class="hide-arrows" value={percentFilters.protein.max ?? ''} oninput={(e) => handlePercentInput('protein', 'max', e)} />
 			</div>
 		</div>
 		<div class="space-y-2">
 			<Label for="carbs-percent-min">Carbohidratos (%)</Label>
 			<div class="flex gap-2">
-				<Input id="carbs-percent-min" type="number" placeholder="Min" value={percentFilters.carbs.min ?? ''} oninput={(e) => handlePercentInput('carbs', 'min', e)} />
-				<Input id="carbs-percent-max" type="number" placeholder="Max" value={percentFilters.carbs.max ?? ''} oninput={(e) => handlePercentInput('carbs', 'max', e)} />
+				<Input id="carbs-percent-min" type="number" placeholder="Min" class="hide-arrows" value={percentFilters.carbs.min ?? ''} oninput={(e) => handlePercentInput('carbs', 'min', e)} />
+				<Input id="carbs-percent-max" type="number" placeholder="Max" class="hide-arrows" value={percentFilters.carbs.max ?? ''} oninput={(e) => handlePercentInput('carbs', 'max', e)} />
 			</div>
 		</div>
 		<div class="space-y-2">
 			<Label for="fat-percent-min">Grasas (%)</Label>
 			<div class="flex gap-2">
-				<Input id="fat-percent-min" type="number" placeholder="Min" value={percentFilters.fat.min ?? ''} oninput={(e) => handlePercentInput('fat', 'min', e)} />
-				<Input id="fat-percent-max" type="number" placeholder="Max" value={percentFilters.fat.max ?? ''} oninput={(e) => handlePercentInput('fat', 'max', e)} />
+				<Input id="fat-percent-min" type="number" placeholder="Min" class="hide-arrows" value={percentFilters.fat.min ?? ''} oninput={(e) => handlePercentInput('fat', 'min', e)} />
+				<Input id="fat-percent-max" type="number" placeholder="Max" class="hide-arrows" value={percentFilters.fat.max ?? ''} oninput={(e) => handlePercentInput('fat', 'max', e)} />
 			</div>
 		</div>
 	</div>
 </div>
+<style>
+	:global(.hide-arrows::-webkit-inner-spin-button),
+	:global(.hide-arrows::-webkit-outer-spin-button) {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	:global(.hide-arrows) {
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+</style>
