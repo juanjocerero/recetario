@@ -67,7 +67,7 @@
 			{#if data.user}
 				{#if data.user.isAdmin}
 					<form
-						action="/?/logout"
+						action="/login?/logout"
 						method="POST"
 						use:enhance={() => {
 							const toastId = toast.loading('Cerrando sesión...');

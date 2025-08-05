@@ -49,5 +49,10 @@ export const actions: Actions = {
 		// puede lanzar una redirección. SvelteKit la gestionará correctamente,
 		// tanto en el lado del servidor como en el cliente (si se usa `enhance`).
 		throw redirect(303, '/');
+	},
+
+	logout: async ({ cookies }) => {
+		cookies.delete('session', { path: '/' });
+		throw redirect(303, '/');
 	}
 };

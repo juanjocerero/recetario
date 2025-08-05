@@ -15,8 +15,8 @@
 <div class="flex min-h-screen items-center justify-center bg-muted/40">
 	<Card.Root class="w-full max-w-sm">
 		<Card.Header class="space-y-1 text-center">
-			<Card.Title class="text-2xl font-bold">Admin Login</Card.Title>
-			<Card.Description>Introduce tus credenciales para acceder al panel</Card.Description>
+			<Card.Title class="text-2xl font-bold mt-4">Login</Card.Title>
+			<Card.Description>Introduce tus credenciales para acceder</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<!-- Justificación (form action y enhance): Se usa un <form> estándar con un `action`
