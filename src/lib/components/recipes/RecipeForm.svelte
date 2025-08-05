@@ -41,8 +41,11 @@
 		imageUrl: string | null;
 		urls: { url: string }[];
 		ingredients: (IngredientWithDetails & {
-			customIngredient: { id: string; name: string };
-			product: { id: string; name: string; imageUrl: string | null };
+			customIngredient: { id: string; name: string } & Omit<CalculableIngredient, 'quantity'>;
+			product: { id: string; name: string; imageUrl: string | null } & Omit<
+				CalculableIngredient,
+				'quantity'
+			>;
 		})[];
 	};
 
@@ -83,34 +86,23 @@
 		if (!ingredientsData) return [];
 		return ingredientsData
 			.map((ing): IngredientWithDetails | null => {
-				const quantity = ing.quantity;
-				if (ing.customIngredient) {
-					return {
-						id: ing.customIngredient.id + 'custom',
-						type: 'custom',
-						quantity,
-						name: ing.customIngredient.name,
-						calories: ing.calories ?? 0,
-						protein: ing.protein ?? 0,
-						fat: ing.fat ?? 0,
-						carbs: ing.carbs ?? 0,
-						imageUrl: null
-					};
-				}
-				if (ing.product) {
-					return {
-						id: ing.product.id + 'product',
-						type: 'product',
-						quantity,
-						name: ing.product.name,
-						calories: ing.calories ?? 0,
-						protein: ing.protein ?? 0,
-						fat: ing.fat ?? 0,
-						carbs: ing.carbs ?? 0,
-						imageUrl: ing.product.imageUrl
-					};
-				}
-				return null;
+				const source = ing.product || ing.customIngredient;
+				if (!source) return null;
+
+				const type = ing.product ? 'product' : 'custom';
+				const id = source.id + type;
+
+				return {
+					id,
+					type,
+					quantity: ing.quantity,
+					name: source.name,
+					calories: source.calories ?? 0,
+					protein: source.protein ?? 0,
+					fat: source.fat ?? 0,
+					carbs: source.carbs ?? 0,
+					imageUrl: 'imageUrl' in source ? source.imageUrl : null
+				};
 			})
 			.filter((ing): ing is IngredientWithDetails => ing !== null);
 	};
@@ -568,15 +560,15 @@
 					</div>
 					<div>
 						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
-						<p class="text-sm text-muted-foreground">Proteínas</p>
+						<p class="text-sm font-semibold text-blue-500">Proteínas</p>
 					</div>
 					<div>
 						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(1)} g</p>
-						<p class="text-sm text-muted-foreground">Grasas</p>
+						<p class="text-sm font-semibold text-red-500">Grasas</p>
 					</div>
 					<div>
 						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
-						<p class="text-sm text-muted-foreground">Carbohidratos</p>
+						<p class="text-sm font-semibold text-green-500">Carbohidratos</p>
 					</div>
 				</div>
 			</div>
