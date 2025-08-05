@@ -220,7 +220,7 @@
 
 <Card class="max-w-4xl mx-auto my-8">
 	<CardHeader>
-		<CardTitle>{cardTitle}</CardTitle>
+		<CardTitle class="mt-4">{cardTitle}</CardTitle>
 	</CardHeader>
 	<CardContent>
 		<form
@@ -464,22 +464,22 @@
 
 			<!-- Información nutricional -->
 			<div class="space-y-2 p-4 border rounded-lg bg-muted/20">
-				<h3 class="text-lg font-medium">Información Nutricional (Total)</h3>
+				<h3 class="text-lg font-medium">Información Nutricional</h3>
 				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(2)}</p>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCalories.toFixed(1)}</p>
 						<p class="text-sm text-muted-foreground">Calorías (kcal)</p>
 					</div>
 					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(2)} g</p>
+						<p class="font-bold text-xl">{nutritionalInfo.totalProtein.toFixed(1)} g</p>
 						<p class="text-sm text-muted-foreground">Proteínas</p>
 					</div>
 					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(2)} g</p>
+						<p class="font-bold text-xl">{nutritionalInfo.totalFat.toFixed(1)} g</p>
 						<p class="text-sm text-muted-foreground">Grasas</p>
 					</div>
 					<div>
-						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(2)} g</p>
+						<p class="font-bold text-xl">{nutritionalInfo.totalCarbs.toFixed(1)} g</p>
 						<p class="text-sm text-muted-foreground">Carbohidratos</p>
 					</div>
 				</div>
