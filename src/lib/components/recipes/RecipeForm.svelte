@@ -10,12 +10,13 @@
 	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
-	import { ChevronsUpDown, Trash2, GripVertical } from 'lucide-svelte';
+	import { ChevronsUpDown, Trash2, GripVertical, Database } from 'lucide-svelte';
 	import { enhance, applyAction } from '$app/forms';
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
 	import { browser } from '$app/environment';
 	import type { ActionData } from '../../../routes/recetas/nueva/$types';
+	import { cn } from '$lib/utils';
 
 	// --- Tipos ---
 	type IngredientWithDetails = RecipeIngredient &
@@ -135,6 +136,17 @@
 	let open = $state(false);
 	let inputValue = $state('');
 	let searchTerm = $state('');
+	let triggerWrapperEl: HTMLDivElement | null = $state(null);
+
+	$effect(() => {
+		if (browser && open && triggerWrapperEl) {
+			const contentEl = document.querySelector<HTMLDivElement>('[data-slot="popover-content"]');
+			if (contentEl) {
+				const rect = triggerWrapperEl.getBoundingClientRect();
+				contentEl.style.width = `${rect.width}px`;
+			}
+		}
+	});
 
 	$effect(() => {
 		let eventSource: EventSource | null = null;
@@ -186,8 +198,8 @@
 		}
 	}
 
-	function removeIngredient(index: number) {
-		ingredients.splice(index, 1);
+	function removeIngredient(id: string) {
+		ingredients = ingredients.filter((ing) => ing.id !== id);
 	}
 
 	// --- Gestión de imagen ---
@@ -319,54 +331,64 @@
 			<!-- Buscador y tabla de ingredientes -->
 			<div class="space-y-2">
 				<Label>Añadir Ingrediente</Label>
-				<Popover.Root bind:open>
-					<Popover.Trigger
-						class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
-						role="combobox"
-						aria-expanded={open}
-					>
-						<div class="flex items-center justify-between w-full">
-							{inputValue || 'Seleccionar ingrediente...'}
-							<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-						</div>
-					</Popover.Trigger>
-					<Popover.Content class="w-[--trigger-width] p-0">
-						<Command.Root filter={() => 1}>
-							<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
-							<Command.List>
-								{#if searchResults.length > 0}
-									{#each searchResults as result (result.id + result.type)}
+				<div bind:this={triggerWrapperEl}>
+					<Popover.Root bind:open>
+						<Popover.Trigger
+							class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border w-full justify-between h-9 px-4 py-2"
+							role="combobox"
+							aria-expanded={open}
+						>
+							<div class="flex items-center justify-between w-full">
+								{inputValue || 'Seleccionar ingrediente...'}
+								<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+							</div>
+						</Popover.Trigger>
+						<Popover.Content class="p-0">
+							<Command.Root filter={() => 1}>
+								<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
+								<Command.List>
+									{#if searchResults.length > 0}
+										{#each searchResults as result (result.id + result.type)}
 										<Command.Item
 											value={result.name}
 											onSelect={() => {
 												inputValue = result.name;
 												addIngredient(result);
 											}}
-											class={`flex items-center gap-2 ${result.source === 'local' ? 'ring-1 ring-green-500 rounded-sm' : ''}`}
+											class={cn(
+												'flex items-center justify-between w-full',
+												result.source === 'local' ? 'bg-muted/50' : ''
+											)}
 										>
-											<img
-												src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
-												alt={result.name}
-												class="h-8 w-8 rounded-sm object-cover"
-											/>
-											<span>{result.name}</span>
+											<div class="flex items-center gap-2">
+												<img
+													src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+													alt={result.name}
+													class="h-8 w-8 rounded-sm object-cover"
+												/>
+												<span>{result.name}</span>
+											</div>
+											{#if result.source === 'local'}
+												<Database class="h-4 w-4 text-muted-foreground" />
+											{/if}
 										</Command.Item>
 									{/each}
-								{:else}
-									<div class="p-4 text-sm text-center text-gray-500">
-										{#if isSearching}
-											Buscando...
-										{:else if searchTerm.length < 3}
-											Escribe al menos 3 caracteres para buscar...
-										{:else}
-											No se encontraron resultados.
-										{/if}
-									</div>
-								{/if}
-							</Command.List>
-						</Command.Root>
-					</Popover.Content>
-				</Popover.Root>
+									{:else}
+										<div class="p-4 text-sm text-center text-gray-500">
+											{#if isSearching}
+												Buscando...
+											{:else if searchTerm.length < 3}
+												Escribe al menos 3 caracteres para buscar...
+											{:else}
+												No se encontraron resultados.
+											{/if}
+										</div>
+									{/if}
+								</Command.List>
+							</Command.Root>
+						</Popover.Content>
+					</Popover.Root>
+				</div>
 			</div>
 
 			<div class="space-y-2">
@@ -388,11 +410,18 @@
 					>
 						{#each ingredients as ingredient, i (ingredient.id)}
 							<tr
-								use:draggable={{ container: 'ingredients', dragData: ingredient }}
+								use:draggable={{
+									container: 'ingredients',
+									dragData: ingredient,
+									interactive: ['[data-quitar-btn]']
+								}}
 								class="hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors"
 							>
 								<TableCell class="cursor-grab">
-									<GripVertical class="h-5 w-5 text-gray-400" />
+									<div class="flex items-center gap-2 text-muted-foreground">
+										<GripVertical class="h-5 w-5" />
+										<span class="text-sm font-medium">{i + 1}</span>
+									</div>
 								</TableCell>
 								<TableCell>{ingredient.name}</TableCell>
 								<TableCell>
@@ -401,7 +430,7 @@
 										value={ingredient.quantity}
 										oninput={(e) => (ingredient.quantity = e.currentTarget.valueAsNumber)}
 										min="1"
-										class="w-full"
+										class="w-full hide-arrows"
 									/>
 								</TableCell>
 								<TableCell class="text-right">
@@ -409,7 +438,8 @@
 										type="button"
 										variant="destructive"
 										size="sm"
-										onclick={() => removeIngredient(i)}
+										data-quitar-btn
+										onclick={() => removeIngredient(ingredient.id)}
 									>
 										Quitar
 									</Button>
@@ -466,3 +496,14 @@
 		</form>
 	</CardContent>
 </Card>
+<style>
+	:global(.hide-arrows::-webkit-inner-spin-button),
+	:global(.hide-arrows::-webkit-outer-spin-button) {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	:global(.hide-arrows) {
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+</style>
