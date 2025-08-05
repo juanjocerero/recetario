@@ -59,7 +59,12 @@
 						<p>Menú</p>
 					</Tooltip.Content>
 				</Tooltip.Root>
-				<Popover.Content class="w-auto p-2">
+				<Popover.Content
+					class="w-auto p-2"
+					onOpenAutoFocus={(e) => {
+						e.preventDefault();
+					}}
+				>
 					<div class="flex flex-col items-center gap-2">
 						<!-- Acción: Inicio -->
 						<Tooltip.Root>
