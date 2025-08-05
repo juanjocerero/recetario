@@ -83,7 +83,7 @@
 	}
 </script>
 
-<div class="container mx-auto py-10">
+<div class="container mx-auto p-4 md:py-8 md:px-24">
 	<IngredientsDesktopView
 		{data}
 		{form}

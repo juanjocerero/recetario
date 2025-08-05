@@ -168,14 +168,7 @@
 		</div>
 
 		<div class="fixed bottom-4 left-4 z-50">
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<ThemeToggle />
-				</Tooltip.Trigger>
-				<Tooltip.Content side="top">
-					<p>Cambiar tema</p>
-				</Tooltip.Content>
-			</Tooltip.Root>
+			<ThemeToggle />
 		</div>
 
 		{#key page.url.pathname}
