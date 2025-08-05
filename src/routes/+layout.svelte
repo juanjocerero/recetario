@@ -16,6 +16,7 @@
 	import { invalidateAll, goto } from '$app/navigation';
 
 	let { children, data }: { children: Snippet; data: any } = $props();
+	let isMenuOpen = $state(false);
 
 	// --- Efectos del Tema ---
 	$effect(() => {
@@ -48,7 +49,7 @@
 <Tooltip.Provider delayDuration={100}>
 	<div class="min-h-screen bg-background font-sans text-foreground antialiased">
 		<div class="fixed top-4 left-4 z-50">
-			<Popover.Root>
+			<Popover.Root bind:open={isMenuOpen}>
 				<Tooltip.Root>
 					<Tooltip.Trigger>
 						<Popover.Trigger class={cn(buttonVariants({ variant: 'outline', size: 'icon' }))}>
@@ -73,7 +74,10 @@
 									variant="ghost"
 									size="icon"
 									aria-label="Ir a la página de inicio"
-									onclick={() => goto('/')}
+									onclick={() => {
+										goto('/');
+										isMenuOpen = false;
+									}}
 								>
 									<House class="h-[1.2rem] w-[1.2rem]" />
 								</Button>
@@ -92,7 +96,10 @@
 											variant="ghost"
 											size="icon"
 											aria-label="Administrar ingredientes"
-											onclick={() => goto('/admin/ingredientes')}
+											onclick={() => {
+												goto('/admin/ingredientes');
+												isMenuOpen = false;
+											}}
 										>
 											<Wrench class="h-[1.2rem] w-[1.2rem]" />
 										</Button>
@@ -123,6 +130,7 @@
 												size="icon"
 												class="w-full"
 												aria-label="Cerrar sesión"
+												onclick={() => (isMenuOpen = false)}
 											>
 												<LogOut class="h-[1.2rem] w-[1.2rem]" />
 											</Button>
@@ -141,7 +149,10 @@
 										variant="ghost"
 										size="icon"
 										aria-label="Iniciar sesión"
-										onclick={() => goto('/login')}
+										onclick={() => {
+											goto('/login');
+											isMenuOpen = false;
+										}}
 									>
 										<LogIn class="h-[1.2rem] w-[1.2rem]" />
 									</Button>
@@ -155,7 +166,7 @@
 						<!-- Acción: Cambiar Tema -->
 						<Tooltip.Root>
 							<Tooltip.Trigger>
-								<ThemeToggle variant="ghost" />
+								<ThemeToggle variant="ghost" onclick={() => (isMenuOpen = false)} />
 							</Tooltip.Trigger>
 							<Tooltip.Content side="right">
 								<p>Cambiar tema</p>
