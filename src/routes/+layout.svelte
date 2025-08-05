@@ -162,19 +162,20 @@
 								</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
-
-						<!-- Acción: Cambiar Tema -->
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								<ThemeToggle variant="ghost" onclick={() => (isMenuOpen = false)} />
-							</Tooltip.Trigger>
-							<Tooltip.Content side="right">
-								<p>Cambiar tema</p>
-							</Tooltip.Content>
-						</Tooltip.Root>
 					</div>
 				</Popover.Content>
 			</Popover.Root>
+		</div>
+
+		<div class="fixed bottom-4 left-4 z-50">
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					<ThemeToggle />
+				</Tooltip.Trigger>
+				<Tooltip.Content side="top">
+					<p>Cambiar tema</p>
+				</Tooltip.Content>
+			</Tooltip.Root>
 		</div>
 
 		{#key page.url.pathname}
