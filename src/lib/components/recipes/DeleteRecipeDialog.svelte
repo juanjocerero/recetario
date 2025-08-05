@@ -4,9 +4,10 @@
 // --- VERSIÓN CORREGIDA (2) PARA SVELTE 5 ---
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance, applyAction } from '$app/forms';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { toast } from 'svelte-sonner';
 
 	// Justificación: El tipo ahora usa `title` para coincidir con el esquema de Prisma.
 	type Recipe = {
@@ -48,8 +49,17 @@
 			bind:this={formElement}
 			use:enhance={() => {
 				onOpenChange(false);
-				return async ({ update }) => {
-					await update();
+				const toastId = toast.loading('Eliminando receta...');
+
+				return async ({ result }) => {
+					await applyAction(result);
+					if (result.type === 'success') {
+						toast.success('Receta eliminada correctamente.', { id: toastId });
+					} else if (result.type === 'failure') {
+						toast.error('No se pudo eliminar la receta.', { id: toastId });
+					} else {
+						toast.dismiss(toastId);
+					}
 				};
 			}}
 		>

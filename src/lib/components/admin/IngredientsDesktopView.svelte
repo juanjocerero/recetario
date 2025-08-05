@@ -5,7 +5,6 @@
     import * as Separator from '$lib/components/ui/separator';
     import * as Table from '$lib/components/ui/table';
     import type { PageData } from '../../../routes/admin/ingredientes/$types';
-    import SyncDialog from '$lib/components/admin/SyncDialog.svelte';
     import { invalidateAll } from '$app/navigation';
     import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
     import * as Tooltip from '$lib/components/ui/tooltip';
@@ -34,27 +33,21 @@
         handleUpdateProductName: () => Promise<void>;
         }>();
         
-        // --- Lógica para el diálogo de sincronización ---
-        let isSyncDialogOpen = $state(false);
-        let syncState = $state<'idle' | 'loading' | 'success' | 'error'>('idle');
-        let syncResult = $state<any>(null);
-            
-            async function handleSync() {
-                syncState = 'loading';
-                try {
-                    const response = await fetch('/api/ingredients/sync', {
-                        method: 'POST',
-                        credentials: 'include'
-                    });
-                    if (!response.ok) throw new Error('Falló la petición de sincronización');
-                    syncResult = await response.json();
-                    syncState = 'success';
-                    await invalidateAll();
-                } catch (error) {
-                    console.error('Error durante la sincronización:', error);
-                    syncState = 'error';
-                }
-            }
+	async function handleSync() {
+		const toastId = toast.loading('Iniciando sincronización con Open Food Facts... Esto puede tardar.');
+		try {
+			const response = await fetch('/api/ingredients/sync', {
+				method: 'POST',
+				credentials: 'include'
+			});
+			if (!response.ok) throw new Error('Falló la petición de sincronización');
+			toast.success('Sincronización completada con éxito.', { id: toastId });
+			await invalidateAll();
+		} catch (error) {
+			console.error('Error durante la sincronización:', error);
+			toast.error('La sincronización falló. Inténtalo de nuevo más tarde.', { id: toastId });
+		}
+	}
             
             // --- Lógica para el diálogo de añadir ingrediente personalizado ---
             let isAddCustomDialogOpen = $state(false);
@@ -109,8 +102,7 @@
                         </Tooltip.Trigger>
                         <Tooltip.Content><p>Refrescar datos</p></Tooltip.Content>
                     </Tooltip.Root>
-                    <Dialog.Root bind:open={isSyncDialogOpen}>
-                        <Tooltip.Root>
+                    <Tooltip.Root>
                             <Tooltip.Trigger
                             class={buttonVariants({ variant: 'outline', size: 'icon' })}
                             onclick={handleSync}
@@ -119,10 +111,6 @@
                         </Tooltip.Trigger>
                         <Tooltip.Content><p>Sincronizar con OFF</p></Tooltip.Content>
                     </Tooltip.Root>
-                    {#if isSyncDialogOpen}
-                    <SyncDialog state={syncState} result={syncResult} />
-                    {/if}
-                </Dialog.Root>
                 <Dialog.Root bind:open={isAddCustomDialogOpen}>
                     <Tooltip.Root>
                         <Tooltip.Trigger
@@ -142,14 +130,18 @@
                     method="POST"
                     action="?/addCustom"
                     use:enhance={() => {
-                        isAddCustomDialogOpen = false;
+                        const toastId = toast.loading('Añadiendo ingrediente...');
                         return async ({ result }) => {
-                            await invalidateAll();
                             await applyAction(result);
                             if (result.type === 'success') {
-                                toast.success('Ingrediente personalizado añadido con éxito.');
+                                toast.success('Ingrediente añadido con éxito.', { id: toastId });
+                                isAddCustomDialogOpen = false;
+                                await invalidateAll();
                             } else if (result.type === 'failure') {
-                                toast.error('Error al añadir el ingrediente.');
+                                toast.error('Error al añadir el ingrediente.', { id: toastId });
+                                // No cerramos el diálogo para que el usuario pueda corregir
+                            } else {
+                                toast.dismiss(toastId);
                             }
                         };
                     }}

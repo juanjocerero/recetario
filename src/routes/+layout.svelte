@@ -8,6 +8,8 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
+	import { Toaster, toast } from 'svelte-sonner';
+	import { enhance } from '$app/forms';
 
 	let { children, data }: { children: Snippet; data: any } = $props();
 
@@ -49,6 +51,12 @@
 			mediaQuery.removeEventListener('change', systemThemeListener);
 		};
 	});
+
+	$effect(() => {
+		if (data.flash) {
+			toast.success(data.flash);
+		}
+	});
 </script>
 
 <Tooltip.Provider>
@@ -56,7 +64,17 @@
 		<div class="fixed bottom-4 right-4 z-50 flex flex-col items-center gap-4">
 			{#if data.user}
 				{#if data.user.isAdmin}
-					<form action="/?/logout" method="POST">
+					<form
+						action="/?/logout"
+						method="POST"
+						use:enhance={() => {
+							const toastId = toast.loading('Cerrando sesión...');
+							return async ({ update }) => {
+								await update();
+								toast.success('Sesión cerrada correctamente.', { id: toastId });
+							};
+						}}
+					>
 						<Tooltip.Root>
 							<Tooltip.Trigger
 								type="submit"
@@ -111,5 +129,6 @@
 			<ThemeToggle />
 		</div>
 		{@render children()}
+		<Toaster richColors closeButton />
 	</div>
 </Tooltip.Provider>

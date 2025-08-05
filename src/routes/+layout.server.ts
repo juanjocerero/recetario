@@ -9,8 +9,13 @@ import type { LayoutServerLoad } from './$types';
 export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 	// `locals.user` ya contiene la información del usuario (o null)
 	// que fue procesada por el hook. Simplemente la pasamos.
+	const flash = cookies.get('flash_message');
+	if (flash) {
+		cookies.delete('flash_message', { path: '/' });
+	}
 	return {
 		user: locals.user,
-		theme: cookies.get('theme')
+		theme: cookies.get('theme'),
+		flash
 	};
 };

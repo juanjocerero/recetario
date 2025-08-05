@@ -3,8 +3,10 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { enhance } from '$app/forms';
+	import { enhance, applyAction } from '$app/forms';
 	import type { Product } from '@prisma/client';
+	import { toast } from 'svelte-sonner';
+	import { invalidateAll } from '$app/navigation';
 
 	let {
 		ingredient,
@@ -25,19 +27,43 @@
 		editingProductName = ingredient.name;
 		editingProductId = ingredient.id;
 	}
+
+	let isEditDialogOpen = $state(false);
+	let isDeleteDialogOpen = $state(false);
 </script>
 
 <div class="flex justify-end gap-2">
 	{#if ingredient.source === 'custom'}
-		<Dialog.Root>
-			<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>Editar</Dialog.Trigger>
+		<Dialog.Root bind:open={isEditDialogOpen}>
+			<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}
+				>Editar</Dialog.Trigger
+			>
 			<Dialog.Content class="sm:max-w-[425px]">
 				<Dialog.Header>
 					<Dialog.Title>Editar Ingrediente</Dialog.Title>
 				</Dialog.Header>
-				<form method="POST" action="?/update" use:enhance>
+				<form
+					method="POST"
+					action="?/update"
+					use:enhance={() => {
+						const toastId = toast.loading('Actualizando ingrediente...');
+						return async ({ result }) => {
+							await applyAction(result);
+							if (result.type === 'success') {
+								toast.success('Ingrediente actualizado.', { id: toastId });
+								isEditDialogOpen = false;
+								await invalidateAll();
+							} else if (result.type === 'failure') {
+								toast.error('Error al actualizar.', { id: toastId });
+							} else {
+								toast.dismiss(toastId);
+							}
+						};
+					}}
+				>
 					<input type="hidden" name="id" value={ingredient.id} />
 					<div class="grid gap-4 py-4">
+						<!-- Input fields -->
 						<div class="grid grid-cols-4 items-center gap-4">
 							<Label for="name-edit-{ingredient.id}" class="text-right">Nombre</Label>
 							<Input
@@ -93,7 +119,7 @@
 						</div>
 					</div>
 					<Dialog.Footer>
-						<Dialog.Close class={buttonVariants()} type="submit">Guardar Cambios</Dialog.Close>
+						<Button type="submit">Guardar Cambios</Button>
 					</Dialog.Footer>
 				</form>
 			</Dialog.Content>
@@ -123,7 +149,7 @@
 			</Dialog.Content>
 		</Dialog.Root>
 	{/if}
-	<Dialog.Root>
+	<Dialog.Root bind:open={isDeleteDialogOpen}>
 		<Dialog.Trigger class={buttonVariants({ variant: 'destructive', size: 'sm' })}
 			>Eliminar</Dialog.Trigger
 		>
@@ -135,7 +161,25 @@
 					puede deshacer.
 				</Dialog.Description>
 			</Dialog.Header>
-			<form method="POST" action="?/delete" use:enhance>
+			<form
+				method="POST"
+				action="?/delete"
+				use:enhance={() => {
+					const toastId = toast.loading('Eliminando ingrediente...');
+					return async ({ result }) => {
+						await applyAction(result);
+						if (result.type === 'success') {
+							toast.success('Ingrediente eliminado.', { id: toastId });
+							isDeleteDialogOpen = false;
+							await invalidateAll();
+						} else if (result.type === 'failure') {
+							toast.error('Error al eliminar.', { id: toastId });
+						} else {
+							toast.dismiss(toastId);
+						}
+					};
+				}}
+			>
 				<input type="hidden" name="id" value={ingredient.id} />
 				<input type="hidden" name="source" value={ingredient.source} />
 				<Dialog.Footer>

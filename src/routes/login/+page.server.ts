@@ -40,6 +40,10 @@ export const actions: Actions = {
 			maxAge: 60 * 60 * 24 // 1 día
 		});
 
+		// Justificación: Se establece un "flash message" en una cookie para mostrar
+		// una notificación de éxito en la página a la que se redirige.
+		cookies.set('flash_message', '¡Bienvenido de nuevo!', { path: '/' });
+
 		// 4. Redirección
 		// Justificación (redirect): En lugar de devolver un JSON, una 'action' exitosa
 		// puede lanzar una redirección. SvelteKit la gestionará correctamente,

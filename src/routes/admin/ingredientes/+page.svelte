@@ -54,6 +54,7 @@
 	async function handleUpdateProductName() {
 		if (!editingProductId) return;
 
+		const toastId = toast.loading('Actualizando nombre del producto...');
 		try {
 			const productId = editingProductId.startsWith('product-')
 				? editingProductId.substring(8)
@@ -71,13 +72,13 @@
 				throw new Error(errorData.error?.message || 'Error al actualizar el nombre');
 			}
 
-			toast.success('Nombre del producto actualizado con éxito.');
+			toast.success('Nombre del producto actualizado con éxito.', { id: toastId });
 			await invalidateAll();
 			isProductEditDialogOpen = false;
 		} catch (error) {
 			console.error('Error al actualizar el nombre del producto:', error);
 			const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-			toast.error(message);
+			toast.error(message, { id: toastId });
 		}
 	}
 </script>

@@ -1,5 +1,6 @@
 
 import { browser } from '$app/environment';
+import { toast } from 'svelte-sonner';
 
 /**
  * Checks if a value exists in localStorage for the given key.
@@ -52,4 +53,41 @@ export function save(key: string, data: unknown): void {
 export function clear(key: string): void {
 	if (!browser) return;
 	localStorage.removeItem(key);
+}
+
+/**
+ * Creates a reactive autosave mechanism with debounced notifications.
+ * @param key The localStorage key.
+ * @param data The reactive Svelte 5 state to watch.
+ * @param options Options like `enabled` and `isDirty` to control saving.
+ */
+export function createAutosave(
+	key: string,
+	data: () => unknown,
+	options: {
+		enabled: () => boolean;
+		isDirty: () => boolean;
+	}
+) {
+	let isFirstSave = true;
+
+	$effect(() => {
+		if (!options.enabled()) {
+			return;
+		}
+
+		save(key, data());
+
+		const handler = setTimeout(() => {
+			if (isFirstSave || !options.isDirty()) {
+				isFirstSave = false;
+				return;
+			}
+			toast.info('Progreso guardado automáticamente.', {
+				duration: 2000
+			});
+		}, 1500);
+
+		return () => clearTimeout(handler);
+	});
 }

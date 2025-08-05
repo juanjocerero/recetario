@@ -21,6 +21,7 @@
 	import * as autosave from '$lib/runes/useAutosave';
 	import * as Alert from '$lib/components/ui/alert';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	// --- Tipos ---
 	type IngredientWithDetails = RecipeIngredient &
@@ -128,15 +129,14 @@
 	type Status = 'initializing' | 'awaitingDecision' | 'editing';
 	let status = $state<Status>('initializing');
 
-	const isFormDirty = $derived(() => {
-		const { title, steps, ingredients, urls } = formData;
-		return (
-			title.trim() !== '' ||
-			ingredients.length > 0 ||
-			steps.some((s) => s.trim() !== '') ||
-			urls.some((u) => u.trim() !== '')
-		);
-	});
+	const isFormDirty = $derived(
+		(initialData?.title ?? '') !== formData.title ||
+			JSON.stringify(getRecipeSteps(initialData?.steps)) !== JSON.stringify(formData.steps) ||
+			JSON.stringify(initialData?.urls.map((u) => u.url) ?? []) !==
+				JSON.stringify(formData.urls) ||
+			JSON.stringify(mapInitialIngredients(initialData?.ingredients)) !==
+				JSON.stringify(formData.ingredients)
+	);
 
 	onMount(() => {
 		if (autosave.hasData(storageKey)) {
@@ -146,10 +146,9 @@
 		}
 	});
 
-	$effect(() => {
-		if (status === 'editing') {
-			autosave.save(storageKey, formData);
-		}
+	autosave.createAutosave(storageKey, () => formData, {
+		enabled: () => status === 'editing',
+		isDirty: () => isFormDirty
 	});
 
 	function handleRestore() {
@@ -293,13 +292,22 @@
 			method="POST"
 			use:enhance={() => {
 				isSubmitting = true;
+				const toastId = toast.loading('Guardando receta...');
+
 				return async ({ result }) => {
 					await applyAction(result);
-					if (result.type === 'success') {
-						autosave.clear(storageKey); // Limpiar el borrador al guardar con éxito
-						await onSuccess();
-					}
 					isSubmitting = false;
+
+					if (result.type === 'success') {
+						toast.success('Receta guardada con éxito.', { id: toastId });
+						autosave.clear(storageKey);
+						await onSuccess();
+					} else if (result.type === 'failure') {
+						const message = form?.message || 'Error al guardar la receta. Revisa los campos.';
+						toast.error(message, { id: toastId });
+					} else {
+						toast.dismiss(toastId);
+					}
 				};
 			}}
 			class="space-y-6"
