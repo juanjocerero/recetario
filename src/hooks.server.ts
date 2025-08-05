@@ -26,8 +26,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const isPublicRoute =
 		pathname === '/' ||
 		pathname === '/login' ||
-		// Permite ver la lista de recetas y recetas individuales, pero no crearlas ni editarlas.
-		(pathname.startsWith('/recetas') && !pathname.endsWith('/editar') && pathname !== '/recetas/nueva') ||
 		// Permite las llamadas a la API para leer recetas (necesario para la página principal).
 		(pathname.startsWith('/api/recipes') && event.request.method === 'GET');
 
