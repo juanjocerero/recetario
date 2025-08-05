@@ -9,6 +9,7 @@
 	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
 	import { ArrowLeft } from 'lucide-svelte';
 	import type { PageData } from './$types';
+	import { fly } from 'svelte/transition';
 
 	let { data }: { data: PageData } = $props();
 	const { recipe } = data;

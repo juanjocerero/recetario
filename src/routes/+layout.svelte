@@ -10,6 +10,8 @@
 	import { cn } from '$lib/utils';
 	import { Toaster, toast } from 'svelte-sonner';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
+	import { fade } from 'svelte/transition';
 
 	let { children, data }: { children: Snippet; data: any } = $props();
 
@@ -128,7 +130,11 @@
 			{/if}
 			<ThemeToggle />
 		</div>
-		{@render children()}
+		{#key $page.url.pathname}
+			<div transition:fade={{ duration: 200 }}>
+				{@render children()}
+			</div>
+		{/key}
 		<Toaster richColors closeButton />
 	</div>
 </Tooltip.Provider>

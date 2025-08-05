@@ -72,6 +72,8 @@
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import X from 'lucide-svelte/icons/x';
+	import { fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 
 	type Ingredient = {
 		id: string;
@@ -336,8 +338,12 @@
 			<div class="space-y-4">
 				{#if recipes.length > 0}
 					<div class="columns-1 md:columns-2 gap-4">
-						{#each recipes as recipe (recipe.id)}
-							<div class="mb-4 break-inside-avoid">
+						{#each recipes as recipe, i (recipe.id)}
+							<div
+								class="mb-4 break-inside-avoid"
+								animate:flip={{ duration: 300 }}
+								in:fade={{ duration: 250, delay: i * 50 }}
+							>
 								<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
 							</div>
 						{/each}

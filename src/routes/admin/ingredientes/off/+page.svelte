@@ -2,6 +2,8 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 
 	type SearchResult = {
 		id: string;
@@ -80,27 +82,29 @@
 
 	{#if results.length > 0}
 		<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-			{#each results as result (result.id)}
-				<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
-					<CardHeader>
-						<img
-							src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
-							alt={result.name}
-							class="aspect-square w-full rounded-md object-cover"
-						/>
-					</CardHeader>
-					<CardContent class="flex flex-col justify-between space-y-4">
-						<CardTitle class="text-sm">{result.name}</CardTitle>
-						{#if result.source === 'off'}
-							<form method="POST" action="?/add">
-								<input type="hidden" name="productId" value={result.id} />
-								<Button type="submit" class="w-full">Añadir</Button>
-							</form>
-						{:else}
-							<Button class="w-full" disabled>Añadido</Button>
-						{/if}
-					</CardContent>
-				</Card>
+			{#each results as result, i (result.id)}
+				<div animate:flip={{ duration: 300 }} in:fade={{ duration: 250, delay: i * 20 }}>
+					<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
+						<CardHeader>
+							<img
+								src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
+								alt={result.name}
+								class="aspect-square w-full rounded-md object-cover"
+							/>
+						</CardHeader>
+						<CardContent class="flex flex-col justify-between space-y-4">
+							<CardTitle class="text-sm">{result.name}</CardTitle>
+							{#if result.source === 'off'}
+								<form method="POST" action="?/add">
+									<input type="hidden" name="productId" value={result.id} />
+									<Button type="submit" class="w-full">Añadir</Button>
+								</form>
+							{:else}
+								<Button class="w-full" disabled>Añadido</Button>
+							{/if}
+						</CardContent>
+					</Card>
+				</div>
 			{/each}
 		</div>
 	{:else if !isLoading && searchAttempted}

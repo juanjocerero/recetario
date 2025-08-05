@@ -10,6 +10,8 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import Plus from 'lucide-svelte/icons/plus';
 	import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal';
+	import { fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 
 	const RECIPES_PER_PAGE = 50;
 
@@ -116,8 +118,12 @@
 	</header>
 
 	<main class="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4">
-		{#each recipes as recipe (recipe.id)}
-			<div class="mb-4 break-inside-avoid">
+		{#each recipes as recipe, i (recipe.id)}
+			<div
+				class="mb-4 break-inside-avoid"
+				animate:flip={{ duration: 300 }}
+				in:fade={{ duration: 250, delay: i * 50 }}
+			>
 				<RecipeCard
 					{recipe}
 					{isAdmin}
