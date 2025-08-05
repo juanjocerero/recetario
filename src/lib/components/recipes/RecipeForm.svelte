@@ -524,7 +524,8 @@
 										type="number"
 										value={ingredient.quantity}
 										oninput={(e) => (ingredient.quantity = e.currentTarget.valueAsNumber)}
-										min="1"
+										min="0.1"
+										step="any"
 										class="w-full hide-arrows"
 									/>
 								</TableCell>
