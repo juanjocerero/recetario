@@ -1,5 +1,6 @@
 <!-- Ruta: src/lib/components/recipes/RecipeForm.svelte -->
 <script lang="ts">
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
@@ -10,13 +11,16 @@
 	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
-	import { ChevronsUpDown, Trash2, GripVertical, Database } from 'lucide-svelte';
+	import { ChevronsUpDown, Trash2, GripVertical, Database, Save, X } from 'lucide-svelte';
 	import { enhance, applyAction } from '$app/forms';
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
 	import { browser } from '$app/environment';
 	import type { ActionData } from '../../../routes/recetas/nueva/$types';
 	import { cn } from '$lib/utils';
+	import * as autosave from '$lib/runes/useAutosave';
+	import * as Alert from '$lib/components/ui/alert';
+	import { onMount } from 'svelte';
 
 	// --- Tipos ---
 	type IngredientWithDetails = RecipeIngredient &
@@ -108,26 +112,75 @@
 			.filter((ing): ing is IngredientWithDetails => ing !== null);
 	};
 
-	// --- Estado del formulario ---
-	let title = $state(initialData?.title ?? '');
-	let steps = $state(getRecipeSteps(initialData?.steps));
-	let imageUrl = $state(initialData?.imageUrl ?? '');
-	let urls: string[] = $state(initialData?.urls.map((u) => u.url) ?? []);
-	let ingredients: IngredientWithDetails[] = $state(mapInitialIngredients(initialData?.ingredients));
+	// --- Estado del formulario (unificado) ---
+	let formData = $state({
+		title: initialData?.title ?? '',
+		steps: getRecipeSteps(initialData?.steps),
+		imageUrl: initialData?.imageUrl ?? '',
+		urls: initialData?.urls.map((u) => u.url) ?? [],
+		ingredients: mapInitialIngredients(initialData?.ingredients)
+	});
+
+	// --- Autoguardado (Lógica de control en el componente) ---
+	const storageKey = `autosave_${page.route.id?.replace(/\//g, '_')}`;
+	type Status = 'initializing' | 'awaitingDecision' | 'editing';
+	let status = $state<Status>('initializing');
+
+	const isFormDirty = $derived(() => {
+		const { title, steps, ingredients, urls } = formData;
+		return (
+			title.trim() !== '' ||
+			ingredients.length > 0 ||
+			steps.some((s) => s.trim() !== '') ||
+			urls.some((u) => u.trim() !== '')
+		);
+	});
+
+	onMount(() => {
+		if (autosave.hasData(storageKey)) {
+			status = 'awaitingDecision';
+		} else {
+			status = 'editing';
+		}
+	});
+
+	$effect(() => {
+		if (status === 'editing') {
+			if (isFormDirty) {
+				autosave.save(storageKey, formData);
+			} else {
+				// Si el formulario se limpia, eliminamos el borrador.
+				autosave.clear(storageKey);
+			}
+		}
+	});
+
+	function handleRestore() {
+		const savedData = autosave.load<typeof formData>(storageKey);
+		if (savedData) {
+			formData = savedData;
+		}
+		status = 'editing';
+	}
+
+	function handleDiscard() {
+		autosave.clear(storageKey);
+		status = 'editing';
+	}
 
 	// --- Drag and Drop ---
 	function handleDrop(state: DragDropState<IngredientWithDetails>) {
 		const { draggedItem, targetElement } = state;
 		if (!draggedItem || !targetElement) return;
-		const sourceIndex = ingredients.findIndex((item) => item.id === draggedItem.id);
+		const sourceIndex = formData.ingredients.findIndex((item) => item.id === draggedItem.id);
 		const targetRow = (targetElement as HTMLElement).closest('tr');
 		if (!targetRow || !targetRow.parentElement) return;
 		const targetIndex = Array.from(targetRow.parentElement.children).indexOf(targetRow);
 		if (sourceIndex === -1 || targetIndex === -1) return;
-		const reorderedIngredients = [...ingredients];
+		const reorderedIngredients = [...formData.ingredients];
 		const [removed] = reorderedIngredients.splice(sourceIndex, 1);
 		reorderedIngredients.splice(targetIndex, 0, removed);
-		ingredients = reorderedIngredients;
+		formData.ingredients = reorderedIngredients;
 	}
 
 	// --- Buscador de ingredientes ---
@@ -177,12 +230,12 @@
 
 	async function addIngredient(result: SearchResult) {
 		const dndId = result.id + result.type;
-		if (ingredients.some((ing) => ing.id === dndId)) return;
+		if (formData.ingredients.some((ing) => ing.id === dndId)) return;
 		try {
 			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
 			if (!response.ok) throw new Error('Failed to fetch ingredient details');
 			const details: CalculableIngredient = await response.json();
-			ingredients.push({
+			formData.ingredients.push({
 				...result,
 				...details,
 				id: dndId,
@@ -199,7 +252,7 @@
 	}
 
 	function removeIngredient(id: string) {
-		ingredients = ingredients.filter((ing) => ing.id !== id);
+		formData.ingredients = formData.ingredients.filter((ing) => ing.id !== id);
 	}
 
 	// --- Gestión de imagen ---
@@ -208,19 +261,35 @@
 		const file = target.files?.[0];
 		if (file) {
 			const reader = new FileReader();
-			reader.onload = (e) => (imageUrl = e.target?.result as string);
+			reader.onload = (e) => (formData.imageUrl = e.target?.result as string);
 			reader.readAsDataURL(file);
 		}
 	}
 
 	// --- Cálculos y envío ---
-	let nutritionalInfo = $derived(calculateNutritionalInfo(ingredients));
+	let nutritionalInfo = $derived(calculateNutritionalInfo(formData.ingredients));
 	let isSubmitting = $state(false);
 </script>
 
 <Card class="max-w-4xl mx-auto my-8">
 	<CardHeader>
 		<CardTitle class="mt-4">{cardTitle}</CardTitle>
+		{#if status === 'awaitingDecision'}
+			<Alert.Root class="mt-4">
+				<Save class="h-4 w-4" />
+				<Alert.Title>¡Borrador encontrado!</Alert.Title>
+				<Alert.Description class="flex items-center justify-between">
+					<p>Hemos encontrado un borrador guardado. ¿Quieres continuar donde lo dejaste?</p>
+					<div class="flex gap-2 mt-2 md:mt-0">
+						<Button type="button" size="sm" onclick={handleRestore}>Restaurar</Button>
+						<Button type="button" variant="destructive" size="sm" onclick={handleDiscard}>
+							<X class="h-4 w-4 mr-2" />
+							Descartar
+						</Button>
+					</div>
+				</Alert.Description>
+			</Alert.Root>
+		{/if}
 	</CardHeader>
 	<CardContent>
 		<form
@@ -230,6 +299,7 @@
 				return async ({ result }) => {
 					await applyAction(result);
 					if (result.type === 'success') {
+						autosave.clear(storageKey); // Limpiar el borrador al guardar con éxito
 						await onSuccess();
 					}
 					isSubmitting = false;
@@ -242,25 +312,29 @@
 				type="hidden"
 				name="ingredients"
 				value={JSON.stringify(
-					ingredients.map(({ id, quantity, type }) => ({
+					formData.ingredients.map(({ id, quantity, type }) => ({
 						id: id.replace(type, ''),
 						quantity,
 						type
 					}))
 				)}
 			/>
-			<input type="hidden" name="urls" value={JSON.stringify(urls.filter((u) => u.trim() !== ''))} />
+			<input
+				type="hidden"
+				name="urls"
+				value={JSON.stringify(formData.urls.filter((u) => u.trim() !== ''))}
+			/>
 			<input
 				type="hidden"
 				name="steps"
-				value={JSON.stringify(steps.filter((s) => s.trim() !== ''))}
+				value={JSON.stringify(formData.steps.filter((s) => s.trim() !== ''))}
 			/>
-			<input type="hidden" name="imageUrl" value={imageUrl} />
+			<input type="hidden" name="imageUrl" value={formData.imageUrl} />
 
 			<!-- Campos del formulario -->
 			<div class="space-y-2">
 				<Label for="title">Título</Label>
-				<Input id="title" name="title" bind:value={title} required />
+				<Input id="title" name="title" bind:value={formData.title} required />
 				{#if form?.errors?.title}
 					<p class="text-sm text-red-500">{form.errors.title}</p>
 				{/if}
@@ -269,9 +343,9 @@
 			<div class="space-y-2">
 				<Label for="image">Imagen de la Receta</Label>
 				<div class="flex items-center gap-4">
-					{#if imageUrl}
+					{#if formData.imageUrl}
 						<img
-							src={imageUrl}
+							src={formData.imageUrl}
 							alt="Previsualización de la receta"
 							class="h-24 w-24 rounded-md object-cover"
 						/>
@@ -286,7 +360,7 @@
 
 			<div class="space-y-2">
 				<Label>URLs de Referencia</Label>
-				<UrlImageFetcher bind:urls bind:imageUrl />
+				<UrlImageFetcher bind:urls={formData.urls} bind:imageUrl={formData.imageUrl} />
 				{#if form?.errors?.urls}
 					<p class="text-sm text-red-500">{form.errors.urls}</p>
 				{/if}
@@ -294,7 +368,7 @@
 
 			<div class="space-y-4">
 				<Label class="text-lg font-medium">Pasos de la Receta</Label>
-				{#each steps as step, i}
+				{#each formData.steps as step, i}
 					<div class="flex items-start gap-2">
 						<div class="flex-1 space-y-1">
 							<Label for={`step-${i}`} class="text-sm font-normal text-gray-600"
@@ -303,7 +377,7 @@
 							<Textarea
 								id={`step-${i}`}
 								name={`step-${i}`}
-								bind:value={steps[i]}
+								bind:value={formData.steps[i]}
 								rows={3}
 								placeholder="Describe este paso... (soporta Markdown)"
 							/>
@@ -312,7 +386,7 @@
 							type="button"
 							variant="ghost"
 							size="icon"
-							onclick={() => steps.splice(i, 1)}
+							onclick={() => formData.steps.splice(i, 1)}
 							class="mt-6"
 							aria-label="Eliminar paso"
 						>
@@ -320,7 +394,7 @@
 						</Button>
 					</div>
 				{/each}
-				<Button type="button" variant="outline" onclick={() => steps.push('')}>
+				<Button type="button" variant="outline" onclick={() => formData.steps.push('')}>
 					Añadir Paso
 				</Button>
 				{#if form?.errors?.steps}
@@ -349,30 +423,30 @@
 								<Command.List>
 									{#if searchResults.length > 0}
 										{#each searchResults as result (result.id + result.type)}
-										<Command.Item
-											value={result.name}
-											onSelect={() => {
-												inputValue = result.name;
-												addIngredient(result);
-											}}
-											class={cn(
-												'flex items-center justify-between w-full',
-												result.source === 'local' ? 'bg-muted/50' : ''
-											)}
-										>
-											<div class="flex items-center gap-2">
-												<img
-													src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
-													alt={result.name}
-													class="h-8 w-8 rounded-sm object-cover"
-												/>
-												<span>{result.name}</span>
-											</div>
-											{#if result.source === 'local'}
-												<Database class="h-4 w-4 text-muted-foreground" />
-											{/if}
-										</Command.Item>
-									{/each}
+											<Command.Item
+												value={result.name}
+												onSelect={() => {
+													inputValue = result.name;
+													addIngredient(result);
+												}}
+												class={cn(
+													'flex items-center justify-between w-full',
+													result.source === 'local' ? 'bg-muted/50' : ''
+												)}
+											>
+												<div class="flex items-center gap-2">
+													<img
+														src={result.imageUrl || 'https://placehold.co/40x40?text=N/A'}
+														alt={result.name}
+														class="h-8 w-8 rounded-sm object-cover"
+													/>
+													<span>{result.name}</span>
+												</div>
+												{#if result.source === 'local'}
+													<Database class="h-4 w-4 text-muted-foreground" />
+												{/if}
+											</Command.Item>
+										{/each}
 									{:else}
 										<div class="p-4 text-sm text-center text-gray-500">
 											{#if isSearching}
@@ -408,7 +482,7 @@
 							callbacks: { onDrop: handleDrop }
 						}}
 					>
-						{#each ingredients as ingredient, i (ingredient.id)}
+						{#each formData.ingredients as ingredient, i (ingredient.id)}
 							<tr
 								use:draggable={{
 									container: 'ingredients',
@@ -446,7 +520,7 @@
 								</TableCell>
 							</tr>
 						{/each}
-						{#if ingredients.length === 0}
+						{#if formData.ingredients.length === 0}
 							<tr
 								class="hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors"
 							>
