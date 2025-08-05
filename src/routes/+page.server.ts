@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { recipeService } from '$lib/server/services/recipeService';
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 
 const RECIPES_PER_PAGE = 50;
 
@@ -27,6 +27,20 @@ export const load: PageServerLoad = async () => {
  * Acciones del servidor para la página de recetas.
  */
 export const actions: Actions = {
+	/**
+	 * Acción de Logout:
+	 * - Elimina la cookie de sesión.
+	 * - Redirige al usuario a la página de inicio.
+	 */
+	logout: async ({ cookies }) => {
+		// Justificación: Al eliminar la cookie, es crucial especificar el `path`
+		// para asegurar que se borre correctamente en todo el dominio.
+		cookies.delete('session', { path: '/' });
+
+		// Redirigimos al usuario a la página principal.
+		throw redirect(303, '/');
+	},
+
 	/**
 	 * Acción `delete`: Gestiona la eliminación de una receta.
 	 */

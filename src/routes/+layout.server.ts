@@ -1,17 +1,16 @@
 // Ruta: src/routes/+layout.server.ts
-import { verifyToken } from '$lib/server/auth';
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = async ({ cookies }) => {
-	const token = cookies.get('session');
-	let user = null;
-
-	if (token) {
-		user = await verifyToken(token);
-	}
-
+/**
+ * La función `load` del layout principal.
+ * Su única responsabilidad ahora es exponer datos del servidor a la UI.
+ * La lógica de autenticación ya ha sido gestionada por el hook (`src/hooks.server.ts`).
+ */
+export const load: LayoutServerLoad = async ({ locals, cookies }) => {
+	// `locals.user` ya contiene la información del usuario (o null)
+	// que fue procesada por el hook. Simplemente la pasamos.
 	return {
-		theme: cookies.get('theme'),
-		user
+		user: locals.user,
+		theme: cookies.get('theme')
 	};
 };

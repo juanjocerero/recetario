@@ -45,6 +45,12 @@ export async function verifyToken(token: string) {
 			algorithms: [algorithm]
 		});
 
+		// Justificación: Un token válido DEBE tener un sujeto (sub). Si no lo tiene,
+		// se considera inválido y se trata como si la verificación hubiera fallado.
+		if (!payload.sub) {
+			return null;
+		}
+
 		// Justificación: Añadimos explícitamente la propiedad `isAdmin` si el
 		// sujeto (sub) del token es 'admin'. Esto asegura que el objeto `user`
 		// que se pasa a la aplicación contiene la información de rol necesaria.
@@ -54,7 +60,7 @@ export async function verifyToken(token: string) {
 		};
 
 		return user;
-	} catch (error) {
+	} catch {
 		return null; // El token es inválido o ha expirado
 	}
 }
