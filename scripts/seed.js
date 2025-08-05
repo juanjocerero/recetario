@@ -2,8 +2,6 @@
 import { faker } from '@faker-js/faker';
 import { PrismaClient } from '@prisma/client';
 import slugify from 'slugify';
-import sharp from 'sharp';
-import fs from 'fs/promises';
 
 const prisma = new PrismaClient();
 
@@ -36,7 +34,8 @@ async function fetchAndCreateProduct(searchTerm) {
 
 	const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
 		searchTerm
-	)}&search_simple=1&action=process&json=1&page_size=5`;
+	)}
+&search_simple=1&action=process&json=1&page_size=5`;
 
 	try {
 		const response = await fetch(searchUrl);
@@ -128,46 +127,14 @@ function createMarkdownSteps() {
 	return steps;
 }
 
-/**
- * Descarga una imagen de una URL y la guarda en el disco.
- * @param {string} url - La URL de la imagen a descargar.
- * @param {string} filePath - La ruta local donde guardar la imagen.
- * @returns {Promise<boolean>} `true` si tuvo éxito, `false` si falló.
- */
-async function downloadAndSaveImage(url, filePath) {
-	try {
-		const response = await fetch(url);
-		if (!response.ok) {
-			throw new Error(`No se pudo descargar la imagen. Estado: ${response.status}`);
-		}
-		const imageBuffer = await response.arrayBuffer();
-		await sharp(Buffer.from(imageBuffer)).toFile(filePath);
-		return true;
-	} catch (error) {
-		console.error(`-> [ERROR] Fallo al descargar/guardar ${url}:`, error.message);
-		return false;
-	}
-}
-
-/**
- * Pauses execution for a specified number of milliseconds.
- * @param {number} ms - The number of milliseconds to wait.
- * @returns {Promise<void>}
- */
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-
 async function main() {
-	console.log('--- Limpiando la base de datos y las imágenes de seed... ---');
-	// Limpiar la carpeta de imágenes de seed
-	await fs.rm('static/images/seed', { recursive: true, force: true });
-	await fs.mkdir('static/images/seed', { recursive: true });
-
+	console.log('--- Limpiando la base de datos... ---');
 	await prisma.recipeIngredient.deleteMany();
 	await prisma.recipeUrl.deleteMany();
 	await prisma.recipe.deleteMany();
 	await prisma.customIngredient.deleteMany();
 	await prisma.product.deleteMany();
-	console.log('✅ Base de datos y carpeta de imágenes limpias.');
+	console.log('✅ Base de datos limpia.');
 
 	console.log('\n--- Fase 1: Poblando productos desde OpenFoodFacts... ---');
 	const productPromises = SEARCH_TERMS_FOR_SEEDING.map(fetchAndCreateProduct);
@@ -214,18 +181,16 @@ async function main() {
 		usedSlugs.add(finalSlug);
 		// --- Fin de la lógica de unicidad ---
 
-		// --- Nueva Lógica de Imagen ---
-		const imageUrlFromPicsum = `https://picsum.photos/seed/${encodeURIComponent(recipeTitle)}/800/600`;
-		const imageFileName = `${finalSlug}.webp`; // Usar .webp para mejor compresión
-		const imagePathForDb = `/images/seed/${imageFileName}`;
-		const imagePathForFs = `static${imagePathForDb}`;
+		const otherIngredients = allAvailableIngredients.filter((ing) => ing.id !== mainIngredient.id);
+		const secondaryIngredients = faker.helpers.arrayElements(
+			otherIngredients,
+			faker.number.int({ min: 2, max: 5 })
+		);
+		const recipeIngredients = [mainIngredient, ...secondaryIngredients];
 
-		// Descargar y guardar la imagen
-		const imageSuccess = await downloadAndSaveImage(imageUrlFromPicsum, imagePathForFs);
-
-		// Si la descarga falla, podemos asignar una imagen por defecto o null
-		const finalImageUrl = imageSuccess ? imagePathForDb : null;
-		// --- Fin de la lógica de imagen ---
+		const bgColor = faker.string.hexadecimal({ length: 6, prefix: '' });
+        const textColor = 'ffffff';
+        const imageUrl = `https://placehold.co/800x600/${bgColor}/${textColor}?text=${encodeURIComponent(recipeTitle)}`;
 
 		console.log(`[RECETA ${i + 1}/200] Creando: "${recipeTitle}" (slug: ${finalSlug})...
 `);
@@ -234,8 +199,8 @@ async function main() {
 				title: recipeTitle,
 				slug: finalSlug,
 				normalizedTitle: recipeTitle.toLowerCase(),
-				steps: createMarkdownSteps(), // Usamos la nueva función
-				imageUrl: finalImageUrl,
+				steps: createMarkdownSteps(),
+				imageUrl: imageUrl,
 				urls: {
 					create: [{ url: faker.internet.url() }]
 				},
@@ -248,8 +213,6 @@ async function main() {
 				}
 			}
 		});
-
-		await delay(100); // Pausa de 100ms para no sobrecargar el servicio de imágenes
 	}
 	console.log('✅ Fase 3 completada. 200 recetas creadas.');
 }
