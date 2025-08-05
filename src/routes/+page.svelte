@@ -103,7 +103,7 @@
 	}
 </script>
 
-<div class="container mx-auto p-4 md:p-8">
+<div class="container mx-auto p-4 md:py-8 md:px-24">
 	<header class="flex items-center justify-between gap-2 mb-8">
 		<div class="relative flex-grow">
 			<Input bind:value={searchQuery} placeholder="Buscar por receta o ingrediente..." />

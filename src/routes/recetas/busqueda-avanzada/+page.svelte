@@ -289,7 +289,7 @@
 	}
 </script>
 
-<div class="container mx-auto p-4 md:p-8">
+<div class="container mx-auto p-4 md:py-8 md:px-24">
 	<header class="mb-8 flex items-center justify-between">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
