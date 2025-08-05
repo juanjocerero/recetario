@@ -144,17 +144,6 @@
 		}
 	});
 
-	$effect(() => {
-		if (status === 'editing') {
-			if (isFormDirty) {
-				autosave.save(storageKey, formData);
-			} else {
-				// Si el formulario se limpia, eliminamos el borrador.
-				autosave.clear(storageKey);
-			}
-		}
-	});
-
 	function handleRestore() {
 		const savedData = autosave.load<typeof formData>(storageKey);
 		if (savedData) {
