@@ -10,18 +10,31 @@ const prisma = new PrismaClient();
 // =================================================================
 
 const SEARCH_TERMS_FOR_SEEDING = [
-	'Atún Hacendado',
+	'Atún claro Hacendado',
 	'Tortiglioni Hacendado',
-	'Yogur Hacendado',
-	'Aceite Hacendado',
-	'Leche Hacendado',
-	'Galletas Hacendado',
-	'Huevos Hacendado',
-	'Arroz Hacendado',
-	'Pechuga Hacendado',
-	'Mantequilla Hacendado',
-	'Pavo Hacendado',
-	'Queso Hacendado'
+	'Yogur Griego Hacendado',
+	'Aceite de Oliva Virgen Extra Hacendado',
+	'Leche Entera Hacendado',
+	'Galletas María Hacendado',
+	'Huevos L Hacendado',
+	'Arroz Redondo Hacendado',
+	'Pechuga de Pollo Hacendado',
+	'Mantequilla sin Sal Hacendado',
+	'Pavo en Lonchas Hacendado',
+	'Queso Curado Hacendado',
+	'Tomate Frito Hacendado',
+	'Mayonesa Hacendado',
+	'Mostaza Dijon Hacendado',
+	'Jamón Serrano Hacendado',
+	'Lenteja Pardina Hacendado',
+	'Garbanzo Pedrosillano Hacendado',
+	'Zumo de Naranja Hacendado',
+	'Pan de Molde Hacendado',
+	'Cereales de Avena Hacendado',
+	'Chocolate Negro 85% Hacendado',
+	'Café Molido Hacendado',
+	'Guisantes Finos Hacendado',
+	'Salmón Ahumado Hacendado'
 ];
 
 /**
@@ -104,7 +117,9 @@ async function fetchAndCreateProduct(searchTerm) {
 
 const BASE_INGREDIENTS = [
 	'Pollo', 'Ternera', 'Salmón', 'Lentejas', 'Garbanzos', 'Arroz',
-	'Quinoa', 'Patata', 'Brócoli', 'Espinacas', 'Tomate', 'Cebolla', 'Ajo', 'Pimiento'
+	'Quinoa', 'Patata', 'Brócoli', 'Espinacas', 'Tomate', 'Cebolla', 'Ajo', 'Pimiento',
+	'Zanahoria', 'Calabacín', 'Champiñón', 'Huevo', 'Harina de Trigo', 'Azúcar', 'Sal',
+	'Pimienta Negra', 'Pimentón Dulce', 'Orégano', 'Perejil Fresco'
 ];
 
 /**
@@ -126,6 +141,13 @@ function createMarkdownSteps() {
 	}
 	return steps;
 }
+
+/**
+ * Pauses execution for a specified number of milliseconds.
+ * @param {number} ms - The number of milliseconds to wait.
+ * @returns {Promise<void>}
+ */
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function main() {
 	console.log('--- Limpiando la base de datos... ---');
@@ -188,12 +210,9 @@ async function main() {
 		);
 		const recipeIngredients = [mainIngredient, ...secondaryIngredients];
 
-		const bgColor = faker.string.hexadecimal({ length: 6, prefix: '' });
-        const textColor = 'ffffff';
-        const imageUrl = `https://placehold.co/800x600/${bgColor}/${textColor}?text=${encodeURIComponent(recipeTitle)}`;
+		const imageUrl = `https://picsum.photos/seed/${encodeURIComponent(recipeTitle)}/400/300`;
 
-		console.log(`[RECETA ${i + 1}/200] Creando: "${recipeTitle}" (slug: ${finalSlug})...
-`);
+		console.log(`[RECETA ${i + 1}/200] Creando: "${recipeTitle}" (slug: ${finalSlug})...`);
 		await prisma.recipe.create({
 			data: {
 				title: recipeTitle,
@@ -213,6 +232,8 @@ async function main() {
 				}
 			}
 		});
+
+		await delay(200); // Pausa de 200ms para no sobrecargar el servicio
 	}
 	console.log('✅ Fase 3 completada. 200 recetas creadas.');
 }
