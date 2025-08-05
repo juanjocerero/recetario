@@ -51,13 +51,15 @@
 		form = null,
 		cardTitle = 'Crear Nueva Receta',
 		submitButtonText = 'Guardar Receta',
-		onSuccess = async () => {}
+		onSuccess = async () => {},
+		recipeId = null
 	}: {
 		initialData?: InitialData | null;
 		form?: ActionData | null;
 		cardTitle?: string;
 		submitButtonText?: string;
 		onSuccess?: () => Promise<void>;
+		recipeId?: string | null;
 	} = $props();
 
 	// --- Lógica de inicialización ---
@@ -122,7 +124,7 @@
 	});
 
 	// --- Autoguardado (Lógica de control en el componente) ---
-	const storageKey = `autosave_${page.route.id?.replace(/\//g, '_')}`;
+	const storageKey = recipeId ? `recipe-autosave-${recipeId}` : 'new-recipe-autosave';
 	type Status = 'initializing' | 'awaitingDecision' | 'editing';
 	let status = $state<Status>('initializing');
 
@@ -141,6 +143,12 @@
 			status = 'awaitingDecision';
 		} else {
 			status = 'editing';
+		}
+	});
+
+	$effect(() => {
+		if (status === 'editing') {
+			autosave.save(storageKey, formData);
 		}
 	});
 
