@@ -18,7 +18,7 @@
 	import { browser } from '$app/environment';
 	import type { ActionData } from '../../../routes/recetas/nueva/$types';
 	import { cn } from '$lib/utils';
-	import * as autosave from '$lib/runes/useAutosave';
+	import * as autosave from '$lib/runes/useAutosave.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -138,9 +138,25 @@
 				JSON.stringify(formData.ingredients)
 	);
 
+	function areStatesIdentical(stateA: typeof formData, stateB: typeof formData): boolean {
+		// Una comparación profunda simple y efectiva para objetos serializables.
+		return JSON.stringify(stateA) === JSON.stringify(stateB);
+	}
+
 	onMount(() => {
 		if (autosave.hasData(storageKey)) {
-			status = 'awaitingDecision';
+			const savedData = autosave.load<typeof formData>(storageKey);
+
+			// Comparamos el borrador guardado con el estado inicial del formulario.
+			// Si son diferentes, le preguntamos al usuario qué hacer.
+			if (savedData && !areStatesIdentical(savedData, formData)) {
+				status = 'awaitingDecision';
+			} else {
+				// Si no hay datos guardados, o si son idénticos a los del servidor (redundantes),
+				// limpiamos el borrador y empezamos a editar directamente.
+				autosave.clear(storageKey);
+				status = 'editing';
+			}
 		} else {
 			status = 'editing';
 		}

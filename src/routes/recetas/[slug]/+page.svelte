@@ -174,11 +174,15 @@
 		</div>
 	{/if}
 
-	<!-- Botón de Volver -->
-	<div class="mt-12">
+	<!-- Botones de Acción -->
+	<div class="mt-12 flex items-center gap-4">
 		<Button variant="outline" href="/">
 			<ArrowLeft class="mr-2 h-4 w-4" />
 			Volver a todas las recetas
 		</Button>
+
+		{#if data.user?.isAdmin}
+			<Button href="/recetas/{recipe.slug}/editar">Editar Receta</Button>
+		{/if}
 	</div>
 </div>
