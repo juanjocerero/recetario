@@ -12,6 +12,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { fade } from 'svelte/transition';
+	import { invalidateAll } from '$app/navigation';
 
 	let { children, data }: { children: Snippet; data: any } = $props();
 
@@ -73,6 +74,10 @@
 							const toastId = toast.loading('Cerrando sesión...');
 							return async ({ update }) => {
 								await update();
+								// Invalida todos los datos cargados, forzando a SvelteKit a
+								// re-ejecutar las funciones `load` que dependen de 'app:auth'
+								// antes de la próxima navegación.
+								await invalidateAll();
 								toast.success('Sesión cerrada correctamente.', { id: toastId });
 							};
 						}}

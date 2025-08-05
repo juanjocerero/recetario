@@ -14,21 +14,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
 	// 2. Rutas públicas accesibles por CUALQUIER usuario (autenticado o no).
-	//    - La página de login.
-	//    - La página principal y la API necesaria para que funcione.
-	const alwaysPublicRoutes = ['/login', '/'];
-	if (alwaysPublicRoutes.includes(pathname) || pathname.startsWith('/api/recipes')) {
+	const alwaysPublicRoutes = ['/login', '/', '/recetas/busqueda-avanzada'];
+	if (alwaysPublicRoutes.includes(pathname)) {
 		return resolve(event);
 	}
 
-	// 3. Para cualquier otra ruta, el usuario DEBE estar autenticado.
+	// 3. Endpoints de API públicos.
+	//    - Permite la búsqueda simple (GET a /api/recipes)
+	//    - Permite la búsqueda avanzada (POST a /api/recipes/search)
+	if (
+		(pathname.startsWith('/api/recipes') && event.request.method === 'GET') ||
+		(pathname === '/api/recipes/search' && event.request.method === 'POST')
+	) {
+		return resolve(event);
+	}
+
+	// 4. Para cualquier otra ruta, el usuario DEBE estar autenticado.
 	//    Si no hay un usuario en `event.locals`, lo redirigimos al login.
 	if (!event.locals.user) {
 		throw redirect(303, `/login?redirectTo=${pathname}`);
 	}
 
-	// 4. Si el usuario está autenticado, puede continuar.
-	//    (Aquí se podrían añadir comprobaciones de roles si fuera necesario,
-	//    por ejemplo, si solo los administradores pueden acceder a /admin).
+	// 5. Si el usuario está autenticado, puede continuar.
 	return resolve(event);
 };
