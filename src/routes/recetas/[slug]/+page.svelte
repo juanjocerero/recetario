@@ -39,7 +39,7 @@
 	const { steps } = recipe;
 </script>
 
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="container mx-auto p-4 md:py-8 md:px-24">
 	<h1 class="font-heading font-light text-3xl md:text-4xl mb-8">{recipe.title}</h1>
 
 	<!-- Sección Superior: Nutrición e Ingredientes -->
