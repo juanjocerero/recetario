@@ -117,9 +117,9 @@
 		</Button>
 	</header>
 
-	<main class="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4">
+	<main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 		{#each recipes as recipe, i (recipe.id)}
-			<div class="mb-4 break-inside-avoid">
+			<div>
 				<RecipeCard
 					{recipe}
 					{isAdmin}
