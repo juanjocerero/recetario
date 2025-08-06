@@ -380,9 +380,9 @@
 		<main class="lg:col-span-2">
 			<div class="space-y-4">
 				{#if recipes.length > 0}
-					<div class="columns-1 md:columns-2 lg:columns-3 gap-4">
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						{#each recipes as recipe, i (recipe.id)}
-							<div class="mb-4 break-inside-avoid">
+							<div>
 								<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />
 							</div>
 						{/each}
