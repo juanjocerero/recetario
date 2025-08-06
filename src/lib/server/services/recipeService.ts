@@ -283,14 +283,56 @@ export const recipeService = {
 
 		let orderByClause: Prisma.Sql;
 		switch (sortBy) {
-			case 'calories_asc': orderByClause = Prisma.sql`ORDER BY rt."totalCalories" ASC`; break;
-			case 'calories_desc': orderByClause = Prisma.sql`ORDER BY rt."totalCalories" DESC`; break;
-			case 'protein_desc':
-				orderByClause = (percent?.protein?.min != null || percent?.protein?.max != null)
-					? Prisma.sql`ORDER BY rt."percentProtein" DESC`
-					: Prisma.sql`ORDER BY rt."totalProtein" DESC`;
+			case 'title_asc':
+				orderByClause = Prisma.sql`ORDER BY r.title ASC`;
 				break;
-			default: orderByClause = Prisma.sql`ORDER BY r.title ASC`;
+			case 'title_desc':
+				orderByClause = Prisma.sql`ORDER BY r.title DESC`;
+				break;
+			case 'calories_asc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalCalories" ASC`;
+				break;
+			case 'calories_desc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalCalories" DESC`;
+				break;
+			case 'protein_grams_asc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalProtein" ASC`;
+				break;
+			case 'protein_grams_desc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalProtein" DESC`;
+				break;
+			case 'fat_grams_asc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalFat" ASC`;
+				break;
+			case 'fat_grams_desc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalFat" DESC`;
+				break;
+			case 'carbs_grams_asc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalCarbs" ASC`;
+				break;
+			case 'carbs_grams_desc':
+				orderByClause = Prisma.sql`ORDER BY rt."totalCarbs" DESC`;
+				break;
+			case 'protein_percent_asc':
+				orderByClause = Prisma.sql`ORDER BY rt."percentProtein" ASC`;
+				break;
+			case 'protein_percent_desc':
+				orderByClause = Prisma.sql`ORDER BY rt."percentProtein" DESC`;
+				break;
+			case 'fat_percent_asc':
+				orderByClause = Prisma.sql`ORDER BY rt."percentFat" ASC`;
+				break;
+			case 'fat_percent_desc':
+				orderByClause = Prisma.sql`ORDER BY rt."percentFat" DESC`;
+				break;
+			case 'carbs_percent_asc':
+				orderByClause = Prisma.sql`ORDER BY rt."percentCarbs" ASC`;
+				break;
+			case 'carbs_percent_desc':
+				orderByClause = Prisma.sql`ORDER BY rt."percentCarbs" DESC`;
+				break;
+			default:
+				orderByClause = Prisma.sql`ORDER BY r.title ASC`;
 		}
 
 		const paginationClause = Prisma.sql`LIMIT ${limit} OFFSET ${offset}`;

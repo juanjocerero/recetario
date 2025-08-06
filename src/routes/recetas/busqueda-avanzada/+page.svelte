@@ -65,12 +65,18 @@
 	import { browser } from '$app/environment';
 	import IngredientCombobox from '$lib/components/recipes/IngredientCombobox.svelte';
 	import MacroFilters from '$lib/components/recipes/MacroFilters.svelte';
+	import SortOptions from '$lib/components/recipes/SortOptions.svelte';
+	import type {
+		SortField,
+		SortDirection
+	} from '$lib/components/recipes/SortOptions.svelte';
 	import type {
 		GramFilters,
 		PercentFilters
 	} from '$lib/components/recipes/MacroFilters.svelte';
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
+		import { CollapsiblePanel } from '$lib/components/ui/collapsible';
+	import { Badge } from '$lib/components/ui/badge';
 	import X from 'lucide-svelte/icons/x';
 	import { fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
@@ -100,12 +106,36 @@
 		sortBy: 'title_asc'
 	});
 
+	let sortField = $state<SortField>('title');
+	let sortDirection = $state<SortDirection>('asc');
+
+	// Efecto para sincronizar la UI de ordenación con el estado de los filtros.
+	$effect(() => {
+		const newSortBy = `${sortField}_${sortDirection}`;
+		if (filters.sortBy !== newSortBy) {
+			filters.sortBy = newSortBy;
+		}
+	});
+
 	// --- ESTADO DE RESULTADOS Y UI (EL "EFECTO") ---
 	let recipes = $state<Recipe[]>([]);
 	let isLoading = $state(false);
 	let hasMore = $state(false);
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController | undefined;
+	let isDesktop = $state(false);
+
+	$effect(() => {
+		if (!browser) return;
+
+		const mediaQuery = window.matchMedia('(min-width: 1024px)');
+		isDesktop = mediaQuery.matches;
+
+		const listener = (e: MediaQueryListEvent) => (isDesktop = e.matches);
+		mediaQuery.addEventListener('change', listener);
+
+		return () => mediaQuery.removeEventListener('change', listener);
+	});
 
 	// --- PERSISTENCIA DE ESTADO CON SNAPSHOT ---
 	// Este es el mecanismo oficial de SvelteKit para guardar y restaurar el estado
@@ -300,38 +330,49 @@
 	</header>
 
 	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-		<aside class="lg:col-span-1">
-			<div class="space-y-6 rounded-lg border p-4 sticky top-4">
-				<div class="space-y-2">
-					<h3 class="text-lg font-semibold">Ingredientes</h3>
-					<IngredientCombobox
-						onSelect={handleAddIngredient}
-						selectedIds={filters.selectedIngredients.map((i) => i.id)}
-						onClear={clearIngredients}
-					/>
-					<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
-						{#each filters.selectedIngredients as ingredient (ingredient.id)}
-							<Badge variant="secondary" class="flex items-center gap-2">
-								{ingredient.name}
-								<button
-									onclick={() => handleRemoveIngredient(ingredient.id)}
-									class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-								>
-									<X class="h-3 w-3" />
-								</button>
-							</Badge>
-						{/each}
+		<aside class="lg:col-span-1 space-y-6 sticky top-4">
+			<CollapsiblePanel title="Filtros" startOpen={isDesktop}>
+				<div class="space-y-6">
+					<div class="space-y-2">
+						<h3 class="text-lg font-semibold">Ingredientes</h3>
+						<IngredientCombobox
+							onSelect={handleAddIngredient}
+							selectedIds={filters.selectedIngredients.map((i) => i.id)}
+							onClear={clearIngredients}
+						/>
+						<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
+							{#each filters.selectedIngredients as ingredient (ingredient.id)}
+								<Badge variant="secondary" class="flex items-center gap-2">
+									{ingredient.name}
+									<button
+										onclick={() => handleRemoveIngredient(ingredient.id)}
+										class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+									>
+										<X class="h-3 w-3" />
+									</button>
+								</Badge>
+							{/each}
+						</div>
 					</div>
+					<hr />
+					<MacroFilters
+						gramFilters={filters.gramFilters}
+						percentFilters={filters.percentFilters}
+						onGramsChange={handleGramsChange}
+						onPercentChange={handlePercentChange}
+						onClear={handleClearMacros}
+					/>
 				</div>
-				<hr />
-				<MacroFilters
-					gramFilters={filters.gramFilters}
-					percentFilters={filters.percentFilters}
-					onGramsChange={handleGramsChange}
-					onPercentChange={handlePercentChange}
-					onClear={handleClearMacros}
+			</CollapsiblePanel>
+
+			<CollapsiblePanel title="Ordenar por" startOpen={isDesktop}>
+				<SortOptions
+					field={sortField}
+					direction={sortDirection}
+					onFieldChange={(value) => (sortField = value)}
+					onDirectionChange={(value) => (sortDirection = value)}
 				/>
-			</div>
+			</CollapsiblePanel>
 		</aside>
 
 		<main class="lg:col-span-2">

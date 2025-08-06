@@ -23,11 +23,30 @@ const PercentFilterSchema = z.object({
 	fat: RangeFilterSchema.optional()
 });
 
+const SortByEnum = z.enum([
+	'title_asc',
+	'title_desc',
+	'calories_asc',
+	'calories_desc',
+	'protein_grams_asc',
+	'protein_grams_desc',
+	'fat_grams_asc',
+	'fat_grams_desc',
+	'carbs_grams_asc',
+	'carbs_grams_desc',
+	'protein_percent_asc',
+	'protein_percent_desc',
+	'fat_percent_asc',
+	'fat_percent_desc',
+	'carbs_percent_asc',
+	'carbs_percent_desc'
+]);
+
 export const SearchFiltersSchema = z.object({
 	ingredients: z.array(z.string()).optional(),
 	grams: GramsFilterSchema.optional(),
 	percent: PercentFilterSchema.optional(),
-	sortBy: z.string().optional(),
+	sortBy: SortByEnum.default('title_asc'),
 	limit: z.coerce.number().default(50),
 	offset: z.coerce.number().default(0)
 });
