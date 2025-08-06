@@ -15,7 +15,7 @@
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
 	import { browser } from '$app/environment';
-	import type { ActionData } from '../../../routes/recetas/nueva/$types';
+	
 	import { cn } from '$lib/utils';
 	import * as autosave from '$lib/runes/useAutosave.svelte';
 	import * as Alert from '$lib/components/ui/alert';
@@ -58,7 +58,7 @@
 		recipeId = null
 	}: {
 		initialData?: InitialData | null;
-		form?: ActionData | null;
+		form?: { message?: string; errors?: Record<string, string | undefined> } | null;
 		cardTitle?: string;
 		submitButtonText?: string;
 		onSuccess?: () => Promise<void>;

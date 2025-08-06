@@ -12,7 +12,6 @@
 </script>
 
 <RecipeForm
-	initialData={data.recipe}
 	recipeId={data.recipe.id}
 	{form}
 	cardTitle="Editar Receta"
