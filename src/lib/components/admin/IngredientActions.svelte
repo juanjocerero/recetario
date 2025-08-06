@@ -7,6 +7,7 @@
 	import type { Product } from '@prisma/client';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
+	import { Pencil, Trash2 } from 'lucide-svelte';
 
 	let {
 		ingredient,
@@ -35,9 +36,12 @@
 <div class="flex justify-end gap-2">
 	{#if ingredient.source === 'custom'}
 		<Dialog.Root bind:open={isEditDialogOpen}>
-			<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}
-				>Editar</Dialog.Trigger
+			<Dialog.Trigger
+				class={buttonVariants({ variant: 'outline', size: 'icon' })}
+				title="Editar"
 			>
+				<Pencil class="h-4 w-4" />
+			</Dialog.Trigger>
 			<Dialog.Content class="sm:max-w-[425px]">
 				<Dialog.Header>
 					<Dialog.Title>Editar Ingrediente</Dialog.Title>
@@ -126,9 +130,13 @@
 		</Dialog.Root>
 	{:else}
 		<Dialog.Root bind:open={isProductEditDialogOpen}>
-			<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })} onclick={openEditDialog}
-				>Editar</Dialog.Trigger
+			<Dialog.Trigger
+				class={buttonVariants({ variant: 'outline', size: 'icon' })}
+				onclick={openEditDialog}
+				title="Editar"
 			>
+				<Pencil class="h-4 w-4" />
+			</Dialog.Trigger>
 			<Dialog.Content class="sm:max-w-[425px]">
 				<Dialog.Header>
 					<Dialog.Title>Editar Nombre del Producto</Dialog.Title>
@@ -150,9 +158,12 @@
 		</Dialog.Root>
 	{/if}
 	<Dialog.Root bind:open={isDeleteDialogOpen}>
-		<Dialog.Trigger class={buttonVariants({ variant: 'destructive', size: 'sm' })}
-			>Eliminar</Dialog.Trigger
+		<Dialog.Trigger
+			class={buttonVariants({ variant: 'destructive', size: 'icon' })}
+			title="Eliminar"
 		>
+			<Trash2 class="h-4 w-4" />
+		</Dialog.Trigger>
 		<Dialog.Content class="sm:max-w-[425px]">
 			<Dialog.Header>
 				<Dialog.Title>Confirmar Eliminación</Dialog.Title>
