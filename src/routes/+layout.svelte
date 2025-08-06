@@ -51,11 +51,14 @@
 		<div class="fixed top-4 left-4 z-50">
 			<Popover.Root bind:open={isMenuOpen}>
 				<Tooltip.Root>
-					<Tooltip.Trigger>
-						<Popover.Trigger class={cn(buttonVariants({ variant: 'outline', size: 'icon' }))}>
+					<Popover.Trigger>
+						<Tooltip.Trigger
+							class={cn(buttonVariants({ variant: 'outline', size: 'icon' }))}
+							aria-label="Abrir menú"
+						>
 							<Menu class="h-[1.2rem] w-[1.2rem]" />
-						</Popover.Trigger>
-					</Tooltip.Trigger>
+						</Tooltip.Trigger>
+					</Popover.Trigger>
 					<Tooltip.Content side="right">
 						<p>Menú</p>
 					</Tooltip.Content>

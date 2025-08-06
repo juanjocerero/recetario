@@ -1,8 +1,6 @@
 <!--
 // Ruta: src/lib/components/ThemeToggle.svelte
-// Implementación moderna para Svelte 5, usando composición directa y clases
-// en el Trigger para imitar un Button, alineado con las nuevas prácticas de bits-ui.
-// VERSIÓN 3: Corrige la composición de Tooltip y DropdownMenu usando `asChild`.
+// VERSIÓN 7: Composición correcta y definitiva usando `asChild` en el Trigger padre.
 -->
 <script lang="ts">
 	import { Sun, Moon } from 'lucide-svelte';
@@ -17,8 +15,8 @@
 
 <DropdownMenu.Root>
 	<Tooltip.Root>
-		<Tooltip.Trigger>
-			<DropdownMenu.Trigger
+		<DropdownMenu.Trigger>
+			<Tooltip.Trigger
 				class={cn(buttonVariants({ variant, size: 'icon' }))}
 				aria-label="Toggle theme"
 			>
@@ -29,8 +27,8 @@
 					class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
 				/>
 				<span class="sr-only">Toggle theme</span>
-			</DropdownMenu.Trigger>
-		</Tooltip.Trigger>
+			</Tooltip.Trigger>
+		</DropdownMenu.Trigger>
 		<Tooltip.Content>
 			<p>Cambiar tema</p>
 		</Tooltip.Content>
