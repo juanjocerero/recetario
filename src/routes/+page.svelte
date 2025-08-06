@@ -10,8 +10,6 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import Plus from 'lucide-svelte/icons/plus';
 	import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal';
-	import { fade } from 'svelte/transition';
-	import { flip } from 'svelte/animate';
 
 	const RECIPES_PER_PAGE = 50;
 

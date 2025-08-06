@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import { buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import type { PageData } from '../../../routes/admin/ingredientes/$types';
 	import { Search, ChevronDown, X } from 'lucide-svelte';

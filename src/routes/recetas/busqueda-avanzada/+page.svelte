@@ -78,8 +78,6 @@
 		import { CollapsiblePanel } from '$lib/components/ui/collapsible';
 	import { Badge } from '$lib/components/ui/badge';
 	import X from 'lucide-svelte/icons/x';
-	import { fade } from 'svelte/transition';
-	import { flip } from 'svelte/animate';
 
 	type Ingredient = {
 		id: string;

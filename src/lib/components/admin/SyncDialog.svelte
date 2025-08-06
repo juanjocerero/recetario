@@ -1,6 +1,6 @@
 <!-- Ruta: src/lib/components/admin/SyncDialog.svelte -->
 <script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import { buttonVariants } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { CircleDashed } from 'lucide-svelte';
