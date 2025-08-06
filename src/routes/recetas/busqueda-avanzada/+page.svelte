@@ -123,6 +123,7 @@
 	let hasMore = $state(false);
 	let sentinel: HTMLDivElement | undefined = $state();
 	let controller: AbortController | undefined;
+	let pageHeader: HTMLElement | undefined = $state();
 	let isDesktop = $state(false);
 
 	$effect(() => {
@@ -198,6 +199,7 @@
 			if (signal?.aborted) return;
 			recipes = result.recipes;
 			hasMore = result.hasMore;
+			pageHeader?.scrollIntoView({ behavior: 'smooth' });
 		} catch (error) {
 			if (error instanceof DOMException && error.name === 'AbortError') return;
 			console.error('Error en la búsqueda:', error);
@@ -320,7 +322,7 @@
 </script>
 
 <div class="container mx-auto p-4 md:py-8 md:px-24">
-	<header class="mb-8 flex items-center justify-between">
+	<header class="mb-8 flex items-center justify-between" bind:this={pageHeader}>
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
 			<p class="text-muted-foreground">
@@ -378,7 +380,7 @@
 		<main class="lg:col-span-2">
 			<div class="space-y-4">
 				{#if recipes.length > 0}
-					<div class="columns-1 md:columns-2 gap-4">
+					<div class="columns-1 md:columns-2 lg:columns-3 gap-4">
 						{#each recipes as recipe, i (recipe.id)}
 							<div class="mb-4 break-inside-avoid">
 								<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />

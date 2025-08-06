@@ -6,6 +6,10 @@
 	let { title, startOpen = true, children }: { title: string; startOpen?: boolean; children: Snippet } = $props();
 	let isOpen = $state(startOpen);
 
+	$effect(() => {
+		isOpen = startOpen;
+	});
+
 	function toggle() {
 		isOpen = !isOpen;
 	}
