@@ -49,6 +49,8 @@ model Recipe {
   // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.
   // Es opcional para permitir recetas sin imagen o para usar la imagen de una URL de referencia.
   imageUrl    String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   ingredients RecipeIngredient[]
   // Justificación (Paso 1.1): Relación uno-a-muchos para almacenar las URLs de referencia de la receta.
   urls        RecipeUrl[]

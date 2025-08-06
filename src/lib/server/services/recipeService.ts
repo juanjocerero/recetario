@@ -180,7 +180,7 @@ export const recipeService = {
 		return prisma.recipe.findMany({
 			where: whereClause,
 			include: recipeInclude,
-			orderBy: { title: 'asc' },
+			orderBy: { updatedAt: 'desc' },
 			take: limit,
 			skip: offset
 		});
