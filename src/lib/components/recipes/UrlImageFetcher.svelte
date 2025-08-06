@@ -4,42 +4,51 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Trash2, Loader, BadgeCheck, TriangleAlert } from 'lucide-svelte';
 
-	type $Props = {
-		urls: string[];
-		imageUrl: string;
+	type UrlState = {
+		status: 'idle' | 'loading' | 'success' | 'error';
+		message: string;
 	};
 
-	let { urls = $bindable(), imageUrl = $bindable() }: $Props = $props();
+	let { urls = $bindable(), imageUrl = $bindable() } = $props<{
+		urls?: string[];
+		imageUrl?: string | null;
+	}>();
 
-	// Estado para cada URL individual
-	let urlStates = $state(
-		urls.map(() => ({
-			status: 'idle' as 'idle' | 'loading' | 'success' | 'error',
-			message: ''
-		}))
-	);
+	let urlStates: UrlState[] = $state([]);
+
+	$effect(() => {
+		// Sincroniza el estado interno cuando las URLs externas cambian
+		const newStates = (urls ?? []).map((_, i) => {
+			return urlStates[i] ?? { status: 'idle', message: '' };
+		});
+		if (JSON.stringify(newStates) !== JSON.stringify(urlStates)) {
+			urlStates = newStates;
+		}
+	});
 
 	function addUrlField() {
-		urls.push('');
-		urlStates.push({ status: 'idle', message: '' });
+		if (urls) {
+			urls.push('');
+			urls = urls; // Notifica el cambio
+			urlStates.push({ status: 'idle', message: '' });
+		}
 	}
 
 	function removeUrlField(index: number) {
-		urls.splice(index, 1);
-		urlStates.splice(index, 1);
+		if (urls) {
+			urls.splice(index, 1);
+			urls = urls; // Notifica el cambio
+			urlStates.splice(index, 1);
+		}
 	}
 
-	// Justificación (Paso 3): Esta función se dispara cuando el usuario deja de editar
-	// un campo de URL. Llama a nuestro endpoint de scraping y actualiza el estado
-	// de esa URL específica para mostrar feedback (spinner, tick, error).
 	async function handleUrlBlur(index: number) {
-		const url = urls[index];
+		const url = urls?.[index];
 		if (!url || !url.startsWith('http')) {
 			urlStates[index] = { status: 'idle', message: '' };
 			return;
 		}
 
-		// Solo buscamos imagen si no hay ya una imagen principal definida.
 		if (imageUrl) return;
 
 		urlStates[index] = { status: 'loading', message: '' };
@@ -57,8 +66,12 @@
 			}
 
 			const data = await response.json();
-			imageUrl = data.imageUrl; // Actualizamos la imagen principal de la receta
-			urlStates[index] = { status: 'success', message: 'Imagen encontrada' };
+			if (data.imageUrl) {
+				imageUrl = data.imageUrl;
+				urlStates[index] = { status: 'success', message: 'Imagen encontrada' };
+			} else {
+				throw new Error('No se encontró una imagen en la URL.');
+			}
 		} catch (error) {
 			urlStates[index] = {
 				status: 'error',

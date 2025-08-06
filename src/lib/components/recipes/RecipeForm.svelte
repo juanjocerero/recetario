@@ -36,16 +36,29 @@
 
 	type InitialData = {
 		title: string;
-		steps: string[];
+		steps: string[] | string; // Puede ser un string JSON
 		imageUrl: string | null;
 		urls: { url: string }[];
-		ingredients: (IngredientWithDetails & {
-			customIngredient: { id: string; name: string } & Omit<CalculableIngredient, 'quantity'>;
-			product: { id: string; name: string; imageUrl: string | null } & Omit<
-				CalculableIngredient,
-				'quantity'
-			>;
-		})[];
+		ingredients: {
+			quantity: number;
+			product: (Omit<CalculableIngredient, 'quantity'> & {
+				id: string;
+				name: string;
+				imageUrl: string | null;
+			}) | null;
+			customIngredient: (Omit<CalculableIngredient, 'quantity'> & {
+				id: string;
+				name: string;
+			}) | null;
+		}[];
+	};
+
+	type FormState = {
+		title: string;
+		steps: string[];
+		imageUrl: string | null;
+		urls: string[];
+		ingredients: IngredientWithDetails[];
 	};
 
 	// --- Props ---
@@ -100,23 +113,43 @@
 					protein: source.protein ?? 0,
 					fat: source.fat ?? 0,
 					carbs: source.carbs ?? 0,
-					imageUrl: 'imageUrl' in source ? source.imageUrl : null
+					imageUrl: ing.product ? ing.product.imageUrl : null
 				};
 			})
 			.filter((ing): ing is IngredientWithDetails => ing !== null);
 	};
 
 	// --- Estado del formulario (unificado) ---
-	let formData = $state({
-		title: initialData?.title ?? '',
-		steps: getRecipeSteps(initialData?.steps),
-		imageUrl: initialData?.imageUrl ?? '',
-		urls: initialData?.urls.map((u) => u.url) ?? [],
-		ingredients: mapInitialIngredients(initialData?.ingredients)
+	let formData: FormState = $state({
+		title: '',
+		steps: [''],
+		imageUrl: null,
+		urls: [],
+		ingredients: []
+	});
+
+	$effect(() => {
+		if (initialData && status === 'editing') {
+			const isPristine =
+				formData.title === '' &&
+				formData.steps.length <= 1 &&
+				formData.steps[0] === '' &&
+				formData.ingredients.length === 0 &&
+				formData.urls.length === 0;
+
+			if (isPristine) {
+				formData.title = initialData.title ?? '';
+				formData.steps = getRecipeSteps(initialData.steps);
+				formData.imageUrl = initialData.imageUrl ?? null;
+				formData.urls = initialData.urls?.map((u) => u.url) ?? [];
+				formData.ingredients = mapInitialIngredients(initialData.ingredients);
+			}
+		}
 	});
 
 	// --- Autoguardado (Lógica de control en el componente) ---
-	const storageKey = recipeId ? `recipe-autosave-${recipeId}` : 'new-recipe-autosave';
+	const AUTOSAVE_KEY = 'recipe-autosave-draft';
+	type AutosaveDraft = { recipeId: string | null; formData: FormState };
 	type Status = 'initializing' | 'awaitingDecision' | 'editing';
 	let status = $state<Status>('initializing');
 
@@ -129,45 +162,79 @@
 				JSON.stringify(formData.ingredients)
 	);
 
-	function areStatesIdentical(stateA: typeof formData, stateB: typeof formData): boolean {
-		// Una comparación profunda simple y efectiva para objetos serializables.
+	function areStatesIdentical(stateA: FormState, stateB: FormState): boolean {
 		return JSON.stringify(stateA) === JSON.stringify(stateB);
 	}
 
 	onMount(() => {
-		if (autosave.hasData(storageKey)) {
-			const savedData = autosave.load<typeof formData>(storageKey);
+		// 1. Migración transparente de borradores antiguos
+		const legacyKey = recipeId ? `recipe-autosave-${recipeId}` : 'new-recipe-autosave';
+		if (autosave.hasData(legacyKey)) {
+			const legacyData = autosave.load<FormState>(legacyKey);
+			if (legacyData) {
+				autosave.save(AUTOSAVE_KEY, { recipeId, formData: legacyData });
+			}
+			autosave.clear(legacyKey);
+		}
 
-			// Comparamos el borrador guardado con el estado inicial del formulario.
-			// Si son diferentes, le preguntamos al usuario qué hacer.
-			if (savedData && !areStatesIdentical(savedData, formData)) {
-				status = 'awaitingDecision';
+		// 2. Carga del borrador unificado
+		if (autosave.hasData(AUTOSAVE_KEY)) {
+			const savedDraft = autosave.load<AutosaveDraft>(AUTOSAVE_KEY);
+
+			// Comprobar si el borrador pertenece a la receta actual
+			if (savedDraft && savedDraft.recipeId === recipeId) {
+				const initialFormState: FormState = {
+					title: initialData?.title ?? '',
+					steps: getRecipeSteps(initialData?.steps),
+					imageUrl: initialData?.imageUrl ?? null,
+					urls: initialData?.urls.map((u) => u.url) ?? [],
+					ingredients: mapInitialIngredients(initialData?.ingredients)
+				};
+				// Comparamos con el estado inicial para ver si vale la pena restaurar
+				if (!areStatesIdentical(savedDraft.formData, initialFormState)) {
+					status = 'awaitingDecision';
+				} else {
+					// El borrador es idéntico al del servidor, es inútil.
+					autosave.clear(AUTOSAVE_KEY);
+					status = 'editing';
+				}
 			} else {
-				// Si no hay datos guardados, o si son idénticos a los del servidor (redundantes),
-				// limpiamos el borrador y empezamos a editar directamente.
-				autosave.clear(storageKey);
+				// El borrador es de otra receta, se ignora y se sobreescribirá.
 				status = 'editing';
 			}
 		} else {
+			// No hay ningún borrador.
 			status = 'editing';
 		}
 	});
 
-	autosave.createAutosave(storageKey, () => formData, {
-		enabled: () => status === 'editing',
-		isDirty: () => isFormDirty
-	});
+	autosave.createAutosave(
+		AUTOSAVE_KEY,
+		() => ({
+			recipeId: recipeId,
+			formData: formData
+		}),
+		{
+			enabled: () => status === 'editing',
+			isDirty: () => isFormDirty
+		}
+	);
 
 	function handleRestore() {
-		const savedData = autosave.load<typeof formData>(storageKey);
-		if (savedData) {
-			formData = savedData;
+		const savedDraft = autosave.load<AutosaveDraft>(AUTOSAVE_KEY);
+		if (savedDraft && savedDraft.recipeId === recipeId) {
+			const dataToRestore = savedDraft.formData;
+			formData.title = dataToRestore.title;
+			formData.steps = dataToRestore.steps;
+			formData.imageUrl = dataToRestore.imageUrl ?? null; // Ensure null instead of undefined
+			formData.urls = dataToRestore.urls;
+			formData.ingredients = dataToRestore.ingredients;
 		}
 		status = 'editing';
 	}
 
 	function handleDiscard() {
-		autosave.clear(storageKey);
+		autosave.clear(AUTOSAVE_KEY);
 		status = 'editing';
 	}
 
@@ -264,7 +331,10 @@
 		const file = target.files?.[0];
 		if (file) {
 			const reader = new FileReader();
-			reader.onload = (e) => (formData.imageUrl = e.target?.result as string);
+			reader.onload = (e) => {
+				const result = e.target?.result;
+				formData.imageUrl = typeof result === 'string' ? result : null;
+			};
 			reader.readAsDataURL(file);
 		}
 	}
@@ -307,7 +377,7 @@
 
 					if (result.type === 'success') {
 						toast.success('Receta guardada con éxito.', { id: toastId });
-						autosave.clear(storageKey);
+						autosave.clear(AUTOSAVE_KEY);
 						await onSuccess();
 					} else if (result.type === 'failure') {
 						const message = form?.message || 'Error al guardar la receta. Revisa los campos.';
@@ -341,7 +411,7 @@
 				name="steps"
 				value={JSON.stringify(formData.steps.filter((s) => s.trim() !== ''))}
 			/>
-			<input type="hidden" name="imageUrl" value={formData.imageUrl} />
+			<input type="hidden" name="imageUrl" value={formData.imageUrl ?? ''} />
 
 			<!-- Campos del formulario -->
 			<div class="space-y-2">
