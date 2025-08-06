@@ -11,20 +11,17 @@
 
 	let {
 		ingredient,
-		isProductEditDialogOpen = $bindable(),
 		editingProductName = $bindable(),
 		editingProductId = $bindable(),
 		handleUpdateProductName
 	} = $props<{
 		ingredient: Product;
-		isProductEditDialogOpen: boolean;
 		editingProductName: string;
 		editingProductId: string | null;
 		handleUpdateProductName: () => Promise<void>;
 	}>();
 
-	function openEditDialog() {
-		isProductEditDialogOpen = true;
+	function prepareEditDialog() {
 		editingProductName = ingredient.name;
 		editingProductId = ingredient.id;
 	}
@@ -129,10 +126,10 @@
 			</Dialog.Content>
 		</Dialog.Root>
 	{:else}
-		<Dialog.Root bind:open={isProductEditDialogOpen}>
+		<Dialog.Root bind:open={isEditDialogOpen}>
 			<Dialog.Trigger
 				class={buttonVariants({ variant: 'outline', size: 'icon' })}
-				onclick={openEditDialog}
+				onclick={prepareEditDialog}
 				title="Editar"
 			>
 				<Pencil class="h-4 w-4" />

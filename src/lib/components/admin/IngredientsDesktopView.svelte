@@ -19,7 +19,6 @@
 		data,
 		form,
 		searchTerm = $bindable(),
-		isProductEditDialogOpen = $bindable(),
 		editingProductName = $bindable(),
 		editingProductId = $bindable(),
 		handleUpdateProductName
@@ -27,7 +26,6 @@
 		data: PageData;
 		form: any;
 		searchTerm: string;
-		isProductEditDialogOpen: boolean;
 		editingProductName: string;
 		editingProductId: string | null;
 		handleUpdateProductName: () => Promise<void>;
@@ -277,7 +275,6 @@
 								<Table.Cell class="text-right">{ingredient.carbs?.toFixed(1) ?? 'N/A'}</Table.Cell>
 								<Table.Cell class="text-right">
 									<IngredientActions
-										bind:isProductEditDialogOpen
 										bind:editingProductName
 										bind:editingProductId
 										{ingredient}

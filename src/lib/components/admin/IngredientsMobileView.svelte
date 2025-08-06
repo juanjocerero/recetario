@@ -10,7 +10,6 @@
 		data,
 		searchTerm = $bindable(),
 		sort,
-		isProductEditDialogOpen = $bindable(),
 		editingProductName = $bindable(),
 		editingProductId = $bindable(),
 		handleUpdateProductName
@@ -18,7 +17,6 @@
 		data: PageData;
 		searchTerm: string;
 		sort: (column: string) => void;
-		isProductEditDialogOpen: boolean;
 		editingProductName: string;
 		editingProductId: string | null;
 		handleUpdateProductName: () => Promise<void>;
@@ -84,7 +82,6 @@
 						/>
 					</button>
 					<IngredientActions
-						bind:isProductEditDialogOpen
 						bind:editingProductName
 						bind:editingProductId
 						{ingredient}

@@ -46,7 +46,6 @@
 	}
 
 	// --- Lógica para el diálogo de edición de productos ---
-	let isProductEditDialogOpen = $state(false);
 	let editingProductName = $state('');
 	let editingProductId = $state<string | null>(null);
 
@@ -73,7 +72,6 @@
 
 			toast.success('Nombre del producto actualizado con éxito.', { id: toastId });
 			await invalidateAll();
-			isProductEditDialogOpen = false;
 		} catch (error) {
 			console.error('Error al actualizar el nombre del producto:', error);
 			const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
@@ -87,7 +85,6 @@
 		{data}
 		{form}
 		bind:searchTerm
-		bind:isProductEditDialogOpen
 		bind:editingProductName
 		bind:editingProductId
 		{handleUpdateProductName}
@@ -96,7 +93,6 @@
 		{data}
 		bind:searchTerm
 		{sort}
-		bind:isProductEditDialogOpen
 		bind:editingProductName
 		bind:editingProductId
 		{handleUpdateProductName}
