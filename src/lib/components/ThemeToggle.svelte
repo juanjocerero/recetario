@@ -1,41 +1,70 @@
 <!--
-// Ruta: src/lib/components/ThemeToggle.svelte
-// VERSIÓN 7: Composición correcta y definitiva usando `asChild` en el Trigger padre.
+// Ruta: src/lib/components/ThemeToggle.svelte - VERSIÓN CON POPOVER
 -->
 <script lang="ts">
-	import { Sun, Moon } from 'lucide-svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { themeStore } from '$lib/stores/theme.svelte';
-	import { buttonVariants, type ButtonVariant } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils';
-
-	let { variant = 'outline' }: { variant?: ButtonVariant } = $props();
+    import { Sun, Moon, SunMoon } from 'lucide-svelte';
+    import * as Popover from '$lib/components/ui/popover';
+    import { themeStore } from '$lib/stores/theme.svelte';
+    import { buttonVariants, type ButtonVariant } from '$lib/components/ui/button';
+    import { cn } from '$lib/utils';
+    
+    let { variant = 'outline' }: { variant?: ButtonVariant } = $props();
+    let isOpen = $state(false);
 </script>
 
-<DropdownMenu.Root>
-	<Tooltip.Root>
-		<DropdownMenu.Trigger>
-			<Tooltip.Trigger
-				class={cn(buttonVariants({ variant, size: 'icon' }))}
-				aria-label="Toggle theme"
-			>
-				<Sun
-					class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
-				/>
-				<Moon
-					class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
-				/>
-				<span class="sr-only">Toggle theme</span>
-			</Tooltip.Trigger>
-		</DropdownMenu.Trigger>
-		<Tooltip.Content>
-			<p>Cambiar tema</p>
-		</Tooltip.Content>
-	</Tooltip.Root>
-	<DropdownMenu.Content align="end">
-		<DropdownMenu.Item onclick={() => themeStore.set('light')}>Light</DropdownMenu.Item>
-		<DropdownMenu.Item onclick={() => themeStore.set('dark')}>Dark</DropdownMenu.Item>
-		<DropdownMenu.Item onclick={() => themeStore.set('system')}>System</DropdownMenu.Item>
-	</DropdownMenu.Content>
-</DropdownMenu.Root>
+<Popover.Root bind:open={isOpen}>
+    <Popover.Trigger>
+        {#snippet child({ props })}
+            <button
+                {...props}
+                class={cn(buttonVariants({ variant, size: 'icon' }))}
+                aria-label="Cambiar tema"
+            >
+                <Sun class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span class="sr-only">Cambiar tema</span>
+            </button>
+        {/snippet}
+    </Popover.Trigger>
+    
+    <Popover.Content 
+        align="start"      
+        side="top"         
+        sideOffset={8}     
+        class="w-fit p-1"  
+        style="min-width: unset !important;"
+    >
+        <div class="flex flex-col gap-1">
+            <button
+                class="w-8 h-8 flex items-center justify-center hover:bg-accent rounded transition-colors"
+                onclick={() => {
+                    themeStore.set('light');
+                    isOpen = false;
+                }}
+                aria-label="Tema claro"
+            >
+                <Sun class="h-4 w-4" />
+            </button>
+            <button
+                class="w-8 h-8 flex items-center justify-center hover:bg-accent rounded transition-colors"
+                onclick={() => {
+                    themeStore.set('dark');
+                    isOpen = false;
+                }}
+                aria-label="Tema oscuro"
+            >
+                <Moon class="h-4 w-4" />
+            </button>
+            <button
+                class="w-8 h-8 flex items-center justify-center hover:bg-accent rounded transition-colors"
+                onclick={() => {
+                    themeStore.set('system');
+                    isOpen = false;
+                }}
+                aria-label="Tema del sistema"
+            >
+                <SunMoon class="h-4 w-4" />
+            </button>
+        </div>
+    </Popover.Content>
+</Popover.Root>
