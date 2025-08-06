@@ -9,15 +9,15 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { themeStore } from '$lib/stores/theme.svelte';
-	import { buttonVariants, type Variant } from '$lib/components/ui/button';
+	import { buttonVariants, type ButtonVariant } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 
-	let { variant = 'outline' }: { variant?: Variant } = $props();
+	let { variant = 'outline' }: { variant?: ButtonVariant } = $props();
 </script>
 
 <DropdownMenu.Root>
 	<Tooltip.Root>
-		<Tooltip.Trigger asChild>
+		<Tooltip.Trigger>
 			<DropdownMenu.Trigger
 				class={cn(buttonVariants({ variant, size: 'icon' }))}
 				aria-label="Toggle theme"
@@ -36,8 +36,8 @@
 		</Tooltip.Content>
 	</Tooltip.Root>
 	<DropdownMenu.Content align="end">
-		<DropdownMenu.Item on:click={() => themeStore.set('light')}>Light</DropdownMenu.Item>
-		<DropdownMenu.Item on:click={() => themeStore.set('dark')}>Dark</DropdownMenu.Item>
-		<DropdownMenu.Item on:click={() => themeStore.set('system')}>System</DropdownMenu.Item>
+		<DropdownMenu.Item onclick={() => themeStore.set('light')}>Light</DropdownMenu.Item>
+		<DropdownMenu.Item onclick={() => themeStore.set('dark')}>Dark</DropdownMenu.Item>
+		<DropdownMenu.Item onclick={() => themeStore.set('system')}>System</DropdownMenu.Item>
 	</DropdownMenu.Content>
 </DropdownMenu.Root>
