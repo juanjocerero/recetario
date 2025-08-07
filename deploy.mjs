@@ -27,17 +27,24 @@ function runCommand(command, args = []) {
 function runRemoteCommand(command) {
   return new Promise((resolve, reject) => {
     console.log(`🖥️  Ejecutando en servidor: ${command}`);
-    
-    // Usamos la configuración de SSH si existe
+
+    // Preparamos el comando para cargar NVM antes de ejecutar la tarea real.
+    // Esto asegura que 'node', 'npm', y 'npx' estén disponibles en el PATH
+    // sin necesidad de una shell interactiva (-i) que causa errores.
+    const commandWithNvm = `source ${process.env.HOME}/.nvm/nvm.sh && ${command}`;
+
+    // Usamos la configuración de SSH si existe.
+    // Eliminamos 'zsh -ic' y pasamos el comando directamente.
+    // La shell de login del servidor ejecutará el string.
     const sshArgs = [
       '-o', 'UserKnownHostsFile=/dev/null',
       '-o', 'StrictHostKeyChecking=no',
       `${sshUser}@${host}`,
-      'zsh', '-ic', command          // <-- carga tu entorno zsh
+      commandWithNvm
     ];
-    
+
     const ssh = spawn('ssh', sshArgs, { stdio: 'inherit' });
-    
+
     ssh.on('close', (code) => {
       if (code === 0) {
         resolve();
