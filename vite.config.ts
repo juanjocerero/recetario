@@ -15,6 +15,14 @@ export default defineConfig({
 		allowedHosts: [
 			'dev.dev'
 		]
+	},
+	build: {
+		rollupOptions: {
+			onwarn(warning, defaultHandler) {
+				if (warning.code === 'CIRCULAR_DEPENDENCY') return;
+				defaultHandler(warning);
+			}
+		}
 	}
 });
 
