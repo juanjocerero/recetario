@@ -28,16 +28,17 @@ function runRemoteCommand(command) {
   return new Promise((resolve, reject) => {
     console.log(`🖥️  Ejecutando en servidor: ${command}`);
     
-    // Preparamos el comando para que la SHELL REMOTA expanda la ruta del home (~).
-    // La tilde (~) será interpretada por la shell en el VPS como /home/juanjocerero.
+    // Cargamos NVM primero para asegurar que npm/node/npx estén disponibles.
+    // Usamos 'bash -lc' para ejecutar como una shell de login, pero una que es menos ruidosa que zsh.
+    // 'bash -lc' es una convención común para ejecutar comandos remotos.
     const commandWithNvm = `source ~/.nvm/nvm.sh && ${command}`;
     
-    // Usamos la configuración de SSH si existe.
+    // Le decimos a SSH que use bash para la ejecución
     const sshArgs = [
       '-o', 'UserKnownHostsFile=/dev/null',
       '-o', 'StrictHostKeyChecking=no',
       `${sshUser}@${host}`,
-      commandWithNvm
+      'bash', '-c', `"${commandWithNvm}"`
     ];
     
     const ssh = spawn('ssh', sshArgs, { stdio: 'inherit' });
@@ -89,7 +90,7 @@ async function deploy() {
     
     // 4. Instalar dependencias en el servidor (usando sintaxis moderna)
     console.log('📦 Paso 4/7: Instalando dependencias en el servidor...');
-    await runRemoteCommand(`cd ${remotePath} && npm ci --omit=dev`);
+    await runRemoteCommand(`cd ${remotePath} && npm ci`);
     console.log('✅ Dependencias instaladas\n');
     
     // 5. Generar cliente Prisma en el servidor
