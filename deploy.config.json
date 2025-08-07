@@ -1,5 +1,14 @@
 {
   "host": "vps",
   "remotePath": "/home/juanjocerero/apps/recetario",
-  "localPath": "build"
+  "localPath": ".",
+  "buildPath": "build",
+  "sshUser": "juanjocerero",
+  "pm2AppName": "recetario",
+  "exclude": [
+    "node_modules",
+    ".git",
+    ".env",
+    "build"
+  ]
 }
