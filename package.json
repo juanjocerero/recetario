@@ -65,11 +65,6 @@
 		"vite": "^7.0.4",
 		"vitest": "^3.2.3"
 	},
-	"optionalDependencies": {
-		"@cloudflare/workerd-darwin-64": "^1.20250726.0",
-		"@cloudflare/workerd-linux-64": "^1.20250726.0",
-		"@cloudflare/workerd-win32-64": "^1.20250726.0"
-	},
 	"overrides": {
 		"esbuild": "^0.20.2"
 	},
