@@ -27,28 +27,30 @@ function runCommand(command, args = []) {
 function runRemoteCommand(command) {
   return new Promise((resolve, reject) => {
     console.log(`🖥️  Ejecutando en servidor: ${command}`);
-
-    // Preparamos el comando para cargar NVM antes de ejecutar la tarea real.
-    // Esto asegura que 'node', 'npm', y 'npx' estén disponibles en el PATH
-    // sin necesidad de una shell interactiva (-i) que causa errores.
-    const commandWithNvm = `source ${process.env.HOME}/.nvm/nvm.sh && ${command}`;
-
+    
+    // Preparamos el comando para que la SHELL REMOTA expanda la ruta del home (~).
+    // La tilde (~) será interpretada por la shell en el VPS como /home/juanjocerero.
+    const commandWithNvm = `source ~/.nvm/nvm.sh && ${command}`;
+    
     // Usamos la configuración de SSH si existe.
-    // Eliminamos 'zsh -ic' y pasamos el comando directamente.
-    // La shell de login del servidor ejecutará el string.
     const sshArgs = [
       '-o', 'UserKnownHostsFile=/dev/null',
       '-o', 'StrictHostKeyChecking=no',
       `${sshUser}@${host}`,
       commandWithNvm
     ];
-
+    
     const ssh = spawn('ssh', sshArgs, { stdio: 'inherit' });
-
+    
     ssh.on('close', (code) => {
       if (code === 0) {
         resolve();
       } else {
+        // El código 127 suele ser "comando no encontrado".
+        if (code === 127) {
+          console.error('\n🚨 El comando remoto falló con código 127. Esto usualmente significa "comando no encontrado".');
+          console.error('   Verifica que la ruta "source ~/.nvm/nvm.sh" sea correcta en tu servidor VPS.');
+        }
         reject(new Error(`Comando remoto falló con código ${code}: ${command}`));
       }
     });
