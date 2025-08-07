@@ -5,10 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  // Justificación: Se usa una variable de entorno para la URL de la base de datos.
-  // Esto permite que los tests apunten a una base de datos separada (`test.db`)
-  // sin afectar a la de desarrollo (`dev.db`), aislando los entornos.
+  provider = "postgresql"
+  // Actualizado: Variable de entorno para PostgreSQL
+  // Ejemplo: postgresql://username:password@localhost:5432/database_name
   url      = env("DATABASE_URL")
 }
 
@@ -27,6 +26,8 @@ model Product {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   recipeIngredients RecipeIngredient[]
+
+  @@index([normalizedName])
 }
 
 model CustomIngredient {
@@ -38,6 +39,8 @@ model CustomIngredient {
   protein           Float
   carbs             Float
   recipeIngredients RecipeIngredient[]
+
+  @@index([normalizedName])
 }
 
 model Recipe {
@@ -46,18 +49,16 @@ model Recipe {
   slug            String             @unique
   normalizedTitle String // Para búsqueda case/accent-insensitive
   steps           Json
-  // Justificación (Paso 1.1): Campo para almacenar la URL de la imagen de la receta.
-  // Es opcional para permitir recetas sin imagen o para usar la imagen de una URL de referencia.
-  imageUrl    String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  ingredients RecipeIngredient[]
-  // Justificación (Paso 1.1): Relación uno-a-muchos para almacenar las URLs de referencia de la receta.
-  urls        RecipeUrl[]
+  imageUrl        String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  ingredients     RecipeIngredient[]
+  urls            RecipeUrl[]
+
+  @@index([normalizedTitle])
+  @@index([slug])
 }
 
-// Justificación (Paso 1.1): Nuevo modelo para almacenar las URLs de referencia asociadas a una receta.
-// Esto sigue las buenas prácticas de normalización de bases de datos.
 model RecipeUrl {
   id       String @id @default(cuid())
   url      String
@@ -65,16 +66,20 @@ model RecipeUrl {
   recipeId String
 
   @@unique([recipeId, url])
+  @@index([recipeId])
 }
 
 model RecipeIngredient {
   id                 String            @id @default(cuid())
   recipe             Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId           String
-  // Se relaciona directamente con un Product o un CustomIngredient
   product            Product?          @relation(fields: [productId], references: [id])
   productId          String?
   customIngredient   CustomIngredient? @relation(fields: [customIngredientId], references: [id])
   customIngredientId String?
   quantity           Float             // En gramos
+
+  @@index([recipeId])
+  @@index([productId])
+  @@index([customIngredientId])
 }

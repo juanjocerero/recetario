@@ -1,7 +1,7 @@
 // Ruta: src/routes/api/ingredients/sync/+server.ts
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { ingredientService } from '$lib/server/services/ingredientService';
-import { verifySessionToken } from '$lib/server/auth';
+import { verifyToken } from '$lib/server/auth';
 
 /**
  * @description Endpoint para sincronizar los ingredientes con Open Food Facts
@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ cookies }) => {
 	// del usuario. Esto asegura que solo usuarios logueados puedan iniciar un proceso
 	// que consume recursos como es la sincronización.
 	const token = cookies.get('session'); // CORREGIDO: El nombre de la cookie es 'session'
-	if (!token || !(await verifySessionToken(token))) {
+	if (!token || !(await verifyToken(token))) {
 		return json({ message: 'No autorizado' }, { status: 401 });
 	}
 

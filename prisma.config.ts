@@ -4,7 +4,6 @@ import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
 export default defineConfig({
-  // Ruta al esquema (por defecto busca ./prisma/schema.prisma)
   schema: path.join('prisma', 'schema.prisma'),
   migrations: {
     path: path.join('prisma', 'migrations'),
