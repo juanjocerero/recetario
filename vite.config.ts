@@ -11,11 +11,6 @@ export default defineConfig({
 		// Esta es la solución estándar para este tipo de problemas de compatibilidad de módulos.
 		noExternal: ['bits-ui', 'svelte-sonner']
 	},
-	server: {
-		allowedHosts: [
-			'dev.dev'
-		]
-	},
 	build: {
 		rollupOptions: {
 			onwarn(warning, defaultHandler) {
