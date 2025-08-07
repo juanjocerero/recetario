@@ -5,6 +5,8 @@
   "buildPath": "build",
   "sshUser": "juanjocerero",
   "pm2AppName": "recetario",
+  "pm2Script": "build/index.js",
+  "port": 3000,
   "exclude": [
     "node_modules",
     ".git",

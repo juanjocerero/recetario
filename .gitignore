@@ -24,3 +24,5 @@ vite.config.js.timestamp-*
 
 # Resultados de tests
 playwright-report
+
+ecosystem.config.cjs

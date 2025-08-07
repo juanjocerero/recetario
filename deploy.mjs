@@ -1,13 +1,38 @@
 #!/usr/bin/env node
 import { readFileSync } from 'fs';
+import { writeFile } from 'fs/promises'; // Importamos writeFile
 import { spawn } from 'child_process';
 import { exit } from 'process';
 
 // Leer configuración
 const cfg = JSON.parse(readFileSync('./deploy.config.json', 'utf8'));
-const { host, remotePath, localPath, buildPath, sshUser, pm2AppName, exclude } = cfg;
+const { host, remotePath, localPath, buildPath, sshUser, pm2AppName, pm2Script, port, exclude } = cfg;
 
-// Función para ejecutar comandos locales con mejor manejo de errores
+// NUEVA FUNCIÓN para generar el fichero de PM2
+async function generateEcosystemFile() {
+  console.log('📝 Generando fichero ecosystem.config.cjs...');
+  
+  const ecosystemConfig = {
+    apps: [{
+      name: pm2AppName,
+      script: pm2Script,
+      cwd: remotePath,
+      env: {
+        NODE_ENV: 'production',
+        PORT: port
+      }
+    }]
+  };
+
+  // Convertimos el objeto a un string de código JavaScript
+  const fileContent = `module.exports = ${JSON.stringify(ecosystemConfig, null, 2)};`;
+
+  // Escribimos el fichero localmente. Será subido por rsync.
+  await writeFile('ecosystem.config.cjs', fileContent, 'utf8');
+  console.log('✅ Fichero ecosystem.config.cjs generado.');
+}
+
+// ... (las funciones runCommand y runRemoteCommand no cambian) ...
 function runCommand(command, args = []) {
   return new Promise((resolve, reject) => {
     console.log(`🔨 Ejecutando: ${command} ${args.join(' ')}`);
@@ -23,22 +48,15 @@ function runCommand(command, args = []) {
   });
 }
 
-// Función para ejecutar comandos remotos vía SSH
 function runRemoteCommand(command) {
   return new Promise((resolve, reject) => {
     console.log(`🖥️  Ejecutando en servidor: ${command}`);
-    
-    // Cargamos NVM primero para asegurar que npm/node/npx estén disponibles.
-    // Usamos 'bash -lc' para ejecutar como una shell de login, pero una que es menos ruidosa que zsh.
-    // 'bash -lc' es una convención común para ejecutar comandos remotos.
     const commandWithNvm = `source ~/.nvm/nvm.sh && ${command}`;
-    
-    // Le decimos a SSH que use bash para la ejecución
     const sshArgs = [
       '-o', 'UserKnownHostsFile=/dev/null',
       '-o', 'StrictHostKeyChecking=no',
       `${sshUser}@${host}`,
-      'bash', '-c', `"${commandWithNvm}"`
+      commandWithNvm
     ];
     
     const ssh = spawn('ssh', sshArgs, { stdio: 'inherit' });
@@ -47,29 +65,29 @@ function runRemoteCommand(command) {
       if (code === 0) {
         resolve();
       } else {
-        // El código 127 suele ser "comando no encontrado".
-        if (code === 127) {
-          console.error('\n🚨 El comando remoto falló con código 127. Esto usualmente significa "comando no encontrado".');
-          console.error('   Verifica que la ruta "source ~/.nvm/nvm.sh" sea correcta en tu servidor VPS.');
-        }
         reject(new Error(`Comando remoto falló con código ${code}: ${command}`));
       }
     });
   });
 }
 
-// Función principal de despliegue
+// Función principal de despliegue (actualizada con el nuevo paso)
 async function deploy() {
   try {
     console.log('🚀 Iniciando proceso de despliegue...\n');
     
-    // 1. Compilar localmente (por falta de memoria en VPS)
-    console.log('📦 Paso 1/7: Compilando aplicación localmente...');
+    // 1. Compilar localmente
+    console.log('📦 Paso 1/8: Compilando aplicación localmente...');
     await runCommand('npm', ['run', 'build']);
     console.log('✅ Compilación local completada\n');
     
-    // 2. Subir el repositorio completo (excluyendo archivos innecesarios)
-    console.log('📦 Paso 2/7: Subiendo repositorio al servidor...');
+    // 2. NUEVO PASO: Generar fichero de configuración de PM2
+    console.log('📦 Paso 2/8: Generando fichero de configuración de PM2...');
+    await generateEcosystemFile();
+    console.log('✅ Configuración de PM2 generada\n');
+
+    // 3. Subir el repositorio completo (ahora incluye ecosystem.config.cjs)
+    console.log('📦 Paso 3/8: Subiendo repositorio al servidor...');
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
     await runCommand('rsync', [
       '-avz', '--progress', '--delete',
@@ -79,8 +97,8 @@ async function deploy() {
     ]);
     console.log('✅ Repositorio sincronizado\n');
     
-    // 3. Subir la carpeta build compilada localmente
-    console.log('📦 Paso 3/7: Subiendo archivos compilados...');
+    // 4. Subir la carpeta build compilada localmente
+    console.log('📦 Paso 4/8: Subiendo archivos compilados...');
     await runCommand('rsync', [
       '-avz', '--progress', '--delete',
       `${buildPath}/`,
@@ -88,28 +106,28 @@ async function deploy() {
     ]);
     console.log('✅ Archivos compilados subidos\n');
     
-    // 4. Instalar dependencias en el servidor (usando sintaxis moderna)
-    console.log('📦 Paso 4/7: Instalando dependencias en el servidor...');
+    // 5. Instalar dependencias en el servidor
+    console.log('📦 Paso 5/8: Instalando dependencias en el servidor...');
     await runRemoteCommand(`cd ${remotePath} && npm ci`);
     console.log('✅ Dependencias instaladas\n');
     
-    // 5. Generar cliente Prisma en el servidor
-    console.log('🗄️  Paso 5/7: Generando cliente Prisma...');
+    // 6. Generar cliente Prisma
+    console.log('🗄️  Paso 6/8: Generando cliente Prisma...');
     await runRemoteCommand(`cd ${remotePath} && npx prisma generate`);
     console.log('✅ Cliente Prisma generado\n');
     
-    // 6. Aplicar migraciones de Prisma
-    console.log('🔄 Paso 6/7: Aplicando migraciones...');
+    // 7. Aplicar migraciones de Prisma
+    console.log('🔄 Paso 7/8: Aplicando migraciones...');
     await runRemoteCommand(`cd ${remotePath} && npx prisma migrate deploy`);
     console.log('✅ Migraciones aplicadas\n');
     
-    // 7. Reiniciar aplicación con PM2
-    console.log('🔄 Paso 7/7: Reiniciando aplicación...');
-    await runRemoteCommand(`cd ${remotePath} && pm2 reload ${pm2AppName}`);
+    // 8. Reiniciar aplicación con PM2
+    console.log('🔄 Paso 8/8: Reiniciando aplicación...');
+    // Ahora usamos el fichero generado en lugar de solo el nombre
+    await runRemoteCommand(`cd ${remotePath} && pm2 reload ecosystem.config.cjs`);
     console.log('✅ Aplicación reiniciada\n');
     
     console.log('🎉 ¡Despliegue completado con éxito!');
-    console.log('🌐 Tu aplicación está disponible en: https://recetas.juanjocerero.es');
   } catch (error) {
     console.error('\n❌ Error durante el despliegue:', error.message);
     console.error('\n💡 Revisa los pasos anteriores para identificar el problema');
