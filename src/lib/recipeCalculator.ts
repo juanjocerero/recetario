@@ -4,7 +4,7 @@
 // sea más predecible, fácil de testear y reutilizable. Este módulo no tiene
 // dependencias externas (como Prisma o APIs), solo recibe datos y devuelve un resultado.
 
-// Definimos un tipo para los ingredientes que usará la calculadora.
+// Definimos un tipo para los productos que usará la calculadora.
 // Esto nos desacopla de los modelos de Prisma.
 export type CalculableIngredient = {
 	quantity: number; // en gramos
@@ -22,8 +22,8 @@ export type NutritionalInfo = {
 };
 
 /**
- * Calcula la información nutricional total para una lista de ingredientes.
- * @param ingredients - Un array de ingredientes con su cantidad y valores nutricionales por 100g.
+ * Calcula la información nutricional total para una lista de productos.
+ * @param ingredients - Un array de productos con su cantidad y valores nutricionales por 100g.
  * @returns Un objeto con los totales de calorías, proteínas, grasas y carbohidratos.
  */
 export function calculateNutritionalInfo(ingredients: CalculableIngredient[]): NutritionalInfo {

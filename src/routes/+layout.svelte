@@ -85,14 +85,14 @@
                     
                     {#if data.user}
                         {#if data.user.isAdmin}
-                            <!-- Para el botón de Administrar Ingredientes -->
+                            <!-- Para el botón de Administrar Productos -->
                             <Button
                                 variant="ghost"
                                 size="icon"
-																title="Administrar ingredientes"
-                                aria-label="Administrar ingredientes"
+																title="Administrar productos"
+                                aria-label="Administrar productos"
                                 onclick={() => {
-                                    goto('/admin/ingredientes');
+                                    goto('/admin/ingredients');
                                     isMenuOpen = false;
                                 }}
                             >

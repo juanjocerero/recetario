@@ -96,7 +96,7 @@
 							{:else if searchValue.length < 2}
 								Escribe al menos 2 letras.
 							{:else}
-								No se encontraron ingredientes.
+								No se encontraron productos.
 							{/if}
 						</Command.Empty>
 						<Command.Group>
@@ -112,7 +112,7 @@
 		</Popover.Root>
 	</div>
 	{#if selectedIds.length > 0}
-		<Button onclick={onClear} variant="ghost" size="icon" aria-label="Limpiar ingredientes seleccionados">
+		<Button onclick={onClear} variant="ghost" size="icon" aria-label="Limpiar productos seleccionados">
 			<Trash2 class="h-4 w-4" />
 		</Button>
 	{/if}

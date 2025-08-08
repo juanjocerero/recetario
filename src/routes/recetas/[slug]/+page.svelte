@@ -17,7 +17,7 @@
 	// --- LÓGICA DE CÁLCULO ---
 	const calculableIngredients = $derived(
 		recipe.ingredients.map((ing) => {
-			const source = ing.product || ing.customIngredient;
+			const source = ing.product;
 			return {
 				quantity: ing.quantity,
 				calories: source?.calories,
@@ -42,7 +42,7 @@
 <div class="container mx-auto p-4 md:py-8 md:px-24">
 	<h1 class="font-heading font-light text-3xl md:text-4xl mb-8">{recipe.title}</h1>
 
-	<!-- Sección Superior: Nutrición e Ingredientes -->
+	<!-- Sección Superior: Nutrición y Productos -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
 		<Card.Root>
 			<Card.Header>
@@ -97,7 +97,7 @@
 			<Card.Content>
 				<ul class="space-y-2 text-muted-foreground">
 					{#each recipe.ingredients as ing}
-						{@const name = ing.product?.name || ing.customIngredient?.name}
+						{@const name = ing.product?.name}
 						<li class="flex justify-between">
 							<span>{name}</span>
 							<span class="font-medium">{ing.quantity.toLocaleString('es-ES')} g</span>

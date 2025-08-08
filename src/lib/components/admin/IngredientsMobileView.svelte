@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import type { PageData } from '../../../routes/admin/ingredientes/$types';
+	import type { PageData } from '../../../routes/admin/ingredients/$types';
 	import { Search, ChevronDown, X } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import IngredientActions from '$lib/components/admin/IngredientActions.svelte';
@@ -85,7 +85,6 @@
 						bind:editingProductName
 						bind:editingProductId
 						{ingredient}
-						{handleUpdateProductName}
 					/>
 				</div>
 				{#if expandedRows[ingredient.id]}
@@ -116,7 +115,7 @@
 				{/if}
 			</div>
 		{:else}
-			<p class="text-center text-muted-foreground">No hay ingredientes.</p>
+			<p class="text-center text-muted-foreground">No hay productos.</p>
 		{/each}
 	</div>
 </div>

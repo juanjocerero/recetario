@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Separator from '$lib/components/ui/separator';
 	import * as Table from '$lib/components/ui/table';
-	import type { PageData } from '../../../routes/admin/ingredientes/$types';
+	import type { PageData } from '../../../routes/admin/ingredients/$types';
 	import { invalidateAll } from '$app/navigation';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Plus, Search, X, UtensilsCrossed } from 'lucide-svelte';
@@ -62,7 +62,7 @@
 							</button>
 						{/if}
 					</div>
-					<a href="/admin/ingredientes/off" class={buttonVariants({ variant: 'outline' })}>
+					<a href="/admin/ingredients/off" class={buttonVariants({ variant: 'outline' })}>
 						<UtensilsCrossed class="mr-2 h-4 w-4" />
 						Añadir desde OpenFoodFacts
 					</a>

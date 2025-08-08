@@ -9,13 +9,17 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Pencil, Trash2, Calculator } from 'lucide-svelte';
 
-	let { ingredient } = $props<{
+	let {
+		ingredient,
+		editingProductName = $bindable(),
+		editingProductId = $bindable()
+	} = $props<{
 		ingredient: Product;
+		editingProductName: string;
+		editingProductId: string | null;
 	}>();
 
-	// --- Estado para el diálogo de edición ---
-	let isEditDialogOpen = $state(false);
-	let name = $state(ingredient.name);
+	// --- Estado local para los campos del formulario de edición ---
 	let calories = $state(ingredient.calories);
 	let protein = $state(ingredient.protein);
 	let fat = $state(ingredient.fat);
@@ -40,14 +44,18 @@
 		})())
 	);
 
-	// Sincronizar estado si el ingrediente cambia
-	$effect(() => {
-		name = ingredient.name;
+	function openEditDialog() {
+		editingProductId = ingredient.id;
+		editingProductName = ingredient.name;
 		calories = ingredient.calories;
 		protein = ingredient.protein;
 		fat = ingredient.fat;
 		carbs = ingredient.carbs;
-	});
+	}
+
+	function closeEditDialog() {
+		editingProductId = null;
+	}
 </script>
 
 <div class="flex justify-end gap-2">
@@ -90,10 +98,18 @@
 	</Dialog.Root>
 
 	<!-- Botón de Editar -->
-	<Dialog.Root bind:open={isEditDialogOpen}>
+	<Dialog.Root
+		open={editingProductId === ingredient.id}
+		onOpenChange={(isOpen) => {
+			if (!isOpen) {
+				closeEditDialog();
+			}
+		}}
+	>
 		<Dialog.Trigger
 			class={buttonVariants({ variant: 'outline', size: 'icon' })}
 			title="Editar"
+			onclick={openEditDialog}
 		>
 			<Pencil class="h-4 w-4" />
 		</Dialog.Trigger>
@@ -110,7 +126,7 @@
 						await applyAction(result);
 						if (result.type === 'success') {
 							toast.success('Producto actualizado.', { id: toastId });
-							isEditDialogOpen = false;
+							closeEditDialog();
 							await invalidateAll();
 						} else if (result.type === 'failure') {
 							toast.error('Error al actualizar.', { id: toastId });
@@ -127,7 +143,7 @@
 						<Input
 							id="name-edit-{ingredient.id}"
 							name="name"
-							bind:value={name}
+							bind:value={editingProductName}
 							class="col-span-3"
 						/>
 					</div>

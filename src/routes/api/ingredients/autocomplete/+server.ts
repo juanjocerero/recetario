@@ -2,10 +2,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { ingredientService } from '$lib/server/services/ingredientService';
+import type { Product } from '@prisma/client';
 
 /**
- * Endpoint GET para el autocompletado de ingredientes.
- * Devuelve una lista plana de ingredientes en formato JSON.
+ * Endpoint GET para el autocompletado de productos.
+ * Devuelve una lista plana de productos en formato JSON.
  */
 export const GET: RequestHandler = async ({ url }) => {
 	const query = url.searchParams.get('q');
@@ -15,30 +16,21 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	try {
-		const { customIngredients, cachedProducts } = await ingredientService.searchByName(query);
+		const products = await ingredientService.searchByName(query);
 
 		// Justificación: Se aplanan los resultados de ambas fuentes (custom y productos)
 		// en un único array, que es el formato que espera el componente combobox.
-		const results = [
-			...customIngredients.map((ing) => ({
-				id: ing.id,
-				name: ing.name,
-				type: 'custom',
-				source: 'local',
-				imageUrl: null
-			})),
-			...cachedProducts.map((prod) => ({
-				id: prod.id,
-				name: prod.name,
-				type: 'product',
-				source: 'local',
-				imageUrl: prod.imageUrl
-			}))
-		];
+		const results = products.map((product: Product) => ({
+			id: product.id,
+			name: product.name,
+			type: product.barcode ? 'product' : 'custom',
+			source: 'local',
+			imageUrl: product.imageUrl
+		}));
 
 		return json(results);
 	} catch (error) {
-		console.error('Error en el endpoint de autocompletado de ingredientes:', error);
+		console.error('Error en el endpoint de autocompletado de productos:', error);
 		return json({ message: 'Error interno del servidor' }, { status: 500 });
 	}
 };

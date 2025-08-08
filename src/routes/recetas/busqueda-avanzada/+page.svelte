@@ -324,7 +324,7 @@
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
 			<p class="text-muted-foreground">
-				Filtra por ingredientes, macronutrientes y más.
+				Filtra por productos, macronutrientes y más.
 			</p>
 		</div>
 	</header>
@@ -334,7 +334,7 @@
 			<CollapsiblePanel title="Filtros" startOpen={isDesktop}>
 				<div class="space-y-6">
 					<div class="space-y-2">
-						<h3 class="text-lg font-semibold">Ingredientes</h3>
+						<h3 class="text-lg font-semibold">Productos</h3>
 						<IngredientCombobox
 							onSelect={handleAddIngredient}
 							selectedIds={filters.selectedIngredients.map((i) => i.id)}

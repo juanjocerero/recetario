@@ -103,7 +103,7 @@
 					...product,
 					id: product.id, // El ID ya es el CUID del producto
 					quantity: ing.quantity,
-					source: 'local' // Todos los ingredientes guardados son locales
+					source: 'local' // Todos los productos guardados son locales
 				};
 			})
 			.filter((ing): ing is IngredientWithDetails => ing !== null);
@@ -243,7 +243,7 @@
 		formData.ingredients = reorderedIngredients;
 	}
 
-	// --- Buscador de ingredientes ---
+	// --- Buscador de productos ---
 	let searchResults: SearchResult[] = $state([]);
 	let isSearching = $state(false);
 	let open = $state(false);
@@ -475,7 +475,7 @@
 				{/if}
 			</div>
 
-			<!-- Buscador y tabla de ingredientes -->
+			<!-- Buscador y tabla de productos -->
 			<div class="space-y-2">
 				<Label>Añadir Ingrediente</Label>
 				<div bind:this={triggerWrapperEl}>
@@ -539,7 +539,7 @@
 			</div>
 
 			<div class="space-y-2">
-				<h3 class="text-lg font-medium">Ingredientes de la Receta</h3>
+				<h3 class="text-lg font-medium">Productos de la Receta</h3>
 				<Table>
 					<TableHeader>
 						<TableRow>
@@ -599,7 +599,7 @@
 								class="hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors"
 							>
 								<TableCell colspan={4} class="text-center text-gray-500">
-									Añade ingredientes usando el buscador.
+									Añade productos usando el buscador.
 								</TableCell>
 							</tr>
 						{/if}

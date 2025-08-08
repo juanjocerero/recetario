@@ -23,7 +23,7 @@
 	{#if state === 'loading'}
 		<div class="flex flex-col items-center justify-center p-8">
 			<CircleDashed class="h-12 w-12 animate-spin text-primary" />
-			<p class="mt-4 text-lg text-muted-foreground">Sincronizando ingredientes...</p>
+			<p class="mt-4 text-lg text-muted-foreground">Sincronizando productos...</p>
 			<p class="text-sm text-muted-foreground">
 				Este proceso puede tardar varios minutos. Por favor, no cierres esta ventana.
 			</p>
@@ -32,7 +32,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Sincronización Completada</Dialog.Title>
 			<Dialog.Description>
-				Se actualizaron <strong>{result.updatedIngredients.length}</strong> ingredientes.
+				Se actualizaron <strong>{result.updatedIngredients.length}</strong> productos.
 				{#if result.failedIngredients.length > 0}
 					Hubo <strong>{result.failedIngredients.length}</strong> errores.
 				{/if}
@@ -40,7 +40,7 @@
 		</Dialog.Header>
 		<div class="max-h-[400px] overflow-y-auto">
 			{#if result.updatedIngredients.length > 0}
-				<h3 class="mb-2 font-semibold">Ingredientes Actualizados</h3>
+				<h3 class="mb-2 font-semibold">Productos actualizados</h3>
 				<Table>
 					<TableHeader>
 						<TableRow>
@@ -57,7 +57,7 @@
 				</Table>
 			{/if}
 			{#if result.failedIngredients.length > 0}
-				<h3 class="mb-2 mt-4 font-semibold">Ingredientes con Errores</h3>
+				<h3 class="mb-2 mt-4 font-semibold">Productos con Errores</h3>
 				<Table>
 					<TableHeader>
 						<TableRow>
@@ -85,7 +85,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Error en la Sincronización</Dialog.Title>
 			<Dialog.Description>
-				Ocurrió un error inesperado al intentar sincronizar los ingredientes. Por favor, inténtalo
+				Ocurrió un error inesperado al intentar sincronizar los productos. Por favor, inténtalo
 				de nuevo más tarde.
 			</Dialog.Description>
 		</Dialog.Header>
