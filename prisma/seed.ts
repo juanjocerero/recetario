@@ -12,6 +12,25 @@ const prisma = new PrismaClient();
 // --- FASE 1: OBTENCIÓN DE PRODUCTOS DE OPENFOODFACTS (OFF) ---
 // =================================================================
 
+// Tipos para la respuesta de la API de OpenFoodFacts
+interface OffNutriments {
+	'energy-kcal_100g'?: number;
+	proteins_100g?: number;
+	fat_100g?: number;
+	carbohydrates_100g?: number;
+}
+
+interface OffProduct {
+	code: string;
+	product_name: string;
+	nutriments: OffNutriments;
+	image_url?: string;
+}
+
+interface OffSearchResponse {
+	products: OffProduct[];
+}
+
 const SEARCH_TERMS_FOR_SEEDING = [
 	'Atún claro Hacendado',
 	'Tortiglioni Hacendado',
@@ -57,9 +76,9 @@ async function fetchAndCreateProduct(searchTerm: string): Promise<Product | null
 		if (!response.ok) {
 			throw new Error(`La API de OFF devolvió el estado ${response.status}`);
 		}
-		const data = await response.json();
+		const data: OffSearchResponse = await response.json();
 
-		const productData = data.products.find((p: any) => {
+		const productData = data.products.find((p: OffProduct) => {
 			const nutriments = p.nutriments;
 			return (
 				p.code &&
