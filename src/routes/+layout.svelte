@@ -7,7 +7,7 @@
     import '../app.css';
     import ThemeToggle from '$lib/components/ThemeToggle.svelte';
     import type { Snippet } from 'svelte';
-    import { Wrench, LogOut, LogIn, Menu, House } from 'lucide-svelte';
+    import { Utensils, LogOut, LogIn, Menu, ChefHat } from 'lucide-svelte';
     import * as Popover from '$lib/components/ui/popover';
     import { Button, buttonVariants } from '$lib/components/ui/button';
     import { cn } from '$lib/utils';
@@ -80,7 +80,7 @@
                             isMenuOpen = false;
                         }}
                     >
-                        <House class="h-[1.2rem] w-[1.2rem]" />
+                        <ChefHat class="h-[1.2rem] w-[1.2rem]" />
                     </Button>
                     
                     {#if data.user}
@@ -96,7 +96,7 @@
                                     isMenuOpen = false;
                                 }}
                             >
-                                <Wrench class="h-[1.2rem] w-[1.2rem]" />
+                                <Utensils class="h-[1.2rem] w-[1.2rem]" />
                             </Button>
                             
                             <!-- Acción: Cerrar Sesión -->
