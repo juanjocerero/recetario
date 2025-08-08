@@ -87,7 +87,7 @@
 				<div class="mt-4 rounded-lg bg-muted/50 p-4">
 					<h4 class="mb-2 font-semibold">Nutrientes para {quantity}g:</h4>
 					<div class="space-y-1 text-sm">
-						<p><strong>Calorías:</strong> {calculatedMacros.calories} kcal</p>
+						<p><strong>Calorías:</strong> {Number(calculatedMacros.calories).toFixed(0)} kcal</p>
 						<p><strong>Proteínas:</strong> {calculatedMacros.protein} g</p>
 						<p><strong>Grasas:</strong> {calculatedMacros.fat} g</p>
 						<p><strong>Carbohidratos:</strong> {calculatedMacros.carbs} g</p>
