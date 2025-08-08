@@ -1,4 +1,4 @@
-// Ruta: src/lib/server/services/ingredientService.ts
+// Ruta: src/lib/server/services/productService.ts
 import prisma from '$lib/server/prisma';
 import { type Product } from '$lib/schemas/productSchema';
 import { normalizeText } from '$lib/utils';

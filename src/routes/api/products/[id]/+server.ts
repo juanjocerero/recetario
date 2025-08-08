@@ -16,7 +16,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		const body = await request.json();
 		const validatedData = ProductSchema.parse(body);
 
-		const updatedIngredient = await ingredientService.update(id, validatedData);
+		const updatedProduct = await productService.update(id, validatedData);
 		return json(updatedProduct);
 	} catch (error) {
 		if (error instanceof ZodError) {
