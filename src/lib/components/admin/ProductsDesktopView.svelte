@@ -13,6 +13,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { enhance, applyAction } from '$app/forms';
 	import { toast } from 'svelte-sonner';
+	import MacroBar from '$lib/components/shared/MacroBar.svelte';
 
 	let {
 		data,
@@ -196,34 +197,36 @@
 			<Table.Root class="w-full table-fixed">
 				<Table.Header>
 					<Table.Row>
-						<SortableHeader column="name" label="Nombre" class="w-[40%]" />
+						<SortableHeader column="name" label="Nombre" class="w-[30%]" />
 						<SortableHeader column="calories" label="Calorías" class="w-[12%] justify-end" />
-						<SortableHeader column="protein" label="Proteínas" class="w-[12%] justify-end" />
-						<SortableHeader column="fat" label="Grasas" class="w-[12%] justify-end" />
-						<SortableHeader column="carbs" label="Carbs" class="w-[12%] justify-end" />
+						<Table.Head class="w-[46%]">Distribución de Macros</Table.Head>
 						<Table.Head class="w-[12%] text-right">Acciones</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each data.products as product, i (product.id)}
 						<Table.Row>
-							<Table.Cell class="break-words font-medium">{product.name}</Table.Cell>
+							<Table.Cell class="break-words font-medium whitespace-normal">{product.name}</Table.Cell>
 							<Table.Cell class="text-right">{product.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
-							<Table.Cell class="text-right">{product.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
-							<Table.Cell class="text-right">{product.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
-							<Table.Cell class="text-right">{product.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
+							<Table.Cell class="px-6">
+								<MacroBar
+									protein={product.protein}
+									carbs={product.carbs}
+									fat={product.fat}
+								/>
+							</Table.Cell>
 							<Table.Cell class="text-right">
 								<ProductActions {product} bind:editingProductId bind:editingProductName />
 							</Table.Cell>
 						</Table.Row>
 						{#if i < data.products.length - 1}
 							<tr class="border-none !bg-transparent hover:!bg-transparent"
-								><td class="p-0" colspan="6"><Separator.Root /></td></tr
+								><td class="p-0" colspan="4"><Separator.Root /></td></tr
 							>
 						{/if}
 					{:else}
 						<Table.Row>
-							<Table.Cell colspan={6} class="text-center">No hay productos.</Table.Cell>
+							<Table.Cell colspan={4} class="text-center">No hay productos.</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>

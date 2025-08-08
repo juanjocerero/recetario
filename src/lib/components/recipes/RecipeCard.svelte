@@ -17,6 +17,7 @@
 	} from '$lib/components/ui/dropdown-menu';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import MoreVertical from 'lucide-svelte/icons/more-vertical';
+	import MacroBar from '$lib/components/shared/MacroBar.svelte';
 
 	// Justificación: El tipo ahora usa `title` para coincidir con el esquema de Prisma.
 	type Recipe = {
@@ -58,11 +59,6 @@
 	);
 
 	const totals = $derived(calculateNutritionalInfo(calculableProducts));
-	const totalGrams = $derived(totals.totalProtein + totals.totalCarbs + totals.totalFat);
-
-	const proteinPercentage = $derived(totalGrams > 0 ? (totals.totalProtein / totalGrams) * 100 : 0);
-	const carbsPercentage = $derived(totalGrams > 0 ? (totals.totalCarbs / totalGrams) * 100 : 0);
-	const fatPercentage = $derived(totalGrams > 0 ? (totals.totalFat / totalGrams) * 100 : 0);
 
 	function handleEditQuantities(event: MouseEvent) {
 		event.preventDefault();
@@ -126,37 +122,7 @@
 		</Card.Header>
 
 		<Card.Content class="flex-grow">
-			<div class="flex h-2 w-full overflow-hidden rounded-full bg-muted">
-				<div
-					class="bg-blue-500"
-					style="width: {proteinPercentage}%"
-					title="Proteínas: {totals.totalProtein.toFixed(1)}g"
-				></div>
-				<div
-					class="bg-green-500"
-					style="width: {carbsPercentage}%"
-					title="Carbohidratos: {totals.totalCarbs.toFixed(1)}g"
-				></div>
-				<div
-					class="bg-red-500"
-					style="width: {fatPercentage}%"
-					title="Grasas: {totals.totalFat.toFixed(1)}g"
-				></div>
-			</div>
-			<div class="mt-2 flex justify-between text-xs text-muted-foreground">
-				<span class="flex items-center">
-					<span class="mr-1.5 h-2 w-2 rounded-full bg-blue-500"></span>
-					P ({totals.totalProtein.toFixed(1)})
-				</span>
-				<span class="flex items-center">
-					<span class="mr-1.5 h-2 w-2 rounded-full bg-green-500"></span>
-					C ({totals.totalCarbs.toFixed(1)})
-				</span>
-				<span class="flex items-center">
-					<span class="mr-1.5 h-2 w-2 rounded-full bg-red-500"></span>
-					G ({totals.totalFat.toFixed(1)})
-				</span>
-			</div>
+			<MacroBar protein={totals.totalProtein} carbs={totals.totalCarbs} fat={totals.totalFat} />
 		</Card.Content>
 	</a>
 </Card.Root>

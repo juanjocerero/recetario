@@ -1,30 +1,21 @@
 <script lang="ts">
-	import { buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import type { PageData } from '../../../routes/admin/products/$types';
-	import { Search, ChevronDown, X } from 'lucide-svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Search, X } from 'lucide-svelte';
 	import ProductActions from '$lib/components/admin/ProductActions.svelte';
+	import MacroBar from '$lib/components/shared/MacroBar.svelte';
 
 	let {
 		data,
 		searchTerm = $bindable(),
-		sort,
 		editingProductName = $bindable(),
-		editingProductId = $bindable(),
+		editingProductId = $bindable()
 	} = $props<{
 		data: PageData;
 		searchTerm: string;
-		sort: (column: string) => void;
 		editingProductName: string;
 		editingProductId: string | null;
 	}>();
-
-	// Estado local para las filas expandidas
-	let expandedRows = $state<{ [key: string]: boolean }>({});
-	function toggleRow(id: string) {
-		expandedRows[id] = !expandedRows[id];
-	}
 </script>
 
 <div class="block md:hidden">
@@ -42,75 +33,23 @@
 				</button>
 			{/if}
 		</div>
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline' })}
-				>Ordenar <ChevronDown class="ml-2 h-4 w-4" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content>
-				<DropdownMenu.Label>Ordenar por</DropdownMenu.Label>
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item onclick={() => sort('name')}>Nombre</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => sort('source')}>Origen</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => sort('calories')}>Calorías</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => sort('protein')}>Proteínas</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => sort('fat')}>Grasas</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => sort('carbs')}>Carbs</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
 	</div>
 
 	<div class="space-y-4">
 		{#each data.products as product (product.id)}
-			<div class="rounded-lg border">
-				<div class="flex w-full items-center p-4">
-					<button
-						type="button"
-						class="flex flex-grow items-center text-left"
-						onclick={() => toggleRow(product.id)}
-						aria-expanded={expandedRows[product.id] ?? false}
-						aria-controls="details-{product.id}"
-					>
-						<span class="font-medium">{product.name}</span>
-						<ChevronDown
-							class="ml-2 h-4 w-4 shrink-0 transition-transform duration-200 {expandedRows[
-								product.id
-							]
-								? 'rotate-180'
-								: ''}"
-						/>
-					</button>
-					<ProductActions
-						bind:editingProductName
-						bind:editingProductId
-						{product}
-					/>
+			<div class="flex flex-col space-y-3 rounded-lg border p-4">
+				<div class="flex items-baseline justify-between">
+					<span class="break-words pr-2 font-medium">{product.name}</span>
+					<span class="whitespace-nowrap text-sm text-muted-foreground">
+						{product.calories?.toFixed(0)} kcal
+					</span>
 				</div>
-				{#if expandedRows[product.id]}
-					<div class="p-4 pt-0" id="details-{product.id}">
-						<div class="border-t pt-4">
-							<div class="flex justify-between text-sm">
-								<span class="text-muted-foreground">Origen:</span>
-								<span>{product.source === 'custom' ? 'Personalizado' : 'Caché de OFF'}</span>
-							</div>
-							<div class="flex justify-between text-sm">
-								<span class="text-muted-foreground">Calorías:</span>
-								<span>{product.calories?.toFixed(1) ?? 'N/A'}</span>
-							</div>
-							<div class="flex justify-between text-sm">
-								<span class="text-muted-foreground">Proteínas:</span>
-								<span>{product.protein?.toFixed(1) ?? 'N/A'}</span>
-							</div>
-							<div class="flex justify-between text-sm">
-								<span class="text-muted-foreground">Grasas:</span>
-								<span>{product.fat?.toFixed(1) ?? 'N/A'}</span>
-							</div>
-							<div class="flex justify-between text-sm">
-								<span class="text-muted-foreground">Carbs:</span>
-								<span>{product.carbs?.toFixed(1) ?? 'N/A'}</span>
-							</div>
-						</div>
-					</div>
-				{/if}
+
+				<MacroBar protein={product.protein} carbs={product.carbs} fat={product.fat} />
+
+				<div class="flex justify-end">
+					<ProductActions bind:editingProductName bind:editingProductId {product} />
+				</div>
 			</div>
 		{:else}
 			<p class="text-center text-muted-foreground">No hay productos.</p>
