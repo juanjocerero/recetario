@@ -12,14 +12,12 @@
 		sort,
 		editingProductName = $bindable(),
 		editingProductId = $bindable(),
-		handleUpdateProductName
 	} = $props<{
 		data: PageData;
 		searchTerm: string;
 		sort: (column: string) => void;
 		editingProductName: string;
 		editingProductId: string | null;
-		handleUpdateProductName: () => Promise<void>;
 	}>();
 
 	// Estado local para las filas expandidas

@@ -3,8 +3,8 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
-	import IngredientsDesktopView from '$lib/components/admin/IngredientsDesktopView.svelte';
-	import IngredientsMobileView from '$lib/components/admin/IngredientsMobileView.svelte';
+	import ProductsDesktopView from '$lib/components/admin/ProductsDesktopView.svelte';
+	import ProductsMobileView from '$lib/components/admin/ProductsMobileView.svelte';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 
@@ -48,53 +48,21 @@
 	// --- Lógica para el diálogo de edición de productos ---
 	let editingProductName = $state('');
 	let editingProductId = $state<string | null>(null);
-
-	async function handleUpdateProductName() {
-		if (!editingProductId) return;
-
-		const toastId = toast.loading('Actualizando nombre del producto...');
-		try {
-			const productId = editingProductId.startsWith('product-')
-				? editingProductId.substring(8)
-				: editingProductId;
-			const encodedProductId = encodeURIComponent(productId);
-
-			const response = await fetch(`/api/products/${encodedProductId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: editingProductName })
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error?.message || 'Error al actualizar el nombre');
-			}
-
-			toast.success('Nombre del producto actualizado con éxito.', { id: toastId });
-			await invalidateAll();
-		} catch (error) {
-			console.error('Error al actualizar el nombre del producto:', error);
-			const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-			toast.error(message, { id: toastId });
-		}
-	}
 </script>
 
 <div class="container mx-auto p-4 md:py-8 md:px-24">
-	<IngredientsDesktopView
+	<ProductsDesktopView
 		{data}
 		{form}
 		bind:searchTerm
 		bind:editingProductName
 		bind:editingProductId
-		{handleUpdateProductName}
 	/>
-	<IngredientsMobileView
+	<ProductsMobileView
 		{data}
 		bind:searchTerm
 		{sort}
 		bind:editingProductName
 		bind:editingProductId
-		{handleUpdateProductName}
 	/>
 </div>

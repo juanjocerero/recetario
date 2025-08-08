@@ -17,11 +17,15 @@
 	let {
 		data,
 		form,
-		searchTerm = $bindable()
+		searchTerm = $bindable(),
+		editingProductId = $bindable(),
+		editingProductName = $bindable()
 	} = $props<{
 		data: PageData;
 		form: any;
 		searchTerm: string;
+		editingProductId: string | null;
+		editingProductName: string;
 	}>();
 
 	// --- Lógica para el diálogo de añadir producto ---
@@ -209,7 +213,7 @@
 							<Table.Cell class="text-right">{ingredient.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
 							<Table.Cell class="text-right">{ingredient.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
 							<Table.Cell class="text-right">
-								<IngredientActions {ingredient} />
+								<IngredientActions {ingredient} bind:editingProductId bind:editingProductName />
 							</Table.Cell>
 						</Table.Row>
 						{#if i < data.ingredients.length - 1}
