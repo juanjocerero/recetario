@@ -4,20 +4,17 @@ import { Prisma } from '@prisma/client';
 import type { SearchFilters as ZodSearchFilters } from '$lib/schemas/searchSchema';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
 import { generateUniqueSlug } from '$lib/server/slug';
+import { normalizeText } from '$lib/utils';
 
 const recipeInclude = {
 	ingredients: {
 		include: {
-			product: true,
-			customIngredient: true
+			product: true
 		}
 	},
 	urls: true
 };
 
-// Justificación: Se usa Prisma.RecipeGetPayload para generar automáticamente
-// el tipo correcto que corresponde a la consulta, incluyendo las relaciones.
-// Esto es más robusto y menos propenso a errores que definir el tipo manualmente.
 type FullRecipe = Prisma.RecipeGetPayload<{
 	include: typeof recipeInclude;
 }>;
@@ -62,44 +59,31 @@ export const recipeService = {
 		const { title, steps, ingredients, urls, imageUrl } = data;
 		const slug = await generateUniqueSlug(title);
 
-		const createdRecipe = await prisma.$transaction(async (tx) => {
-			const newRecipe = await tx.recipe.create({
-				data: {
-					title,
-					slug,
-					normalizedTitle: title.toLowerCase(),
-					steps,
-					imageUrl,
-					urls: {
-						create: urls?.map((url: string) => ({ url }))
-					}
+		const createdRecipe = await prisma.recipe.create({
+			data: {
+				title,
+				slug,
+				normalizedTitle: normalizeText(title),
+				steps,
+				imageUrl,
+				urls: {
+					create: urls?.map((url: string) => ({ url }))
+				},
+				ingredients: {
+					create: ingredients.map((ingredient) => ({
+						quantity: ingredient.quantity,
+						productId: ingredient.id // El ID ahora siempre es el del producto
+					}))
 				}
-			});
-
-			// Preparamos los datos para la inserción en lote
-			const ingredientsData = ingredients.map((ingredient) => ({
-				recipeId: newRecipe.id,
-				quantity: ingredient.quantity,
-				productId: ingredient.type === 'product' ? ingredient.id : null,
-				customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
-			}));
-
-			// Insertamos todos los ingredientes en una sola operación
-			await tx.recipeIngredient.createMany({
-				data: ingredientsData
-			});
-
-			return newRecipe;
+			}
 		});
 
-		// Después de la transacción, obtenemos la receta completa con todas sus relaciones
 		const fullNewRecipe = await prisma.recipe.findUnique({
 			where: { id: createdRecipe.id },
 			include: recipeInclude
 		});
 
 		if (!fullNewRecipe) {
-			// Esto no debería ocurrir si la transacción tuvo éxito, pero es un seguro
 			throw new Error('No se pudo encontrar la receta recién creada.');
 		}
 
@@ -109,7 +93,6 @@ export const recipeService = {
 	async update(id: string, data: RecipeData) {
 		const { title, steps, ingredients, urls, imageUrl } = data;
 
-		// Comprobar si el título ha cambiado para regenerar el slug
 		const originalRecipe = await prisma.recipe.findUnique({ where: { id } });
 		let slug: string | undefined;
 		if (originalRecipe && originalRecipe.title !== title) {
@@ -121,24 +104,21 @@ export const recipeService = {
 				where: { id },
 				data: {
 					title,
-					slug, // Se actualiza solo si se ha generado uno nuevo
-					normalizedTitle: title.toLowerCase(),
+					slug,
+					normalizedTitle: normalizeText(title),
 					steps,
 					imageUrl
 				}
 			});
 
 			await tx.recipeIngredient.deleteMany({ where: { recipeId: id } });
-			for (const ingredient of ingredients) {
-				await tx.recipeIngredient.create({
-					data: {
-						recipeId: id,
-						quantity: ingredient.quantity,
-						productId: ingredient.type === 'product' ? ingredient.id : null,
-						customIngredientId: ingredient.type === 'custom' ? ingredient.id : null
-					}
-				});
-			}
+			await tx.recipeIngredient.createMany({
+				data: ingredients.map((ingredient) => ({
+					recipeId: id,
+					quantity: ingredient.quantity,
+					productId: ingredient.id
+				}))
+			});
 
 			await tx.recipeUrl.deleteMany({ where: { recipeId: id } });
 			if (urls && urls.length > 0) {
@@ -158,7 +138,7 @@ export const recipeService = {
 	},
 
 	async findPaginated(searchTerm: string | null, limit: number, offset: number) {
-		const normalizedSearchTerm = searchTerm?.toLowerCase();
+		const normalizedSearchTerm = searchTerm ? normalizeText(searchTerm) : undefined;
 		const whereClause: Prisma.RecipeWhereInput = normalizedSearchTerm
 			? {
 					OR: [
@@ -166,10 +146,7 @@ export const recipeService = {
 						{
 							ingredients: {
 								some: {
-									OR: [
-										{ product: { normalizedName: { contains: normalizedSearchTerm } } },
-										{ customIngredient: { normalizedName: { contains: normalizedSearchTerm } } }
-									]
+									product: { normalizedName: { contains: normalizedSearchTerm } }
 								}
 							}
 						}
@@ -193,13 +170,12 @@ export const recipeService = {
 			WITH "RecipeTotals" AS (
 				SELECT
 					ri."recipeId",
-					SUM(COALESCE(p.calories, ci.calories, 0) * ri.quantity / 100.0) AS "totalCalories",
-					SUM(COALESCE(p.protein, ci.protein, 0) * ri.quantity / 100.0) AS "totalProtein",
-					SUM(COALESCE(p.carbs, ci.carbs, 0) * ri.quantity / 100.0) AS "totalCarbs",
-					SUM(COALESCE(p.fat, ci.fat, 0) * ri.quantity / 100.0) AS "totalFat"
+					SUM(p.calories * ri.quantity / 100.0) AS "totalCalories",
+					SUM(p.protein * ri.quantity / 100.0) AS "totalProtein",
+					SUM(p.carbs * ri.quantity / 100.0) AS "totalCarbs",
+					SUM(p.fat * ri.quantity / 100.0) AS "totalFat"
 				FROM "RecipeIngredient" ri
-				LEFT JOIN "Product" p ON ri."productId" = p.id
-				LEFT JOIN "CustomIngredient" ci ON ri."customIngredientId" = ci.id
+				JOIN "Product" p ON ri."productId" = p.id
 				GROUP BY ri."recipeId"
 			),
 			"RecipePercentages" AS (
@@ -225,61 +201,49 @@ export const recipeService = {
 		const whereConditions: Prisma.Sql[] = [];
 
 		if (ingredients && ingredients.length > 0) {
-			// Justificación: Se itera sobre cada ID de ingrediente para construir una
-			// subconsulta `EXISTS`. Esto asegura que la receta contenga TODOS los
-			// ingredientes seleccionados. La lógica se ha hecho robusta para
-			// manejar IDs con o sin prefijo, infiriendo el tipo si este falta.
 			ingredients.forEach((ingredientId) => {
-				let isProduct = false;
-				let id = ingredientId;
-
-				if (id.startsWith('product-')) {
-					isProduct = true;
-					id = id.replace('product-', '');
-				} else if (id.startsWith('custom-')) {
-					id = id.replace('custom-', '');
-				} else if (!isNaN(Number(id))) {
-					// Si no hay prefijo pero es numérico, asumimos que es un producto (código de barras).
-					isProduct = true;
-				}
-				// Si no tiene prefijo y no es numérico, se asume que es un CUID de un ingrediente custom.
-
-				if (isProduct) {
-					whereConditions.push(Prisma.sql`
+				whereConditions.push(Prisma.sql`
 						EXISTS (
 							SELECT 1 FROM "RecipeIngredient" ri
-							WHERE ri."recipeId" = r.id AND ri."productId" = ${id}
+							WHERE ri."recipeId" = r.id AND ri."productId" = ${ingredientId}
 						)
 					`);
-				} else {
-					whereConditions.push(Prisma.sql`
-						EXISTS (
-							SELECT 1 FROM "RecipeIngredient" ri
-							WHERE ri."recipeId" = r.id AND ri."customIngredientId" = ${id}
-						)
-					`);
-				}
 			});
 		}
 
-		if (grams?.calories?.min != null) whereConditions.push(Prisma.sql`rt."totalCalories" >= ${grams.calories.min}`);
-		if (grams?.calories?.max != null) whereConditions.push(Prisma.sql`rt."totalCalories" <= ${grams.calories.max}`);
-		if (grams?.protein?.min != null) whereConditions.push(Prisma.sql`rt."totalProtein" >= ${grams.protein.min}`);
-		if (grams?.protein?.max != null) whereConditions.push(Prisma.sql`rt."totalProtein" <= ${grams.protein.max}`);
-		if (grams?.carbs?.min != null) whereConditions.push(Prisma.sql`rt."totalCarbs" >= ${grams.carbs.min}`);
-		if (grams?.carbs?.max != null) whereConditions.push(Prisma.sql`rt."totalCarbs" <= ${grams.carbs.max}`);
+		if (grams?.calories?.min != null)
+			whereConditions.push(Prisma.sql`rt."totalCalories" >= ${grams.calories.min}`);
+		if (grams?.calories?.max != null)
+			whereConditions.push(Prisma.sql`rt."totalCalories" <= ${grams.calories.max}`);
+		if (grams?.protein?.min != null)
+			whereConditions.push(Prisma.sql`rt."totalProtein" >= ${grams.protein.min}`);
+		if (grams?.protein?.max != null)
+			whereConditions.push(Prisma.sql`rt."totalProtein" <= ${grams.protein.max}`);
+		if (grams?.carbs?.min != null)
+			whereConditions.push(Prisma.sql`rt."totalCarbs" >= ${grams.carbs.min}`);
+		if (grams?.carbs?.max != null)
+			whereConditions.push(Prisma.sql`rt."totalCarbs" <= ${grams.carbs.max}`);
 		if (grams?.fat?.min != null) whereConditions.push(Prisma.sql`rt."totalFat" >= ${grams.fat.min}`);
-		if (grams?.fat?.max != null) whereConditions.push(Prisma.sql`rt."totalFat" <= ${grams.fat.max}`);
+		if (grams?.fat?.max != null)
+			whereConditions.push(Prisma.sql`rt."totalFat" <= ${grams.fat.max}`);
 
-		if (percent?.protein?.min != null) whereConditions.push(Prisma.sql`rt."percentProtein" >= ${percent.protein.min}`);
-		if (percent?.protein?.max != null) whereConditions.push(Prisma.sql`rt."percentProtein" <= ${percent.protein.max}`);
-		if (percent?.carbs?.min != null) whereConditions.push(Prisma.sql`rt."percentCarbs" >= ${percent.carbs.min}`);
-		if (percent?.carbs?.max != null) whereConditions.push(Prisma.sql`rt."percentCarbs" <= ${percent.carbs.max}`);
-		if (percent?.fat?.min != null) whereConditions.push(Prisma.sql`rt."percentFat" >= ${percent.fat.min}`);
-		if (percent?.fat?.max != null) whereConditions.push(Prisma.sql`rt."percentFat" <= ${percent.fat.max}`);
+		if (percent?.protein?.min != null)
+			whereConditions.push(Prisma.sql`rt."percentProtein" >= ${percent.protein.min}`);
+		if (percent?.protein?.max != null)
+			whereConditions.push(Prisma.sql`rt."percentProtein" <= ${percent.protein.max}`);
+		if (percent?.carbs?.min != null)
+			whereConditions.push(Prisma.sql`rt."percentCarbs" >= ${percent.carbs.min}`);
+		if (percent?.carbs?.max != null)
+			whereConditions.push(Prisma.sql`rt."percentCarbs" <= ${percent.carbs.max}`);
+		if (percent?.fat?.min != null)
+			whereConditions.push(Prisma.sql`rt."percentFat" >= ${percent.fat.min}`);
+		if (percent?.fat?.max != null)
+			whereConditions.push(Prisma.sql`rt."percentFat" <= ${percent.fat.max}`);
 
-
-		const whereClause = whereConditions.length > 0 ? Prisma.sql`WHERE ${Prisma.join(whereConditions, ' AND ')}` : Prisma.empty;
+		const whereClause =
+			whereConditions.length > 0
+				? Prisma.sql`WHERE ${Prisma.join(whereConditions, ' AND ')}`
+				: Prisma.empty;
 
 		let orderByClause: Prisma.Sql;
 		switch (sortBy) {
@@ -349,6 +313,8 @@ export const recipeService = {
 			include: recipeInclude
 		});
 
-		return recipeIds.map(id => recipesInOrder.find(r => r.id === id)).filter((r): r is FullRecipe => !!r);
+		return recipeIds
+			.map((id) => recipesInOrder.find((r) => r.id === id))
+			.filter((r): r is FullRecipe => !!r);
 	}
 };
