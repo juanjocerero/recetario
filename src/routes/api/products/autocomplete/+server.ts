@@ -1,4 +1,4 @@
-// Fichero: src/routes/api/ingredients/autocomplete/+server.ts
+// Fichero: src/routes/api/products/autocomplete/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { productService } from '$lib/server/services/productService';

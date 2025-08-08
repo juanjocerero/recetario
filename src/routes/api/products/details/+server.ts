@@ -1,4 +1,4 @@
-// src/routes/api/ingredients/details/+server.ts
+// src/routes/api/products/details/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { productService } from '$lib/server/services/productService';

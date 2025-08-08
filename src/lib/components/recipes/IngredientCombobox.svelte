@@ -50,7 +50,7 @@
 		async function search() {
 			isLoading = true;
 			try {
-				const response = await fetch(`/api/ingredients/autocomplete?q=${encodeURIComponent(query)}`, {
+				const response = await fetch(`/api/products/autocomplete?q=${encodeURIComponent(query)}`, {
 					signal: controller.signal
 				});
 				const allResults: Ingredient[] = await response.json();

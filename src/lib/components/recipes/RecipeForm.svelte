@@ -269,7 +269,7 @@
 		} else {
 			isSearching = true;
 			searchResults = [];
-			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource = new EventSource(`/api/products/search?q=${encodeURIComponent(searchTerm)}`);
 			eventSource.addEventListener('message', (e) => {
 				const newResults = JSON.parse(e.data);
 				searchResults = [...searchResults, ...newResults];
@@ -292,7 +292,7 @@
 		if (formData.ingredients.some((ing) => ing.id === result.id)) return;
 		try {
 			const response = await fetch(
-				`/api/ingredients/details/${result.id}?source=${result.source}`
+				`/api/products/details/${result.id}?source=${result.source}`
 			);
 			if (!response.ok) throw new Error('Failed to fetch ingredient details');
 			const details: Omit<IngredientWithDetails, 'id' | 'source'> = await response.json();

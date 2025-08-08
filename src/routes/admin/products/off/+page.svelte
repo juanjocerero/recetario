@@ -30,7 +30,7 @@
 			isLoading = true;
 			searchAttempted = true;
 
-			eventSource = new EventSource(`/api/ingredients/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource = new EventSource(`/api/products/search?q=${encodeURIComponent(searchTerm)}`);
 
 			eventSource.addEventListener('message', (event) => {
 				const newResults = JSON.parse(event.data);

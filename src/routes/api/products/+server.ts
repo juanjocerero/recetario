@@ -1,4 +1,4 @@
-// Ruta: src/routes/api/ingredients/+server.ts
+// Ruta: src/routes/api/products/+server.ts
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { productService } from '$lib/server/services/productService';
 import { ProductSchema } from '$lib/schemas/productSchema';
