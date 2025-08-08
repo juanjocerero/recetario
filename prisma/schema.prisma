@@ -12,32 +12,17 @@ datasource db {
 }
 
 model Product {
-  id                String             @id // Código de barras
+  id                String             @id @default(cuid())
+  barcode           String?            @unique // Código de barras de OFF
   name              String
   normalizedName    String // Para búsqueda case/accent-insensitive
-  isNameManuallySet Boolean            @default(false)
-  brand             String?
   imageUrl          String?
-  calories          Float?             // Valor por 100g
-  fat               Float?             // Valor por 100g
-  protein           Float?             // Valor por 100g
-  carbs             Float?             // Valor por 100g
-  fullPayload       Json?
+  calories          Float              // Valor por 100g
+  fat               Float              // Valor por 100g
+  protein           Float              // Valor por 100g
+  carbs             Float              // Valor por 100g
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  recipeIngredients RecipeIngredient[]
-
-  @@index([normalizedName])
-}
-
-model CustomIngredient {
-  id                String             @id @default(cuid())
-  name              String             @unique
-  normalizedName    String // Para búsqueda case/accent-insensitive
-  calories          Float
-  fat               Float
-  protein           Float
-  carbs             Float
   recipeIngredients RecipeIngredient[]
 
   @@index([normalizedName])
@@ -70,16 +55,13 @@ model RecipeUrl {
 }
 
 model RecipeIngredient {
-  id                 String            @id @default(cuid())
-  recipe             Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  recipeId           String
-  product            Product?          @relation(fields: [productId], references: [id])
-  productId          String?
-  customIngredient   CustomIngredient? @relation(fields: [customIngredientId], references: [id])
-  customIngredientId String?
-  quantity           Float             // En gramos
+  id        String   @id @default(cuid())
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId  String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  quantity  Float    // En gramos
 
   @@index([recipeId])
   @@index([productId])
-  @@index([customIngredientId])
 }

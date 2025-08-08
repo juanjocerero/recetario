@@ -75,10 +75,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 				const brands = ['Hacendado', 'Mercadona'];
 				const offSearchPromises = brands.map((brand) => {
 					const offQuery = `${query} ${brand}`;
-					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-						offQuery
-					)}
-&search_simple=1&action=process&json=1&page_size=10`;
+					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(offQuery)}&search_simple=1&action=process&json=1&page_size=10`;
 
 					return fetch(offUrl, { signal: abortController.signal })
 						.then(async (res) => {

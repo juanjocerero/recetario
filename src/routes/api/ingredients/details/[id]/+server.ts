@@ -1,49 +1,89 @@
-// Ruta: src/routes/api/ingredients/details/[id]/+server.ts
+// src/routes/api/ingredients/details/[id]/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import prisma from '$lib/server/prisma';
-import { productService } from '$lib/server/services/productService';
+import { ingredientService } from '$lib/server/services/ingredientService';
+import type { CalculableIngredient } from '$lib/recipeCalculator';
 
-// Justificación: Este endpoint centraliza la obtención de datos nutricionales
-// para cualquier tipo de ingrediente. El frontend lo necesita para poder
-// calcular la información nutricional en tiempo real al crear/editar una receta.
-export const GET: RequestHandler = async ({ params, url }) => {
+// Este tipo define la estructura que espera el RecipeForm
+type IngredientDetails = CalculableIngredient & {
+	name: string;
+	imageUrl?: string | null;
+};
+
+async function fetchProductFromOFF(
+	barcode: string,
+	fetchFn: typeof fetch
+): Promise<IngredientDetails | null> {
+	try {
+		const response = await fetchFn(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+		if (!response.ok) return null;
+
+		const data = await response.json();
+		if (data.status !== 1 || !data.product) return null;
+
+		const offProduct = data.product;
+		const nutriments = offProduct.nutriments;
+
+		// Validar que tenemos los datos mínimos
+		if (
+			!offProduct.product_name ||
+			nutriments?.['energy-kcal_100g'] === undefined ||
+			nutriments?.proteins_100g === undefined ||
+			nutriments?.fat_100g === undefined ||
+			nutriments?.carbohydrates_100g === undefined
+		) {
+			return null;
+		}
+
+		return {
+			name: offProduct.product_name,
+			imageUrl: offProduct.image_url || null,
+			quantity: 100, // Default quantity
+			calories: nutriments['energy-kcal_100g'] ?? 0,
+			protein: nutriments.proteins_100g ?? 0,
+			fat: nutriments.fat_100g ?? 0,
+			carbs: nutriments.carbohydrates_100g ?? 0
+		};
+	} catch (error) {
+		console.error(`[OFF Fetch Error] Failed to fetch product ${barcode}:`, error);
+		return null;
+	}
+}
+
+export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	const { id } = params;
-	const type = url.searchParams.get('type');
+	const source = url.searchParams.get('source');
 
-	if (!type || (type !== 'custom' && type !== 'product')) {
-		return json({ message: "El parámetro 'type' es requerido ('custom' o 'product')." }, { status: 400 });
+	if (!source) {
+		return json({ message: 'Missing "source" query parameter' }, { status: 400 });
 	}
 
 	try {
-		let ingredientData = null;
-		if (type === 'custom') {
-			ingredientData = await prisma.customIngredient.findUnique({
-				where: { id }
-			});
-		} else {
-			// Para productos, el 'id' es el código de barras.
-			// Usamos el productService que ya tiene la lógica de caché y fallback a OFF.
-			ingredientData = await productService.findByBarcode(id);
+		let ingredientDetails: IngredientDetails | null = null;
+
+		if (source === 'local') {
+			const products = await ingredientService.getByIds([id]);
+			const product = products[0];
+			if (product) {
+				ingredientDetails = {
+					...product,
+					quantity: 100 // Default quantity
+				};
+			}
+		} else if (source === 'off') {
+			ingredientDetails = await fetchProductFromOFF(id, fetch);
 		}
 
-		if (!ingredientData) {
-			return json({ message: 'Ingrediente no encontrado.' }, { status: 404 });
+		if (!ingredientDetails) {
+			return json({ message: `Ingredient with id ${id} not found` }, { status: 404 });
 		}
 
-		// Justificación: Devolvemos un objeto con una estructura consistente,
-		// independientemente de la tabla de origen, para que el frontend
-		// pueda procesarlo de forma sencilla.
-		const response = {
-			calories: ingredientData.calories,
-			protein: ingredientData.protein,
-			fat: ingredientData.fat,
-			carbs: ingredientData.carbs
-		};
-
-		return json(response);
+		return json(ingredientDetails);
 	} catch (error) {
-		console.error(`Error fetching ingredient details for id ${id}:`, error);
-		return json({ message: 'Error interno del servidor' }, { status: 500 });
+		console.error(`Failed to fetch ingredient details for id ${id}:`, error);
+		return json(
+			{ message: 'An error occurred while fetching ingredient details.' },
+			{ status: 500 }
+		);
 	}
 };

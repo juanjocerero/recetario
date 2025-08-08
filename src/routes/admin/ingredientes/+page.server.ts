@@ -3,6 +3,7 @@ import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { IngredientSchema } from '$lib/schemas/ingredientSchema';
 import { createFailResponse } from '$lib/server/zodErrors';
+import { Prisma } from '@prisma/client';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
@@ -10,7 +11,8 @@ export const load: PageServerLoad = async ({ url }) => {
 	const order = url.searchParams.get('order') ?? 'asc';
 
 	try {
-		const ingredients = await ingredientService.getAllUnified(search, sort, order);
+		// Ahora solo hay un tipo de ingrediente: Product. El servicio se ha simplificado.
+		const ingredients = await ingredientService.getAll(search, sort, order);
 		return {
 			ingredients,
 			search,
@@ -18,13 +20,19 @@ export const load: PageServerLoad = async ({ url }) => {
 			order
 		};
 	} catch (error) {
-		console.error('Error al cargar los ingredientes:', error);
-		// En caso de error, devolvemos un estado seguro para que la página no falle.
-		return { ingredients: [], search, sort, order, error: 'No se pudieron cargar los ingredientes' };
+		console.error('Error al cargar los productos:', error);
+		return {
+			ingredients: [],
+			search,
+			sort,
+			order,
+			error: 'No se pudieron cargar los productos'
+		};
 	}
 };
 
 export const actions: Actions = {
+	// Esta acción ahora crea un Product, no un CustomIngredient.
 	addCustom: async ({ request }) => {
 		const formData = Object.fromEntries(await request.formData());
 		const validation = IngredientSchema.safeParse(formData);
@@ -38,52 +46,64 @@ export const actions: Actions = {
 
 		try {
 			await ingredientService.create(validation.data);
-			return { success: true, message: 'Ingrediente personalizado añadido con éxito' };
+			return { success: true, message: 'Producto añadido con éxito' };
 		} catch (error) {
-			console.error('Error al crear el ingrediente personalizado:', error);
+			console.error('Error al crear el producto:', error);
 			return fail(500, {
 				data: formData,
-				message: 'No se pudo crear el ingrediente personalizado.'
+				message: 'No se pudo crear el producto.'
 			});
 		}
 	},
 
-	update: async ({ request, fetch }) => {
-		const formData = await request.formData();
-		const id = formData.get('id') as string;
+	// La acción de actualizar ahora opera sobre el modelo Product.
+	update: async ({ request }) => {
+		const formData = Object.fromEntries(await request.formData());
+		const id = formData.id as string;
+		const validation = IngredientSchema.safeParse(formData);
 
-		const response = await fetch(`/api/ingredients/${id}`, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(Object.fromEntries(formData))
-		});
-
-		if (!response.ok) {
-			const result = await response.json();
-			return fail(response.status, {
-				data: Object.fromEntries(formData),
-				errors: result.errors,
-				id
+		if (!validation.success) {
+			return fail(400, {
+				data: formData,
+				...createFailResponse('La validación falló', validation.error)
 			});
 		}
 
-		return { success: true, message: 'Ingrediente actualizado con éxito' };
+		try {
+			await ingredientService.update(id, validation.data);
+			return { success: true, message: 'Producto actualizado con éxito' };
+		} catch (error) {
+			console.error(`Error al actualizar el producto ${id}:`, error);
+			return fail(500, {
+				data: formData,
+				message: 'No se pudo actualizar el producto.'
+			});
+		}
 	},
 
-	delete: async ({ request, fetch }) => {
-		const formData = await request.formData();
+	// La acción de eliminar ahora opera sobre el modelo Product.
+	delete: async ({ request }) => {
+		const formData = Object.fromEntries(await request.formData());
+		const id = formData.id as string;
 
-		const response = await fetch('/api/ingredients', {
-			method: 'DELETE',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(Object.fromEntries(formData))
-		});
-
-		if (!response.ok) {
-			const result = await response.json();
-			return fail(response.status, { message: result.message || 'Error al eliminar el ingrediente.' });
+		if (!id) {
+			return fail(400, { message: 'ID de producto no proporcionado.' });
 		}
 
-		return { success: true, message: 'Ingrediente eliminado con éxito' };
+		try {
+			await ingredientService.delete(id);
+			return { success: true, message: 'Producto eliminado con éxito' };
+		} catch (error) {
+			console.error(`Error al eliminar el producto ${id}:`, error);
+			// Prisma lanza un error específico si la restricción de clave externa falla
+			if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+				return fail(409, {
+					message: 'No se puede eliminar el producto porque está siendo usado en una o más recetas.'
+				});
+			}
+			return fail(500, {
+				message: 'No se pudo eliminar el producto.'
+			});
+		}
 	}
 };

@@ -7,7 +7,6 @@
 	import { Table, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
-	import type { RecipeIngredient } from '$lib/schemas/recipeSchema';
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 	import { ChevronsUpDown, Trash2, GripVertical, Database, Save, X } from 'lucide-svelte';
@@ -15,7 +14,7 @@
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
 	import { browser } from '$app/environment';
-	
+
 	import { cn } from '$lib/utils';
 	import * as autosave from '$lib/runes/useAutosave.svelte';
 	import * as Alert from '$lib/components/ui/alert';
@@ -23,20 +22,23 @@
 	import { toast } from 'svelte-sonner';
 
 	// --- Tipos ---
-	type IngredientWithDetails = RecipeIngredient &
-		CalculableIngredient & { name: string; imageUrl?: string | null; originalId?: string };
+	type IngredientWithDetails = CalculableIngredient & {
+		id: string; // CUID para local, barcode para OFF
+		name: string;
+		source: 'local' | 'off';
+		imageUrl?: string | null;
+	};
 
 	type SearchResult = {
 		id: string;
 		name: string;
 		source: 'local' | 'off';
-		type: 'custom' | 'product';
 		imageUrl: string | null;
 	};
 
 	type InitialData = {
 		title: string;
-		steps: string[] | string; // Puede ser un string JSON
+		steps: string[] | string;
 		imageUrl: string | null;
 		urls: { url: string }[];
 		ingredients: {
@@ -45,10 +47,6 @@
 				id: string;
 				name: string;
 				imageUrl: string | null;
-			}) | null;
-			customIngredient: (Omit<CalculableIngredient, 'quantity'> & {
-				id: string;
-				name: string;
 			}) | null;
 		}[];
 	};
@@ -98,22 +96,14 @@
 		if (!ingredientsData) return [];
 		return ingredientsData
 			.map((ing): IngredientWithDetails | null => {
-				const source = ing.product || ing.customIngredient;
-				if (!source) return null;
-
-				const type = ing.product ? 'product' : 'custom';
-				const id = source.id + type;
+				const product = ing.product;
+				if (!product) return null;
 
 				return {
-					id,
-					type,
+					...product,
+					id: product.id, // El ID ya es el CUID del producto
 					quantity: ing.quantity,
-					name: source.name,
-					calories: source.calories ?? 0,
-					protein: source.protein ?? 0,
-					fat: source.fat ?? 0,
-					carbs: source.carbs ?? 0,
-					imageUrl: ing.product ? ing.product.imageUrl : null
+					source: 'local' // Todos los ingredientes guardados son locales
 				};
 			})
 			.filter((ing): ing is IngredientWithDetails => ing !== null);
@@ -299,20 +289,21 @@
 	});
 
 	async function addIngredient(result: SearchResult) {
-		const dndId = result.id + result.type;
-		if (formData.ingredients.some((ing) => ing.id === dndId)) return;
+		if (formData.ingredients.some((ing) => ing.id === result.id)) return;
 		try {
-			const response = await fetch(`/api/ingredients/details/${result.id}?type=${result.type}`);
+			const response = await fetch(
+				`/api/ingredients/details/${result.id}?source=${result.source}`
+			);
 			if (!response.ok) throw new Error('Failed to fetch ingredient details');
-			const details: CalculableIngredient = await response.json();
+			const details: Omit<IngredientWithDetails, 'id' | 'source'> = await response.json();
 			formData.ingredients.push({
-				...result,
 				...details,
-				id: dndId,
-				quantity: 100
+				id: result.id,
+				source: result.source
 			});
 		} catch (error) {
 			console.error('Error adding ingredient:', error);
+			toast.error('No se pudieron obtener los detalles del ingrediente.');
 		} finally {
 			open = false;
 			searchResults = [];
@@ -394,10 +385,10 @@
 				type="hidden"
 				name="ingredients"
 				value={JSON.stringify(
-					formData.ingredients.map(({ id, quantity, type }) => ({
-						id: id.replace(type, ''),
+					formData.ingredients.map(({ id, quantity, source }) => ({
+						id,
 						quantity,
-						type
+						source
 					}))
 				)}
 			/>
@@ -504,7 +495,7 @@
 								<Command.Input bind:value={searchTerm} placeholder="Buscar ingrediente..." />
 								<Command.List>
 									{#if searchResults.length > 0}
-										{#each searchResults as result (result.id + result.type)}
+										{#each searchResults as result (result.id + result.source)}
 											<Command.Item
 												value={result.name}
 												onSelect={() => {

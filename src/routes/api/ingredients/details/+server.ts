@@ -9,12 +9,13 @@ export const GET: RequestHandler = async ({ url }) => {
 		return json({ message: 'Missing "ids" query parameter' }, { status: 400 });
 	}
 
-	const ids = idsParam.split(',');
+	const ids = idsParam.split(',').filter(Boolean); // filter(Boolean) to remove empty strings
 	if (ids.length === 0) {
 		return json([]);
 	}
 
 	try {
+		// The service now handles fetching by CUID directly
 		const ingredients = await ingredientService.getByIds(ids);
 		return json(ingredients);
 	} catch (error) {

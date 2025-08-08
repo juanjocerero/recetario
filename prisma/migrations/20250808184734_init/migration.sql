@@ -1,33 +1,18 @@
 -- CreateTable
 CREATE TABLE "public"."Product" (
     "id" TEXT NOT NULL,
+    "barcode" TEXT,
     "name" TEXT NOT NULL,
     "normalizedName" TEXT NOT NULL,
-    "isNameManuallySet" BOOLEAN NOT NULL DEFAULT false,
-    "brand" TEXT,
     "imageUrl" TEXT,
-    "calories" DOUBLE PRECISION,
-    "fat" DOUBLE PRECISION,
-    "protein" DOUBLE PRECISION,
-    "carbs" DOUBLE PRECISION,
-    "fullPayload" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."CustomIngredient" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "normalizedName" TEXT NOT NULL,
     "calories" DOUBLE PRECISION NOT NULL,
     "fat" DOUBLE PRECISION NOT NULL,
     "protein" DOUBLE PRECISION NOT NULL,
     "carbs" DOUBLE PRECISION NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "CustomIngredient_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -57,21 +42,17 @@ CREATE TABLE "public"."RecipeUrl" (
 CREATE TABLE "public"."RecipeIngredient" (
     "id" TEXT NOT NULL,
     "recipeId" TEXT NOT NULL,
-    "productId" TEXT,
-    "customIngredientId" TEXT,
+    "productId" TEXT NOT NULL,
     "quantity" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "RecipeIngredient_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Product_barcode_key" ON "public"."Product"("barcode");
+
+-- CreateIndex
 CREATE INDEX "Product_normalizedName_idx" ON "public"."Product"("normalizedName");
-
--- CreateIndex
-CREATE UNIQUE INDEX "CustomIngredient_name_key" ON "public"."CustomIngredient"("name");
-
--- CreateIndex
-CREATE INDEX "CustomIngredient_normalizedName_idx" ON "public"."CustomIngredient"("normalizedName");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Recipe_slug_key" ON "public"."Recipe"("slug");
@@ -94,9 +75,6 @@ CREATE INDEX "RecipeIngredient_recipeId_idx" ON "public"."RecipeIngredient"("rec
 -- CreateIndex
 CREATE INDEX "RecipeIngredient_productId_idx" ON "public"."RecipeIngredient"("productId");
 
--- CreateIndex
-CREATE INDEX "RecipeIngredient_customIngredientId_idx" ON "public"."RecipeIngredient"("customIngredientId");
-
 -- AddForeignKey
 ALTER TABLE "public"."RecipeUrl" ADD CONSTRAINT "RecipeUrl_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "public"."Recipe"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -104,7 +82,4 @@ ALTER TABLE "public"."RecipeUrl" ADD CONSTRAINT "RecipeUrl_recipeId_fkey" FOREIG
 ALTER TABLE "public"."RecipeIngredient" ADD CONSTRAINT "RecipeIngredient_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "public"."Recipe"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."RecipeIngredient" ADD CONSTRAINT "RecipeIngredient_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."RecipeIngredient" ADD CONSTRAINT "RecipeIngredient_customIngredientId_fkey" FOREIGN KEY ("customIngredientId") REFERENCES "public"."CustomIngredient"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."RecipeIngredient" ADD CONSTRAINT "RecipeIngredient_productId_fkey" FOREIGN KEY ("productId") REFERENCES "public"."Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
