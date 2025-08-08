@@ -6,7 +6,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import type { PageData } from '../../../routes/admin/products/$types';
 	import { invalidateAll } from '$app/navigation';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
 	import { Plus, Search, X, UtensilsCrossed } from 'lucide-svelte';
 	import SortableHeader from '$lib/components/admin/SortableHeader.svelte';
 	import ProductActions from '$lib/components/admin/ProductActions.svelte';
@@ -52,11 +52,10 @@
 	<Card>
 		<CardHeader>
 			<div class="flex flex-row items-center justify-between gap-4 pt-4">
-				<CardTitle>Gestión de Productos</CardTitle>
 				<div class="flex flex-1 items-center justify-end gap-2">
 					<div class="relative flex-grow">
 						<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-						<Input class="pl-8 pr-8" placeholder="Buscar por nombre..." bind:value={searchTerm} />
+						<Input class="pl-8 pr-8" placeholder="Buscar..." bind:value={searchTerm} />
 						{#if searchTerm}
 							<button
 								onclick={() => (searchTerm = '')}
@@ -68,16 +67,15 @@
 						{/if}
 					</div>
 					<a href="/admin/products/off" class={buttonVariants({ variant: 'outline' })}>
-						<UtensilsCrossed class="mr-2 h-4 w-4" />
-						Añadir desde OpenFoodFacts
+						<UtensilsCrossed class="h-4 w-4" />
 					</a>
 					<Dialog.Root bind:open={isAddDialogOpen}>
 						<Button onclick={() => (isAddDialogOpen = true)}>
-							<Plus class="mr-2 h-4 w-4" /> Añadir Producto
+							<Plus class="h-4 w-4" />
 						</Button>
 						<Dialog.Content class="sm:max-w-[425px]">
 							<Dialog.Header>
-								<Dialog.Title>Añadir Nuevo Producto</Dialog.Title>
+								<Dialog.Title>Añadir nuevo producto</Dialog.Title>
 								<Dialog.Description>
 									Añade un nuevo producto con sus macros por 100g.
 								</Dialog.Description>
@@ -163,7 +161,7 @@
 										</p>
 									{/if}
 									<div class="grid grid-cols-4 items-center gap-4">
-										<Label for="carbs" class="text-right">Carbohidratos</Label>
+										<Label for="carbs" class="text-right">Carbs</Label>
 										<Input
 											id="carbs"
 											name="carbs"
@@ -198,16 +196,16 @@
 				<Table.Header>
 					<Table.Row>
 						<SortableHeader column="name" label="Nombre" class="w-[30%]" />
-						<SortableHeader column="calories" label="Calorías" class="w-[12%] justify-end" />
-						<Table.Head class="w-[46%]">Distribución de Macros</Table.Head>
-						<Table.Head class="w-[12%] text-right">Acciones</Table.Head>
+						<SortableHeader column="calories" label="kcal" class="w-[12%] justify-end" />
+						<Table.Head class="w-[46%]"></Table.Head>
+						<Table.Head class="w-[12%] text-right"></Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each data.products as product, i (product.id)}
 						<Table.Row>
 							<Table.Cell class="break-words font-medium whitespace-normal">{product.name}</Table.Cell>
-							<Table.Cell class="text-right">{product.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
+							<Table.Cell class="text-right">{product.calories?.toFixed(0) ?? 'N/A'}</Table.Cell>
 							<Table.Cell class="px-6">
 								<MacroBar
 									protein={product.protein}

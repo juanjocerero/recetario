@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import { goto, invalidateAll } from '$app/navigation';
-	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import ProductsDesktopView from '$lib/components/admin/ProductsDesktopView.svelte';
 	import ProductsMobileView from '$lib/components/admin/ProductsMobileView.svelte';
@@ -35,16 +34,6 @@
 		};
 	});
 
-	function sort(column: string) {
-		const url = new URL(page.url);
-		const currentSort = url.searchParams.get('sort');
-		const currentOrder = url.searchParams.get('order');
-		const newOrder = currentSort === column && currentOrder === 'asc' ? 'desc' : 'asc';
-		url.searchParams.set('sort', column);
-		url.searchParams.set('order', newOrder);
-		goto(url, { keepFocus: true, noScroll: true, replaceState: true });
-	}
-
 	// --- Lógica para el diálogo de edición de productos ---
 	let editingProductName = $state('');
 	let editingProductId = $state<string | null>(null);
@@ -61,7 +50,6 @@
 	<ProductsMobileView
 		{data}
 		bind:searchTerm
-		{sort}
 		bind:editingProductName
 		bind:editingProductId
 	/>
