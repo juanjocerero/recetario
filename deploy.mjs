@@ -9,44 +9,43 @@ const cfg = JSON.parse(readFileSync('./deploy.config.json', 'utf8'));
 const { host, remotePath, localPath, buildPath, sshUser, pm2AppName, pm2Script, port, exclude } = cfg;
 
 // NUEVA FUNCIÓN para generar el fichero de PM2
+// deploy.js
+
+// ... otras importaciones ...
+
+// NUEVA FUNCIÓN para generar el fichero de PM2 (VERSIÓN FINAL Y ROBUSTA)
 async function generateEcosystemFile() {
   console.log('📝 Generando fichero ecosystem.config.cjs...');
   
-  const ecosystemConfig = {
-    apps: [{
-      name: pm2AppName,
-      script: pm2Script,
-      cwd: remotePath,
-      env: {
-        NODE_ENV: 'production',
-        PORT: port
-      }
-    }]
-  };
-
-  // Convertimos el objeto a un string de código JavaScript
-  const fileContent = `module.exports = ${JSON.stringify(ecosystemConfig, null, 2)};`;
-
+  // Este contenido se escribirá directamente en el fichero.
+  // Es un script de Node que primero carga .env y luego exporta la configuración.
+  const fileContent = `
+// Carga las variables del fichero .env en el entorno de ESTE MISMO SCRIPT
+require('dotenv').config({ path: '${remotePath}/.env' });
+  
+module.exports = {
+  apps: [{
+    name: '${pm2AppName}',
+    script: '${pm2Script}',
+    cwd: '${remotePath}',
+    // El bloque 'env' define qué variables se pasarán al proceso hijo (tu app)
+    env: {
+      NODE_ENV: 'production',
+      PORT: ${port},
+      // Leemos las variables que dotenv cargó en process.env y se las pasamos a la app
+      DATABASE_URL: process.env.DATABASE_URL,
+      SESSION_SECRET: process.env.SESSION_SECRET
+    }
+  }]
+};
+`;
+  
   // Escribimos el fichero localmente. Será subido por rsync.
-  await writeFile('ecosystem.config.cjs', fileContent, 'utf8');
+  await writeFile('ecosystem.config.cjs', fileContent.trim(), 'utf8');
   console.log('✅ Fichero ecosystem.config.cjs generado.');
 }
 
-// ... (las funciones runCommand y runRemoteCommand no cambian) ...
-function runCommand(command, args = []) {
-  return new Promise((resolve, reject) => {
-    console.log(`🔨 Ejecutando: ${command} ${args.join(' ')}`);
-    const proc = spawn(command, args, { stdio: 'inherit' });
-    
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Comando falló con código ${code}: ${command} ${args.join(' ')}`));
-      }
-    });
-  });
-}
+// ... El resto de tu script deploy.js no necesita cambios ...
 
 function runRemoteCommand(command) {
   return new Promise((resolve, reject) => {
@@ -85,7 +84,7 @@ async function deploy() {
     console.log('📦 Paso 2/8: Generando fichero de configuración de PM2...');
     await generateEcosystemFile();
     console.log('✅ Configuración de PM2 generada\n');
-
+    
     // 3. Subir el repositorio completo (ahora incluye ecosystem.config.cjs)
     console.log('📦 Paso 3/8: Subiendo repositorio al servidor...');
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
@@ -124,7 +123,7 @@ async function deploy() {
     // 8. Reiniciar aplicación con PM2
     console.log('🔄 Paso 8/8: Reiniciando aplicación...');
     // Ahora usamos el fichero generado en lugar de solo el nombre
-    await runRemoteCommand(`cd ${remotePath} && pm2 reload ecosystem.config.cjs`);
+    await runRemoteCommand(`cd ${remotePath} && pm2 startOrReload ecosystem.config.cjs`);
     console.log('✅ Aplicación reiniciada\n');
     
     console.log('🎉 ¡Despliegue completado con éxito!');
