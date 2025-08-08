@@ -2,14 +2,29 @@
 import prisma from '$lib/server/prisma';
 import { type Ingredient } from '$lib/schemas/ingredientSchema';
 import { normalizeText } from '$lib/utils';
+import ky from 'ky';
 
-// Justificación: La capa de servicio abstrae la lógica de negocio y el acceso a datos.
-// Se ha simplificado para operar únicamente sobre el modelo `Product` unificado.
+// --- Tipos de la API de OpenFoodFacts ---
+type OpenFoodFactsProduct = {
+	code: string;
+	product_name: string;
+	image_url?: string;
+	nutriments: {
+		'energy-kcal_100g'?: number;
+		fat_100g?: number;
+		proteins_100g?: number;
+		carbohydrates_100g?: number;
+	};
+};
+
+type OpenFoodFactsResponse = {
+	status: number;
+	product?: OpenFoodFactsProduct;
+};
 
 export const ingredientService = {
 	/**
 	 * Busca productos por nombre en la base de datos.
-	 * @param query - El término de búsqueda.
 	 */
 	async searchByName(query: string) {
 		const normalizedQuery = normalizeText(query);
@@ -44,8 +59,6 @@ export const ingredientService = {
 
 	/**
 	 * Crea un nuevo producto.
-	 * @param data - Datos validados por Zod.
-	 * @param barcode - (Opcional) Código de barras si proviene de OFF.
 	 */
 	async create(data: Ingredient, barcode?: string) {
 		const normalizedName = normalizeText(data.name);
@@ -60,8 +73,6 @@ export const ingredientService = {
 
 	/**
 	 * Actualiza un producto existente.
-	 * @param id - El ID del producto a actualizar.
-	 * @param data - Datos validados por Zod.
 	 */
 	async update(id: string, data: Ingredient) {
 		const normalizedName = normalizeText(data.name);
@@ -76,7 +87,6 @@ export const ingredientService = {
 
 	/**
 	 * Elimina un producto.
-	 * @param id - El ID del producto a eliminar.
 	 */
 	async delete(id: string) {
 		return prisma.product.delete({
@@ -86,7 +96,6 @@ export const ingredientService = {
 
 	/**
 	 * Obtiene los detalles completos de una lista de productos por sus IDs.
-	 * @param ids - Un array de IDs de productos.
 	 */
 	async getByIds(ids: string[]) {
 		if (ids.length === 0) {
@@ -95,5 +104,61 @@ export const ingredientService = {
 		return prisma.product.findMany({
 			where: { id: { in: ids } }
 		});
+	},
+
+	/**
+	 * Busca un producto por su código de barras.
+	 * Primero intenta encontrarlo en la base de datos local.
+	 * Si no lo encuentra, lo busca en la API de Open Food Facts,
+	 * lo guarda en la base de datos y luego lo devuelve.
+	 */
+	async findByBarcode(barcode: string) {
+		const cachedProduct = await prisma.product.findUnique({
+			where: { barcode }
+		});
+
+		if (cachedProduct) {
+			return cachedProduct;
+		}
+
+		const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
+
+		try {
+			const response = await ky.get(url).json<OpenFoodFactsResponse>();
+
+			if (response.status === 0 || !response.product) {
+				return null;
+			}
+
+			const productFromApi = response.product;
+			const productName = productFromApi.product_name;
+
+			const parseNutriment = (value: unknown): number => {
+				if (typeof value === 'number') return value;
+				if (typeof value === 'string') {
+					const parsed = parseFloat(value);
+					return isNaN(parsed) ? 0 : parsed;
+				}
+				return 0;
+			};
+
+			const newProduct = await prisma.product.create({
+				data: {
+					name: productName,
+					normalizedName: normalizeText(productName),
+					barcode: productFromApi.code,
+					imageUrl: productFromApi.image_url,
+					calories: parseNutriment(productFromApi.nutriments['energy-kcal_100g']),
+					fat: parseNutriment(productFromApi.nutriments.fat_100g),
+					protein: parseNutriment(productFromApi.nutriments.proteins_100g),
+					carbs: parseNutriment(productFromApi.nutriments.carbohydrates_100g)
+				}
+			});
+
+			return newProduct;
+		} catch (error) {
+			console.error(`[OFF] Error fetching product ${barcode}:`, error);
+			return null;
+		}
 	}
 };

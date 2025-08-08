@@ -1,4 +1,4 @@
-import { productService } from '$lib/server/services/productService';
+import { ingredientService } from '$lib/server/services/ingredientService';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 
@@ -7,21 +7,21 @@ export const actions: Actions = {
 	add: async ({ request }) => {
 		const data = await request.formData();
 		const productId = data.get('productId') as string;
-		
+
 		if (!productId) {
 			return fail(400, { success: false, error: 'Product ID no proporcionado' });
 		}
-		
+
 		try {
-			const product = await productService.findByBarcode(productId);
-			
+			const product = await ingredientService.findByBarcode(productId);
+
 			if (!product) {
 				return fail(404, {
 					success: false,
 					error: `Producto con ID ${productId} no encontrado en Open Food Facts.`
 				});
 			}
-			
+
 			return { success: true, product };
 		} catch (error) {
 			console.error(error);
