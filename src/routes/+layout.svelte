@@ -92,7 +92,7 @@
 																title="Administrar productos"
                                 aria-label="Administrar productos"
                                 onclick={() => {
-                                    goto('/admin/ingredients');
+                                    goto('/admin/products');
                                     isMenuOpen = false;
                                 }}
                             >

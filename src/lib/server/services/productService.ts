@@ -1,6 +1,6 @@
 // Ruta: src/lib/server/services/ingredientService.ts
 import prisma from '$lib/server/prisma';
-import { type Ingredient } from '$lib/schemas/ingredientSchema';
+import { type Product } from '$lib/schemas/productSchema';
 import { normalizeText } from '$lib/utils';
 import ky from 'ky';
 
@@ -22,7 +22,7 @@ type OpenFoodFactsResponse = {
 	product?: OpenFoodFactsProduct;
 };
 
-export const ingredientService = {
+export const productService = {
 	/**
 	 * Busca productos por nombre en la base de datos.
 	 */
@@ -60,7 +60,7 @@ export const ingredientService = {
 	/**
 	 * Crea un nuevo producto.
 	 */
-	async create(data: Ingredient, barcode?: string) {
+	async create(data: Product, barcode?: string) {
 		const normalizedName = normalizeText(data.name);
 		return prisma.product.create({
 			data: {
@@ -74,7 +74,7 @@ export const ingredientService = {
 	/**
 	 * Actualiza un producto existente.
 	 */
-	async update(id: string, data: Ingredient) {
+	async update(id: string, data: Product) {
 		const normalizedName = normalizeText(data.name);
 		return prisma.product.update({
 			where: { id },

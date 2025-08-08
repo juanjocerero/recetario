@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import type { PageData } from '../../../routes/admin/ingredients/$types';
+	import type { PageData } from '../../../routes/admin/products/$types';
 	import { Search, ChevronDown, X } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import IngredientActions from '$lib/components/admin/IngredientActions.svelte';
+	import ProductActions from '$lib/components/admin/ProductActions.svelte';
 
 	let {
 		data,
@@ -60,53 +60,53 @@
 	</div>
 
 	<div class="space-y-4">
-		{#each data.ingredients as ingredient (ingredient.id)}
+		{#each data.products as product (product.id)}
 			<div class="rounded-lg border">
 				<div class="flex w-full items-center p-4">
 					<button
 						type="button"
 						class="flex flex-grow items-center text-left"
-						onclick={() => toggleRow(ingredient.id)}
-						aria-expanded={expandedRows[ingredient.id] ?? false}
-						aria-controls="details-{ingredient.id}"
+						onclick={() => toggleRow(product.id)}
+						aria-expanded={expandedRows[product.id] ?? false}
+						aria-controls="details-{product.id}"
 					>
-						<span class="font-medium">{ingredient.name}</span>
+						<span class="font-medium">{product.name}</span>
 						<ChevronDown
 							class="ml-2 h-4 w-4 shrink-0 transition-transform duration-200 {expandedRows[
-								ingredient.id
+								product.id
 							]
 								? 'rotate-180'
 								: ''}"
 						/>
 					</button>
-					<IngredientActions
+					<ProductActions
 						bind:editingProductName
 						bind:editingProductId
-						{ingredient}
+						{product}
 					/>
 				</div>
-				{#if expandedRows[ingredient.id]}
-					<div class="p-4 pt-0" id="details-{ingredient.id}">
+				{#if expandedRows[product.id]}
+					<div class="p-4 pt-0" id="details-{product.id}">
 						<div class="border-t pt-4">
 							<div class="flex justify-between text-sm">
 								<span class="text-muted-foreground">Origen:</span>
-								<span>{ingredient.source === 'custom' ? 'Personalizado' : 'Caché de OFF'}</span>
+								<span>{product.source === 'custom' ? 'Personalizado' : 'Caché de OFF'}</span>
 							</div>
 							<div class="flex justify-between text-sm">
 								<span class="text-muted-foreground">Calorías:</span>
-								<span>{ingredient.calories?.toFixed(1) ?? 'N/A'}</span>
+								<span>{product.calories?.toFixed(1) ?? 'N/A'}</span>
 							</div>
 							<div class="flex justify-between text-sm">
 								<span class="text-muted-foreground">Proteínas:</span>
-								<span>{ingredient.protein?.toFixed(1) ?? 'N/A'}</span>
+								<span>{product.protein?.toFixed(1) ?? 'N/A'}</span>
 							</div>
 							<div class="flex justify-between text-sm">
 								<span class="text-muted-foreground">Grasas:</span>
-								<span>{ingredient.fat?.toFixed(1) ?? 'N/A'}</span>
+								<span>{product.fat?.toFixed(1) ?? 'N/A'}</span>
 							</div>
 							<div class="flex justify-between text-sm">
 								<span class="text-muted-foreground">Carbs:</span>
-								<span>{ingredient.carbs?.toFixed(1) ?? 'N/A'}</span>
+								<span>{product.carbs?.toFixed(1) ?? 'N/A'}</span>
 							</div>
 						</div>
 					</div>

@@ -1,4 +1,4 @@
-import { ingredientService } from '$lib/server/services/ingredientService';
+import { productService } from '$lib/server/services/productService';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -38,7 +38,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 
 			try {
 				// 1. Búsqueda local unificada
-				const localProducts = await ingredientService.searchByName(query);
+				const localProducts = await productService.searchByName(query);
 				if (localProducts.length > 0) {
 					const localResults: SearchResult[] = localProducts.map((p) => {
 						sentProductIds.add(p.id); // Guardamos el CUID

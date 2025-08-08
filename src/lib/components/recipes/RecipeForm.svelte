@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Table, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import { calculateNutritionalInfo, type CalculableProduct } from '$lib/recipeCalculator';
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 	import { ChevronsUpDown, Trash2, GripVertical, Database, Save, X } from 'lucide-svelte';
@@ -22,7 +22,7 @@
 	import { toast } from 'svelte-sonner';
 
 	// --- Tipos ---
-	type IngredientWithDetails = CalculableIngredient & {
+	type IngredientWithDetails = CalculableProduct & {
 		id: string; // CUID para local, barcode para OFF
 		name: string;
 		source: 'local' | 'off';
@@ -43,7 +43,7 @@
 		urls: { url: string }[];
 		ingredients: {
 			quantity: number;
-			product: (Omit<CalculableIngredient, 'quantity'> & {
+			product: (Omit<CalculableProduct, 'quantity'> & {
 				id: string;
 				name: string;
 				imageUrl: string | null;

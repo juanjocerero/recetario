@@ -1,11 +1,11 @@
 // src/routes/api/ingredients/details/[id]/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ingredientService } from '$lib/server/services/ingredientService';
-import type { CalculableIngredient } from '$lib/recipeCalculator';
+import { productService } from '$lib/server/services/productService';
+import type { CalculableProduct } from '$lib/recipeCalculator';
 
 // Este tipo define la estructura que espera el RecipeForm
-type IngredientDetails = CalculableIngredient & {
+type ProductDetails = CalculableProduct & {
 	name: string;
 	imageUrl?: string | null;
 };
@@ -13,7 +13,7 @@ type IngredientDetails = CalculableIngredient & {
 async function fetchProductFromOFF(
 	barcode: string,
 	fetchFn: typeof fetch
-): Promise<IngredientDetails | null> {
+): Promise<ProductDetails | null> {
 	try {
 		const response = await fetchFn(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
 		if (!response.ok) return null;
@@ -59,30 +59,30 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	}
 
 	try {
-		let ingredientDetails: IngredientDetails | null = null;
+		let productDetails: ProductDetails | null = null;
 
 		if (source === 'local') {
-			const products = await ingredientService.getByIds([id]);
+			const products = await productService.getByIds([id]);
 			const product = products[0];
 			if (product) {
-				ingredientDetails = {
+				productDetails = {
 					...product,
 					quantity: 100 // Default quantity
 				};
 			}
 		} else if (source === 'off') {
-			ingredientDetails = await fetchProductFromOFF(id, fetch);
+			productDetails = await fetchProductFromOFF(id, fetch);
 		}
 
-		if (!ingredientDetails) {
-			return json({ message: `Ingredient with id ${id} not found` }, { status: 404 });
+		if (!productDetails) {
+			return json({ message: `Product with id ${id} not found` }, { status: 404 });
 		}
 
-		return json(ingredientDetails);
+		return json(productDetails);
 	} catch (error) {
-		console.error(`Failed to fetch ingredient details for id ${id}:`, error);
+		console.error(`Failed to fetch product details for id ${id}:`, error);
 		return json(
-			{ message: 'An error occurred while fetching ingredient details.' },
+			{ message: 'An error occurred while fetching product details.' },
 			{ status: 500 }
 		);
 	}

@@ -1,7 +1,7 @@
 // Ruta: src/routes/api/ingredients/+server.ts
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { ingredientService } from '$lib/server/services/ingredientService';
-import { IngredientSchema } from '$lib/schemas/ingredientSchema';
+import { productService } from '$lib/server/services/productService';
+import { ProductSchema } from '$lib/schemas/productSchema';
 import { ZodError } from 'zod';
 import { createFailResponse } from '$lib/server/zodErrors';
 import { Prisma } from '@prisma/client';
@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		const sort = url.searchParams.get('sort') ?? 'name';
 		const order = url.searchParams.get('order') ?? 'asc';
 
-		const products = await ingredientService.getAll(search, sort, order);
+		const products = await productService.getAll(search, sort, order);
 		return json(products);
 	} catch (error) {
 		console.error('Error fetching products:', error);
@@ -23,8 +23,8 @@ export const GET: RequestHandler = async ({ url }) => {
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const body = await request.json();
-		const validatedData = IngredientSchema.parse(body);
-		const newProduct = await ingredientService.create(validatedData);
+		const validatedData = ProductSchema.parse(body);
+		const newProduct = await productService.create(validatedData);
 		return json(newProduct, { status: 201 });
 	} catch (error) {
 		if (error instanceof ZodError) {
@@ -43,7 +43,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 			return json(createFailResponse('Falta el campo "id"'), { status: 400 });
 		}
 
-		await ingredientService.delete(id);
+		await productService.delete(id);
 
 		return json({ success: true, message: 'Producto eliminado con éxito' }, { status: 200 });
 	} catch (error) {

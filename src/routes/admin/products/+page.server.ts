@@ -1,7 +1,7 @@
-import { ingredientService } from '$lib/server/services/ingredientService';
+import { productService } from '$lib/server/services/productService';
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { IngredientSchema } from '$lib/schemas/ingredientSchema';
+import { ProductSchema } from '$lib/schemas/productSchema';
 import { createFailResponse } from '$lib/server/zodErrors';
 import { Prisma } from '@prisma/client';
 
@@ -11,10 +11,10 @@ export const load: PageServerLoad = async ({ url }) => {
 	const order = url.searchParams.get('order') ?? 'asc';
 
 	try {
-		// Ahora solo hay un tipo de ingrediente: Product. El servicio se ha simplificado.
-		const ingredients = await ingredientService.getAll(search, sort, order);
+		// Ahora solo hay un tipo de producto: Product. El servicio se ha simplificado.
+		const products = await productService.getAll(search, sort, order);
 		return {
-			ingredients,
+			products,
 			search,
 			sort,
 			order
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	} catch (error) {
 		console.error('Error al cargar los productos:', error);
 		return {
-			ingredients: [],
+			products: [],
 			search,
 			sort,
 			order,
@@ -32,10 +32,10 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	// Esta acción ahora crea un Product, no un CustomIngredient.
+	// Esta acción ahora crea un Product.
 	addCustom: async ({ request }) => {
 		const formData = Object.fromEntries(await request.formData());
-		const validation = IngredientSchema.safeParse(formData);
+		const validation = ProductSchema.safeParse(formData);
 
 		if (!validation.success) {
 			return fail(400, {
@@ -45,7 +45,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await ingredientService.create(validation.data);
+			await productService.create(validation.data);
 			return { success: true, message: 'Producto añadido con éxito' };
 		} catch (error) {
 			console.error('Error al crear el producto:', error);
@@ -60,7 +60,7 @@ export const actions: Actions = {
 	update: async ({ request }) => {
 		const formData = Object.fromEntries(await request.formData());
 		const id = formData.id as string;
-		const validation = IngredientSchema.safeParse(formData);
+		const validation = ProductSchema.safeParse(formData);
 
 		if (!validation.success) {
 			return fail(400, {
@@ -70,7 +70,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await ingredientService.update(id, validation.data);
+			await productService.update(id, validation.data);
 			return { success: true, message: 'Producto actualizado con éxito' };
 		} catch (error) {
 			console.error(`Error al actualizar el producto ${id}:`, error);
@@ -91,7 +91,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await ingredientService.delete(id);
+			await productService.delete(id);
 			return { success: true, message: 'Producto eliminado con éxito' };
 		} catch (error) {
 			console.error(`Error al eliminar el producto ${id}:`, error);

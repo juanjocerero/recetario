@@ -1,12 +1,12 @@
 <!--
-// Ruta: src/routes/recetas/[slug]/+page.svelte
-// Implementación del nuevo diseño de la página de detalles de la receta (v2).
+Ruta: src/routes/recetas/[slug]/+page.svelte
+Implementación del nuevo diseño de la página de detalles de la receta (v2).
 -->
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
-	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import { calculateNutritionalInfo, type CalculableProduct } from '$lib/recipeCalculator';
 	import { ArrowLeft } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import { fly } from 'svelte/transition';
@@ -15,7 +15,7 @@
 	const { recipe } = data;
 
 	// --- LÓGICA DE CÁLCULO ---
-	const calculableIngredients = $derived(
+	const calculableProducts = $derived(
 		recipe.ingredients.map((ing) => {
 			const source = ing.product;
 			return {
@@ -24,11 +24,11 @@
 				protein: source?.protein,
 				fat: source?.fat,
 				carbs: source?.carbs
-			} as CalculableIngredient;
+			} as CalculableProduct;
 		})
 	);
 
-	const totals = $derived(calculateNutritionalInfo(calculableIngredients));
+	const totals = $derived(calculateNutritionalInfo(calculableProducts));
 	const totalGrams = $derived(totals.totalProtein + totals.totalCarbs + totals.totalFat);
 
 	const proteinPercentage = $derived(totalGrams > 0 ? (totals.totalProtein / totalGrams) * 100 : 0);

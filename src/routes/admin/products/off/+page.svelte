@@ -64,7 +64,7 @@
 <div class="space-y-8 p-4 md:p-8">
 	<div class="flex justify-between items-center">
 		<h1 class="text-2xl font-bold">Añadir Productos desde Open Food Facts</h1>
-		<a href="/admin/ingredients" class={buttonVariants({ variant: 'outline' })}>
+		<a href="/admin/products" class={buttonVariants({ variant: 'outline' })}>
 			Volver al listado
 		</a>
 	</div>

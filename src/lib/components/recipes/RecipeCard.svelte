@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
-	import type { CalculableIngredient } from '$lib/recipeCalculator';
+	import type { CalculableProduct } from '$lib/recipeCalculator';
 
 	import * as Card from '$lib/components/ui/card/index.js';
 	import {
@@ -31,13 +31,7 @@
 				protein: number | null;
 				fat: number | null;
 				carbs: number | null;
-			} | null;
-			customIngredient: {
-				calories: number | null;
-				protein: number | null;
-				fat: number | null;
-				carbs: number | null;
-			} | null;
+			};
 		}[];
 	};
 
@@ -50,20 +44,20 @@
 	} = $props();
 
 	// --- LÓGICA DE CÁLCULO ---
-	const calculableIngredients = $derived(
+	const calculableProducts = $derived(
 		recipe.ingredients.map((ing) => {
-			const source = ing.product || ing.customIngredient;
+			const source = ing.product;
 			return {
 				quantity: ing.quantity,
-				calories: source?.calories,
-				protein: source?.protein,
-				fat: source?.fat,
-				carbs: source?.carbs
-			} as CalculableIngredient;
+				calories: source.calories,
+				protein: source.protein,
+				fat: source.fat,
+				carbs: source.carbs
+			} as CalculableProduct;
 		})
 	);
 
-	const totals = $derived(calculateNutritionalInfo(calculableIngredients));
+	const totals = $derived(calculateNutritionalInfo(calculableProducts));
 	const totalGrams = $derived(totals.totalProtein + totals.totalCarbs + totals.totalFat);
 
 	const proteinPercentage = $derived(totalGrams > 0 ? (totals.totalProtein / totalGrams) * 100 : 0);

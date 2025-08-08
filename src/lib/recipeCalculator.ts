@@ -6,7 +6,7 @@
 
 // Definimos un tipo para los productos que usará la calculadora.
 // Esto nos desacopla de los modelos de Prisma.
-export type CalculableIngredient = {
+export type CalculableProduct = {
 	quantity: number; // en gramos
 	calories?: number | null; // por 100g
 	protein?: number | null;
@@ -23,10 +23,10 @@ export type NutritionalInfo = {
 
 /**
  * Calcula la información nutricional total para una lista de productos.
- * @param ingredients - Un array de productos con su cantidad y valores nutricionales por 100g.
+ * @param products - Un array de productos con su cantidad y valores nutricionales por 100g.
  * @returns Un objeto con los totales de calorías, proteínas, grasas y carbohidratos.
  */
-export function calculateNutritionalInfo(ingredients: CalculableIngredient[]): NutritionalInfo {
+export function calculateNutritionalInfo(products: CalculableProduct[]): NutritionalInfo {
 	const totals: NutritionalInfo = {
 		totalCalories: 0,
 		totalProtein: 0,
@@ -34,12 +34,12 @@ export function calculateNutritionalInfo(ingredients: CalculableIngredient[]): N
 		totalCarbs: 0
 	};
 
-	for (const ingredient of ingredients) {
-		const factor = ingredient.quantity / 100;
-		totals.totalCalories += (ingredient.calories || 0) * factor;
-		totals.totalProtein += (ingredient.protein || 0) * factor;
-		totals.totalFat += (ingredient.fat || 0) * factor;
-		totals.totalCarbs += (ingredient.carbs || 0) * factor;
+	for (const product of products) {
+		const factor = product.quantity / 100;
+		totals.totalCalories += (product.calories || 0) * factor;
+		totals.totalProtein += (product.protein || 0) * factor;
+		totals.totalFat += (product.fat || 0) * factor;
+		totals.totalCarbs += (product.carbs || 0) * factor;
 	}
 
 	// Redondeamos a 2 decimales para una mejor presentación

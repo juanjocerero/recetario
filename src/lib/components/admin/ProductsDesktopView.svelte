@@ -4,12 +4,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Separator from '$lib/components/ui/separator';
 	import * as Table from '$lib/components/ui/table';
-	import type { PageData } from '../../../routes/admin/ingredients/$types';
+	import type { PageData } from '../../../routes/admin/products/$types';
 	import { invalidateAll } from '$app/navigation';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Plus, Search, X, UtensilsCrossed } from 'lucide-svelte';
 	import SortableHeader from '$lib/components/admin/SortableHeader.svelte';
-	import IngredientActions from '$lib/components/admin/IngredientActions.svelte';
+	import ProductActions from '$lib/components/admin/ProductActions.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import { enhance, applyAction } from '$app/forms';
 	import { toast } from 'svelte-sonner';
@@ -66,7 +66,7 @@
 							</button>
 						{/if}
 					</div>
-					<a href="/admin/ingredients/off" class={buttonVariants({ variant: 'outline' })}>
+					<a href="/admin/products/off" class={buttonVariants({ variant: 'outline' })}>
 						<UtensilsCrossed class="mr-2 h-4 w-4" />
 						Añadir desde OpenFoodFacts
 					</a>
@@ -205,18 +205,18 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each data.ingredients as ingredient, i (ingredient.id)}
+					{#each data.products as product, i (product.id)}
 						<Table.Row>
-							<Table.Cell class="break-words font-medium">{ingredient.name}</Table.Cell>
-							<Table.Cell class="text-right">{ingredient.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
-							<Table.Cell class="text-right">{ingredient.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
-							<Table.Cell class="text-right">{ingredient.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
-							<Table.Cell class="text-right">{ingredient.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
+							<Table.Cell class="break-words font-medium">{product.name}</Table.Cell>
+							<Table.Cell class="text-right">{product.calories?.toFixed(2) ?? 'N/A'}</Table.Cell>
+							<Table.Cell class="text-right">{product.protein?.toFixed(2) ?? 'N/A'}</Table.Cell>
+							<Table.Cell class="text-right">{product.fat?.toFixed(2) ?? 'N/A'}</Table.Cell>
+							<Table.Cell class="text-right">{product.carbs?.toFixed(2) ?? 'N/A'}</Table.Cell>
 							<Table.Cell class="text-right">
-								<IngredientActions {ingredient} bind:editingProductId bind:editingProductName />
+								<ProductActions {product} bind:editingProductId bind:editingProductName />
 							</Table.Cell>
 						</Table.Row>
-						{#if i < data.ingredients.length - 1}
+						{#if i < data.products.length - 1}
 							<tr class="border-none !bg-transparent hover:!bg-transparent"
 								><td class="p-0" colspan="6"><Separator.Root /></td></tr
 							>

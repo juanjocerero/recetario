@@ -1,7 +1,7 @@
 // src/routes/api/ingredients/details/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ingredientService } from '$lib/server/services/ingredientService';
+import { productService } from '$lib/server/services/productService';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const idsParam = url.searchParams.get('ids');
@@ -16,10 +16,10 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	try {
 		// The service now handles fetching by CUID directly
-		const ingredients = await ingredientService.getByIds(ids);
-		return json(ingredients);
+		const products = await productService.getByIds(ids);
+		return json(products);
 	} catch (error) {
-		console.error('Failed to fetch ingredient details:', error);
-		return json({ message: 'An error occurred while fetching ingredient details.' }, { status: 500 });
+		console.error('Failed to fetch product details:', error);
+		return json({ message: 'An error occurred while fetching product details.' }, { status: 500 });
 	}
 };

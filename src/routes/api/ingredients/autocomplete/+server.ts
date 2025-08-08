@@ -1,7 +1,7 @@
 // Fichero: src/routes/api/ingredients/autocomplete/+server.ts
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ingredientService } from '$lib/server/services/ingredientService';
+import { productService } from '$lib/server/services/productService';
 import type { Product } from '@prisma/client';
 
 /**
@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	try {
-		const products = await ingredientService.searchByName(query);
+		const products = await productService.searchByName(query);
 
 		// Justificación: Se aplanan los resultados de ambas fuentes (custom y productos)
 		// en un único array, que es el formato que espera el componente combobox.

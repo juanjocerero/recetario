@@ -1,4 +1,4 @@
-import { ingredientService } from '$lib/server/services/ingredientService';
+import { productService } from '$lib/server/services/productService';
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 
@@ -13,7 +13,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const product = await ingredientService.findByBarcode(productId);
+			const product = await productService.findByBarcode(productId);
 
 			if (!product) {
 				return fail(404, {

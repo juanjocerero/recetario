@@ -10,20 +10,20 @@
 	import { Pencil, Trash2, Calculator } from 'lucide-svelte';
 
 	let {
-		ingredient,
+		product,
 		editingProductName = $bindable(),
 		editingProductId = $bindable()
 	} = $props<{
-		ingredient: Product;
+		product: Product;
 		editingProductName: string;
 		editingProductId: string | null;
 	}>();
 
 	// --- Estado local para los campos del formulario de edición ---
-	let calories = $state(ingredient.calories);
-	let protein = $state(ingredient.protein);
-	let fat = $state(ingredient.fat);
-	let carbs = $state(ingredient.carbs);
+	let calories = $state(product.calories);
+	let protein = $state(product.protein);
+	let fat = $state(product.fat);
+	let carbs = $state(product.carbs);
 
 	// --- Estado para el diálogo de borrado ---
 	let isDeleteDialogOpen = $state(false);
@@ -36,21 +36,21 @@
 		((() => {
 			const factor = quantity / 100;
 			return {
-				calories: (ingredient.calories * factor).toFixed(1),
-				protein: (ingredient.protein * factor).toFixed(1),
-				fat: (ingredient.fat * factor).toFixed(1),
-				carbs: (ingredient.carbs * factor).toFixed(1)
+				calories: (product.calories * factor).toFixed(1),
+				protein: (product.protein * factor).toFixed(1),
+				fat: (product.fat * factor).toFixed(1),
+				carbs: (product.carbs * factor).toFixed(1)
 			};
 		})())
 	);
 
 	function openEditDialog() {
-		editingProductId = ingredient.id;
-		editingProductName = ingredient.name;
-		calories = ingredient.calories;
-		protein = ingredient.protein;
-		fat = ingredient.fat;
-		carbs = ingredient.carbs;
+		editingProductId = product.id;
+		editingProductName = product.name;
+		calories = product.calories;
+		protein = product.protein;
+		fat = product.fat;
+		carbs = product.carbs;
 	}
 
 	function closeEditDialog() {
@@ -71,7 +71,7 @@
 			<Dialog.Header>
 				<Dialog.Title>Calcular Nutrientes</Dialog.Title>
 				<Dialog.Description
-					>Calcula los macros para una cantidad específica de {ingredient.name}.</Dialog.Description
+					>Calcula los macros para una cantidad específica de {product.name}.</Dialog.Description
 				>
 			</Dialog.Header>
 			<div class="grid gap-4 py-4">
@@ -99,7 +99,7 @@
 
 	<!-- Botón de Editar -->
 	<Dialog.Root
-		open={editingProductId === ingredient.id}
+		open={editingProductId === product.id}
 		onOpenChange={(isOpen) => {
 			if (!isOpen) {
 				closeEditDialog();
@@ -136,21 +136,21 @@
 					};
 				}}
 			>
-				<input type="hidden" name="id" value={ingredient.id} />
+				<input type="hidden" name="id" value={product.id} />
 				<div class="grid gap-4 py-4">
 					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="name-edit-{ingredient.id}" class="text-right">Nombre</Label>
+						<Label for="name-edit-{product.id}" class="text-right">Nombre</Label>
 						<Input
-							id="name-edit-{ingredient.id}"
+							id="name-edit-{product.id}"
 							name="name"
 							bind:value={editingProductName}
 							class="col-span-3"
 						/>
 					</div>
 					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="calories-edit-{ingredient.id}" class="text-right">Calorías</Label>
+						<Label for="calories-edit-{product.id}" class="text-right">Calorías</Label>
 						<Input
-							id="calories-edit-{ingredient.id}"
+							id="calories-edit-{product.id}"
 							name="calories"
 							type="number"
 							step="0.01"
@@ -159,9 +159,9 @@
 						/>
 					</div>
 					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="protein-edit-{ingredient.id}" class="text-right">Proteínas</Label>
+						<Label for="protein-edit-{product.id}" class="text-right">Proteínas</Label>
 						<Input
-							id="protein-edit-{ingredient.id}"
+							id="protein-edit-{product.id}"
 							name="protein"
 							type="number"
 							step="0.01"
@@ -170,9 +170,9 @@
 						/>
 					</div>
 					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="fat-edit-{ingredient.id}" class="text-right">Grasas</Label>
+						<Label for="fat-edit-{product.id}" class="text-right">Grasas</Label>
 						<Input
-							id="fat-edit-{ingredient.id}"
+							id="fat-edit-{product.id}"
 							name="fat"
 							type="number"
 							step="0.01"
@@ -181,9 +181,9 @@
 						/>
 					</div>
 					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="carbs-edit-{ingredient.id}" class="text-right">Carbohidratos</Label>
+						<Label for="carbs-edit-{product.id}" class="text-right">Carbohidratos</Label>
 						<Input
-							id="carbs-edit-{ingredient.id}"
+							id="carbs-edit-{product.id}"
 							name="carbs"
 							type="number"
 							step="0.01"
@@ -211,7 +211,7 @@
 			<Dialog.Header>
 				<Dialog.Title>Confirmar Eliminación</Dialog.Title>
 				<Dialog.Description>
-					¿Estás seguro de que quieres eliminar el producto "{ingredient.name}"? Esta acción no se
+					¿Estás seguro de que quieres eliminar el producto "{product.name}"? Esta acción no se
 					puede deshacer.
 				</Dialog.Description>
 			</Dialog.Header>
@@ -238,7 +238,7 @@
 					};
 				}}
 			>
-				<input type="hidden" name="id" value={ingredient.id} />
+				<input type="hidden" name="id" value={product.id} />
 				<Dialog.Footer>
 					<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
 					<Button variant="destructive" type="submit">Eliminar</Button>

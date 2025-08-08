@@ -1,9 +1,8 @@
 <!--
-// Fichero: src/lib/components/recipes/EditQuantitiesDialog.svelte
-// --- VERSIÓN CORREGIDA (3) PARA SVELTE 5 ---
+Fichero: src/lib/components/recipes/EditQuantitiesDialog.svelte
 -->
 <script lang="ts">
-	import { calculateNutritionalInfo, type CalculableIngredient } from '$lib/recipeCalculator';
+	import { calculateNutritionalInfo, type CalculableProduct } from '$lib/recipeCalculator';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -21,15 +20,7 @@
 				protein: number | null;
 				fat: number | null;
 				carbs: number | null;
-			} | null;
-			customIngredient: {
-				id: string;
-				name: string;
-				calories: number | null;
-				protein: number | null;
-				fat: number | null;
-				carbs: number | null;
-			} | null;
+			};
 		}[];
 	};
 
@@ -44,26 +35,26 @@
 			id: string;
 			name: string;
 			quantity: number;
-			baseValues: Omit<CalculableIngredient, 'quantity'>;
+			baseValues: Omit<CalculableProduct, 'quantity'>;
 		}[]
 	>([]);
 
 	$effect(() => {
 		if (open && recipe) {
 			editableIngredients = recipe.ingredients.map((ing) => {
-				const source = ing.product || ing.customIngredient;
-				const id = ing.product?.id || ing.customIngredient?.id || '';
-				const name = ing.product?.name || ing.customIngredient?.name || 'Ingrediente desconocido';
+				const source = ing.product;
+				const id = source.id;
+				const name = source.name;
 
 				return {
 					id,
 					name,
 					quantity: ing.quantity,
 					baseValues: {
-						calories: source?.calories,
-						protein: source?.protein,
-						fat: source?.fat,
-						carbs: source?.carbs
+						calories: source.calories,
+						protein: source.protein,
+						fat: source.fat,
+						carbs: source.carbs
 					}
 				};
 			});
@@ -73,16 +64,20 @@
 	});
 
 	const originalTotals = $derived(
-		recipe ? calculateNutritionalInfo(recipe.ingredients.map(ing => {
-			const source = ing.product || ing.customIngredient;
-			return {
-				quantity: ing.quantity,
-				calories: source?.calories,
-				protein: source?.protein,
-				fat: source?.fat,
-				carbs: source?.carbs
-			}
-		})) : null
+		recipe
+			? calculateNutritionalInfo(
+					recipe.ingredients.map((ing) => {
+						const source = ing.product;
+						return {
+							quantity: ing.quantity,
+							calories: source.calories,
+							protein: source.protein,
+							fat: source.fat,
+							carbs: source.carbs
+						};
+					})
+				)
+			: null
 	);
 
 	const newTotals = $derived(

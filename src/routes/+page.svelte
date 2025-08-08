@@ -104,7 +104,7 @@
 <div class="container mx-auto p-4 md:py-8 md:px-24">
 	<header class="flex items-center justify-between gap-2 mb-8">
 		<div class="relative flex-grow">
-			<Input bind:value={searchQuery} placeholder="Buscar por receta o ingrediente..." />
+			<Input bind:value={searchQuery} placeholder="Buscar por receta o producto..." />
 		</div>
 		<Button href="/recetas/busqueda-avanzada" variant="ghost" size="icon" aria-label="Búsqueda avanzada">
 			<SlidersHorizontal class="h-4 w-4" />
