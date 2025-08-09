@@ -19,10 +19,12 @@
 
 	let {
 		product,
-		open = $bindable()
+		open = $bindable(),
+		onProductAdded = (id: string) => {}
 	} = $props<{
 		product: ProductData;
 		open: boolean;
+		onProductAdded?: (id: string) => void;
 	}>();
 
 	// Estado local para los campos del formulario
@@ -70,6 +72,7 @@
 					if (result.type === 'success') {
 						toast.success('Producto añadido correctamente.', { id: toastId });
 						open = false;
+						onProductAdded(product.id);
 						await invalidateAll();
 					} else if (result.type === 'failure') {
 						let message = 'Error al añadir el producto.';

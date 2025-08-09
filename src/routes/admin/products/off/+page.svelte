@@ -89,6 +89,10 @@
 		}
 	});
 
+	function handleProductAdded(addedProductId: string) {
+		results = results.filter((p) => p.id !== addedProductId);
+	}
+
 	function onVisible(node: HTMLElement, callback: () => void) {
 		const observer = new IntersectionObserver((entries) => {
 			if (entries[0].isIntersecting) {
@@ -187,7 +191,11 @@
 		{/if}
 	</div>
 	{#if productToEdit}
-		<OFFProductDialog bind:open={isDialogOpen} product={productToEdit} />
+		<OFFProductDialog
+			bind:open={isDialogOpen}
+			product={productToEdit}
+			onProductAdded={handleProductAdded}
+		/>
 	{/if}
 </div>
 
