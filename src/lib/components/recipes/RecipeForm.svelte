@@ -490,10 +490,10 @@
 				<Table>
 					<TableHeader>
 						<TableRow>
-							<TableHead class="w-[50px]"></TableHead>
+							<TableHead class="w-[50px] hidden md:table-cell"></TableHead>
 							<TableHead>Nombre</TableHead>
-							<TableHead class="w-[150px]">Cantidad (g)</TableHead>
-							<TableHead class="w-[100px] text-right">Acciones</TableHead>
+							<TableHead class="w-[100px]">Cantidad (g)</TableHead>
+							<TableHead class="w-[80px] text-right">Acciones</TableHead>
 						</TableRow>
 					</TableHeader>
 					<tbody
@@ -511,13 +511,15 @@
 								}}
 								class="hover:[&,&>svelte-css-wrapper]:[&>th,td]:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors"
 							>
-								<TableCell class="cursor-grab">
+								<TableCell class="cursor-grab hidden md:table-cell">
 									<div class="flex items-center gap-2 text-muted-foreground">
 										<GripVertical class="h-5 w-5" />
 										<span class="text-sm font-medium">{i + 1}</span>
 									</div>
 								</TableCell>
-								<TableCell>{ingredient.name}</TableCell>
+								<TableCell class="max-w-[150px] whitespace-normal md:max-w-none">
+									{ingredient.name}
+								</TableCell>
 								<TableCell>
 									<Input
 										type="number"
@@ -532,11 +534,12 @@
 									<Button
 										type="button"
 										variant="destructive"
-										size="sm"
+										size="icon"
 										data-quitar-btn
 										onclick={() => removeIngredient(ingredient.id)}
+										aria-label="Quitar ingrediente"
 									>
-										Quitar
+										<Trash2 class="h-4 w-4" />
 									</Button>
 								</TableCell>
 							</tr>

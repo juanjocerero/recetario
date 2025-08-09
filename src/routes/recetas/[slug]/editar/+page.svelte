@@ -11,7 +11,7 @@
 	}
 </script>
 
-<div class="container mx-auto p-4 md:px-24">
+<div class="container mx-auto p-4 md:px-24 mt-16 md:mt-0">
 	<RecipeForm
 		recipeId={data.recipe.id}
 		initialData={data.recipe}
