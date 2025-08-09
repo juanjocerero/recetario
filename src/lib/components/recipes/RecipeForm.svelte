@@ -3,7 +3,7 @@
 	import { enhance, applyAction } from '$app/forms';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { Save, X } from 'lucide-svelte';
+	import { Save, X, Check, LoaderCircle } from 'lucide-svelte';
 
 	import { createRecipeState, type FormState } from '$lib/models/RecipeFormState.svelte';
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
@@ -48,10 +48,25 @@
 		JSON.stringify(recipe.initialFormState) !== JSON.stringify(formData)
 	);
 
+	const autosaveManager = autosave.createAutosave(
+		autosaveKey,
+		() => {
+			// Excluimos el campo de la imagen para no superar la cuota de localStorage
+			const { imageUrl, ...rest } = formData;
+			return rest;
+		},
+		{
+			enabled: () => status === 'editing',
+			isDirty: () => isFormDirty
+		}
+	);
+
 	onMount(() => {
 		if (autosave.hasData(autosaveKey)) {
-			const savedDraft = autosave.load<FormState>(autosaveKey);
-			if (savedDraft && JSON.stringify(savedDraft) !== JSON.stringify(recipe.initialFormState)) {
+			const savedDraft = autosave.load<Omit<FormState, 'imageUrl'>>(autosaveKey);
+			const { imageUrl, ...initialDraft } = recipe.initialFormState;
+
+			if (savedDraft && JSON.stringify(savedDraft) !== JSON.stringify(initialDraft)) {
 				status = 'awaitingDecision';
 			} else {
 				autosave.clear(autosaveKey);
@@ -62,15 +77,11 @@
 		}
 	});
 
-	autosave.createAutosave(autosaveKey, () => formData, {
-		enabled: () => status === 'editing',
-		isDirty: () => isFormDirty
-	});
-
 	function handleRestore() {
-		const savedDraft = autosave.load<FormState>(autosaveKey);
+		const savedDraft = autosave.load<Omit<FormState, 'imageUrl'>>(autosaveKey);
 		if (savedDraft) {
-			Object.assign(formData, savedDraft);
+			const { title, steps, urls, ingredients } = savedDraft;
+			Object.assign(formData, { title, steps, urls, ingredients });
 		}
 		status = 'editing';
 	}
@@ -100,10 +111,24 @@
 </script>
 
 <Card class="max-w-4xl mx-auto">
-	<CardHeader>
+	<CardHeader class="flex flex-row items-center justify-between">
 		<CardTitle class="mt-4">{cardTitle}</CardTitle>
+		<div class="flex items-center gap-2 text-sm text-muted-foreground">
+			{#if autosaveManager.status === 'saving'}
+				<LoaderCircle class="h-4 w-4 animate-spin" />
+				Guardando...
+			{:else if autosaveManager.status === 'saved'}
+				<Check class="h-4 w-4 text-green-500" />
+				Guardado
+			{:else if autosaveManager.status === 'error'}
+				<X class="h-4 w-4 text-red-500" />
+				Error al guardar
+			{/if}
+		</div>
+	</CardHeader>
+	<CardContent>
 		{#if status === 'awaitingDecision'}
-			<Alert.Root class="mt-4">
+			<Alert.Root class="mb-6">
 				<Save class="h-4 w-4" />
 				<Alert.Title>¡Borrador encontrado!</Alert.Title>
 				<Alert.Description class="flex items-center justify-between">
@@ -118,8 +143,6 @@
 				</Alert.Description>
 			</Alert.Root>
 		{/if}
-	</CardHeader>
-	<CardContent>
 		<form
 			method="POST"
 			use:enhance={() => {

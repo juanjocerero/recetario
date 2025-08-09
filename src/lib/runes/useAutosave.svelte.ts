@@ -1,23 +1,12 @@
-
 import { browser } from '$app/environment';
-import { toast } from 'svelte-sonner';
 
-/**
- * Checks if a value exists in localStorage for the given key.
- * @param key The key to check in localStorage.
- * @returns `true` if data exists, `false` otherwise.
- */
+// --- Funciones de utilidad de localStorage ---
+
 export function hasData(key: string): boolean {
 	if (!browser) return false;
 	return localStorage.getItem(key) !== null;
 }
 
-/**
- * Loads and deserializes data from localStorage.
- * @template T The expected type of the data.
- * @param key The key to load from localStorage.
- * @returns The deserialized data, or `null` if not found or on error.
- */
 export function load<T>(key: string): T | null {
 	if (!browser) return null;
 	const savedData = localStorage.getItem(key);
@@ -31,35 +20,32 @@ export function load<T>(key: string): T | null {
 	}
 }
 
-/**
- * Serializes and saves data to localStorage.
- * @param key The key to save the data under.
- * @param data The data to save (must be JSON-serializable).
- */
-export function save(key: string, data: unknown): void {
-	if (!browser) return;
+function save(key: string, data: unknown): { success: boolean } {
+	if (!browser) return { success: false };
 	try {
 		const serializedData = JSON.stringify(data);
 		localStorage.setItem(key, serializedData);
+		return { success: true };
 	} catch (e) {
 		console.error('Failed to save data to localStorage', e);
+		return { success: false };
 	}
 }
 
-/**
- * Removes an item from localStorage.
- * @param key The key to remove.
- */
 export function clear(key: string): void {
 	if (!browser) return;
 	localStorage.removeItem(key);
 }
 
+// --- Rune de Autoguardado ---
+
+export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 /**
- * Creates a reactive autosave mechanism with debounced notifications.
+ * Creates a reactive autosave mechanism with debouncing and status feedback.
  * @param key The localStorage key.
- * @param data The reactive Svelte 5 state to watch.
- * @param options Options like `enabled` and `isDirty` to control saving.
+ * @param data A function returning the reactive Svelte 5 state to watch.
+ * @param options Options like `enabled` and `isDirty` to control saving, and `debounceMs`.
  */
 export function createAutosave(
 	key: string,
@@ -67,27 +53,43 @@ export function createAutosave(
 	options: {
 		enabled: () => boolean;
 		isDirty: () => boolean;
+		debounceMs?: number;
 	}
 ) {
-	let isFirstSave = true;
+	const { enabled, isDirty, debounceMs = 1500 } = options;
+	let status = $state<AutosaveStatus>('idle');
+	let debounceTimer: number | ReturnType<typeof setTimeout> | undefined;
 
 	$effect(() => {
-		if (!options.enabled()) {
+		// Dependencia reactiva: se ejecuta cada vez que `data()` cambia
+		const currentData = data();
+
+		if (!enabled() || !isDirty()) {
 			return;
 		}
 
-		save(key, data());
+		// Limpiamos el timer anterior para debouncing
+		clearTimeout(debounceTimer);
 
-		const handler = setTimeout(() => {
-			if (isFirstSave || !options.isDirty()) {
-				isFirstSave = false;
-				return;
+		status = 'saving';
+
+		debounceTimer = setTimeout(() => {
+			const { success } = save(key, currentData);
+			if (success) {
+				status = 'saved';
+				// Volvemos a 'idle' tras un momento para que la UI pueda reaccionar
+				setTimeout(() => (status = 'idle'), 2000);
+			} else {
+				status = 'error';
 			}
-			toast.info('Progreso guardado automáticamente.', {
-				duration: 2000
-			});
-		}, 1500);
+		}, debounceMs);
 
-		return () => clearTimeout(handler);
+		return () => clearTimeout(debounceTimer);
 	});
+
+	return {
+		get status() {
+			return status;
+		}
+	};
 }
