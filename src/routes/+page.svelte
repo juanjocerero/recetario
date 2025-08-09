@@ -101,7 +101,7 @@
 	}
 </script>
 
-<div class="container mx-auto p-4 md:py-8 md:px-24">
+<div class="container mx-auto p-4 md:px-24 mt-16 md:mt-0">
 	<header class="flex items-center justify-between gap-2 mb-8">
 		<div class="relative flex-grow">
 			<Input bind:value={searchQuery} placeholder="Buscar por receta o producto..." />
@@ -110,8 +110,7 @@
 			<SlidersHorizontal class="h-4 w-4" />
 		</Button>
 		<Button href="/recetas/nueva">
-			<Plus class="mr-2 h-4 w-4" />
-			Añadir Receta
+			<Plus class="h-4 w-4" />
 		</Button>
 	</header>
 

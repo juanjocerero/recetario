@@ -18,7 +18,7 @@
 	}>();
 </script>
 
-<div class="block md:hidden">
+<div class="block md:hidden mt-16">
 	<div class="mb-4 flex items-center justify-between gap-2">
 		<div class="relative flex-grow">
 			<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
