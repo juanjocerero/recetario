@@ -3,6 +3,7 @@
 	import { enhance, applyAction } from '$app/forms';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import { fly } from 'svelte/transition';
 	import { Save, X, Check, LoaderCircle } from 'lucide-svelte';
 
 	import { createRecipeState, type FormState } from '$lib/models/RecipeFormState.svelte';
@@ -255,6 +256,23 @@
 		</form>
 	</CardContent>
 </Card>
+{#if ['saving', 'saved', 'error'].includes(autosaveManager.status)}
+	<div
+		class="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg border bg-background p-3 text-sm text-muted-foreground shadow-lg"
+		transition:fly={{ y: 20, duration: 300 }}
+	>
+		{#if autosaveManager.status === 'saving'}
+			<LoaderCircle class="h-4 w-4 animate-spin" />
+			Guardando borrador...
+		{:else if autosaveManager.status === 'saved'}
+			<Check class="h-4 w-4 text-green-500" />
+			Borrador guardado
+		{:else if autosaveManager.status === 'error'}
+			<X class="h-4 w-4 text-red-500" />
+			Error al guardar
+		{/if}
+	</div>
+{/if}
 <style>
 	:global(.hide-arrows::-webkit-inner-spin-button),
 	:global(.hide-arrows::-webkit-outer-spin-button) {
