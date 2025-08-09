@@ -115,18 +115,7 @@
 <Card class="max-w-4xl mx-auto">
 	<CardHeader class="flex flex-row items-center justify-between">
 		<CardTitle class="mt-4">{cardTitle}</CardTitle>
-		<div class="flex items-center gap-2 text-sm text-muted-foreground">
-			{#if autosaveManager.status === 'saving'}
-				<LoaderCircle class="h-4 w-4 animate-spin" />
-				Guardando...
-			{:else if autosaveManager.status === 'saved'}
-				<Check class="h-4 w-4 text-green-500" />
-				Guardado
-			{:else if autosaveManager.status === 'error'}
-				<X class="h-4 w-4 text-red-500" />
-				Error al guardar
-			{/if}
-		</div>
+		
 	</CardHeader>
 	<CardContent>
 		{#if status === 'awaitingDecision'}
