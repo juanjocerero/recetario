@@ -1,15 +1,23 @@
 import { productService } from '$lib/server/services/productService';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { Product } from '@prisma/client';
 
 type OffProduct = {
 	code: string;
 	product_name: string;
 	image_front_small_url?: string;
+	nutriments: {
+		'energy-kcal_100g'?: number;
+		'proteins_100g'?: number;
+		'fat_100g'?: number;
+		'carbohydrates_100g'?: number;
+	};
 };
 
 export const GET: RequestHandler = ({ url, fetch }) => {
 	const query = url.searchParams.get('q');
+	const page = url.searchParams.get('page') ?? '1';
 
 	if (!query) {
 		return json({ error: 'Query parameter "q" is required' }, { status: 400 });
@@ -19,13 +27,15 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 
 	const stream = new ReadableStream({
 		async start(controller) {
-			const sentProductIds = new Set<string>();
-
 			type SearchResult = {
-				id: string; // CUID for local, barcode for OFF
+				id: string;
 				name: string;
-				source: 'local' | 'off';
+				source: 'off';
 				imageUrl: string | null;
+				calories: number;
+				protein: number;
+				fat: number;
+				carbs: number;
 			};
 
 			const sendEvent = (event: string, data: object) => {
@@ -37,21 +47,9 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 			};
 
 			try {
-				// 1. Búsqueda local unificada
-				const localProducts = await productService.searchByName(query);
-				if (localProducts.length > 0) {
-					const localResults: SearchResult[] = localProducts.map((p) => {
-						sentProductIds.add(p.id); // Guardamos el CUID
-						if (p.barcode) sentProductIds.add(p.barcode); // Y también el barcode si existe
-						return {
-							id: p.id,
-							name: p.name,
-							source: 'local',
-							imageUrl: p.imageUrl
-						};
-					});
-					sendEvent('message', localResults);
-				}
+				// 1. Obtener todos los barcodes de la base de datos local para filtrar resultados
+				const allLocalProducts = await productService.getAll();
+				const localBarcodes = new Set(allLocalProducts.map((p: Product) => p.barcode).filter(Boolean));
 
 				// 2. Búsqueda externa en OpenFoodFacts
 				const brands = ['Hacendado', 'Mercadona'];
@@ -59,8 +57,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 					const offQuery = `${query} ${brand}`;
 					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
 						offQuery
-					)}
-&search_simple=1&action=process&json=1&page_size=10`;
+					)}&search_simple=1&action=process&json=1&page_size=20&page=${page}&fields=code,product_name,image_front_small_url,nutriments`;
 
 					return fetch(offUrl, { signal: abortController.signal })
 						.then(async (res) => {
@@ -68,25 +65,29 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 							return res.json();
 						})
 						.then((response) => {
-							// CORRECCIÓN: Asegurarse de que response.products es un array antes de usarlo.
 							const offProducts = 
 								response && Array.isArray(response.products) ? response.products : [];
 
 							const uniqueOffProducts: SearchResult[] = offProducts
-								.filter((p: OffProduct) => p.code && !sentProductIds.has(p.code))
+								.filter((p: OffProduct) => p.code && !localBarcodes.has(p.code))
 								.map((p: OffProduct) => {
-									sentProductIds.add(p.code);
+									// Añadimos el barcode al set para evitar duplicados entre las propias llamadas a OFF
+									localBarcodes.add(p.code);
 									return {
 										id: p.code, // El ID para OFF es su código de barras
 										name: p.product_name,
 										source: 'off' as const,
-										imageUrl: p.image_front_small_url || null
+										imageUrl: p.image_front_small_url || null,
+										calories: p.nutriments?.['energy-kcal_100g'] ?? 0,
+										protein: p.nutriments?.['proteins_100g'] ?? 0,
+										fat: p.nutriments?.['fat_100g'] ?? 0,
+										carbs: p.nutriments?.['carbohydrates_100g'] ?? 0
 									};
 								});
 
 								if (uniqueOffProducts.length > 0) {
-									sendEvent('message', uniqueOffProducts);
-								}
+										sendEvent('message', uniqueOffProducts);
+									}
 						})
 						.catch((err) => {
 							if (err.name !== 'AbortError') {

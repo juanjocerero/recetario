@@ -107,6 +107,16 @@ export const productService = {
 	},
 
 	/**
+	 * Busca un producto por su código de barras solo en la base de datos local.
+	 */
+	async findByBarcodeInDbOnly(barcode: string) {
+		if (!barcode) return null;
+		return prisma.product.findUnique({
+			where: { barcode }
+		});
+	},
+
+	/**
 	 * Busca un producto por su código de barras.
 	 * Primero intenta encontrarlo en la base de datos local.
 	 * Si no lo encuentra, lo busca en la API de Open Food Facts,
