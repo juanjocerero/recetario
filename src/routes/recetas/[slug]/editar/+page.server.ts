@@ -54,26 +54,31 @@ export const actions: Actions = {
 			return fail(400, response);
 		}
 
+		let updatedRecipe;
 		try {
 			const originalRecipe = await recipeService.getBySlug(params.slug);
 			if (!originalRecipe) {
 				throw error(404, 'Receta no encontrada para actualizar');
 			}
 
-			const updatedRecipe = await recipeService.update(originalRecipe.id, validation.data);
+			updatedRecipe = await recipeService.update(originalRecipe.id, validation.data);
 
 			if (!updatedRecipe) {
 				return fail(500, createFailResponse('No se pudo actualizar la receta.'));
 			}
-
-			throw redirect(303, `/recetas/${updatedRecipe.slug}`);
 		} catch (err) {
-			if (err instanceof Error && 'status' in err && err.status === 303) {
+			// Si el error es un error de SvelteKit (como un 404), lo relanzamos
+			if (err && typeof err === 'object' && 'status' in err) {
 				throw err;
 			}
+
+			// Si es un error inesperado, lo logueamos y devolvemos un 500
 			console.error(err);
 			const response = createFailResponse('No se pudo actualizar la receta en el servidor.');
 			return fail(500, response);
 		}
+
+		// Si todo ha ido bien, lanzamos la redirección fuera del try...catch
+		throw redirect(303, `/recetas/${updatedRecipe.slug}`);
 	}
 };

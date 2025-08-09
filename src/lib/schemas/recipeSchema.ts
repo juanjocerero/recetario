@@ -4,9 +4,9 @@ import { z } from 'zod';
 // Justificación: Este es el esquema para un único ingrediente DENTRO de una receta.
 // Es el Data Transfer Object (DTO) que esperamos del frontend.
 const RecipeIngredientSchema = z.object({
-	id: z.string(), // ID del Product
-	type: z.enum(['product', 'custom']), // Para saber a qué tabla enlazar
-	quantity: z.coerce.number().positive({ message: 'La cantidad debe ser mayor que cero.' })
+	id: z.string(),
+	quantity: z.coerce.number().positive({ message: 'La cantidad debe ser mayor que cero.' }),
+	source: z.enum(['local', 'off'])
 });
 
 // Justificación: Esquema principal para la creación y actualización de recetas.

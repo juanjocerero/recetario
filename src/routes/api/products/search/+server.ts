@@ -30,12 +30,8 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 			type SearchResult = {
 				id: string;
 				name: string;
-				source: 'off';
+				source: 'local' | 'off';
 				imageUrl: string | null;
-				calories: number;
-				protein: number;
-				fat: number;
-				carbs: number;
 			};
 
 			const sendEvent = (event: string, data: object) => {
@@ -47,9 +43,22 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 			};
 
 			try {
-				// 1. Obtener todos los barcodes de la base de datos local para filtrar resultados
-				const allLocalProducts = await productService.getAll();
-				const localBarcodes = new Set(allLocalProducts.map((p: Product) => p.barcode).filter(Boolean));
+				// 1. Búsqueda en la base de datos local
+				const localResults = await productService.searchByName(query);
+				const localBarcodes = new Set<string>();
+
+				if (localResults.length > 0) {
+					const formattedLocalResults: SearchResult[] = localResults.map((p: Product) => {
+						if (p.barcode) localBarcodes.add(p.barcode);
+						return {
+							id: p.id,
+							name: p.name,
+							source: 'local',
+							imageUrl: p.imageUrl
+						};
+					});
+					sendEvent('message', formattedLocalResults);
+				}
 
 				// 2. Búsqueda externa en OpenFoodFacts
 				const brands = ['Hacendado', 'Mercadona'];
@@ -57,31 +66,25 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 					const offQuery = `${query} ${brand}`;
 					const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
 						offQuery
-					)}&search_simple=1&action=process&json=1&page_size=20&page=${page}&fields=code,product_name,image_front_small_url,nutriments`;
+					)}
+&search_simple=1&action=process&json=1&page_size=20&page=${page}&fields=code,product_name,image_front_small_url,nutriments`;
 
 					return fetch(offUrl, { signal: abortController.signal })
-						.then(async (res) => {
+						.then((res) => {
 							if (!res.ok) throw new Error(`API returned status ${res.status}`);
 							return res.json();
 						})
 						.then((response) => {
-							const offProducts = 
-								response && Array.isArray(response.products) ? response.products : [];
-
+							const offProducts = response?.products ?? [];
 							const uniqueOffProducts: SearchResult[] = offProducts
 								.filter((p: OffProduct) => p.code && !localBarcodes.has(p.code))
 								.map((p: OffProduct) => {
-									// Añadimos el barcode al set para evitar duplicados entre las propias llamadas a OFF
-									localBarcodes.add(p.code);
+									localBarcodes.add(p.code); // Evita duplicados en la misma sesión de búsqueda
 									return {
-										id: p.code, // El ID para OFF es su código de barras
+										id: p.code,
 										name: p.product_name,
 										source: 'off' as const,
-										imageUrl: p.image_front_small_url || null,
-										calories: p.nutriments?.['energy-kcal_100g'] ?? 0,
-										protein: p.nutriments?.['proteins_100g'] ?? 0,
-										fat: p.nutriments?.['fat_100g'] ?? 0,
-										carbs: p.nutriments?.['carbohydrates_100g'] ?? 0
+										imageUrl: p.image_front_small_url || null
 									};
 								});
 
