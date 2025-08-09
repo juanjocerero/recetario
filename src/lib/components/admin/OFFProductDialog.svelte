@@ -32,6 +32,11 @@
 	let fat = $state(product.fat);
 	let carbs = $state(product.carbs);
 
+	let displayCalories = $state(product.calories.toFixed(2));
+	let displayProtein = $state(product.protein.toFixed(2));
+	let displayFat = $state(product.fat.toFixed(2));
+	let displayCarbs = $state(product.carbs.toFixed(2));
+
 	// Efecto para resetear el estado del formulario si el producto cambia
 	$effect(() => {
 		name = product.name;
@@ -39,6 +44,11 @@
 		protein = product.protein;
 		fat = product.fat;
 		carbs = product.carbs;
+
+		displayCalories = product.calories.toFixed(2);
+		displayProtein = product.protein.toFixed(2);
+		displayFat = product.fat.toFixed(2);
+		displayCarbs = product.carbs.toFixed(2);
 	});
 </script>
 
@@ -72,10 +82,13 @@
 					}
 				};
 			}}
-				
 		>
 			<input type="hidden" name="barcode" value={product.id} />
 			<input type="hidden" name="imageUrl" value={product.imageUrl ?? ''} />
+			<input type="hidden" name="calories" value={calories} />
+			<input type="hidden" name="protein" value={protein} />
+			<input type="hidden" name="fat" value={fat} />
+			<input type="hidden" name="carbs" value={carbs} />
 			<div class="grid gap-4 py-4">
 				<div class="grid grid-cols-4 items-center gap-4">
 					<Label for="name-add-{product.id}" class="text-right">Nombre</Label>
@@ -85,10 +98,13 @@
 					<Label for="calories-add-{product.id}" class="text-right">Calorías</Label>
 					<Input
 						id="calories-add-{product.id}"
-						name="calories"
 						type="number"
 						step="0.01"
-						bind:value={calories}
+						value={displayCalories}
+						oninput={(e) => {
+							displayCalories = e.currentTarget.value;
+							calories = e.currentTarget.valueAsNumber;
+						}}
 						class="col-span-3 hide-arrows"
 					/>
 				</div>
@@ -96,10 +112,13 @@
 					<Label for="protein-add-{product.id}" class="text-right">Proteínas</Label>
 					<Input
 						id="protein-add-{product.id}"
-						name="protein"
 						type="number"
 						step="0.01"
-						bind:value={protein}
+						value={displayProtein}
+						oninput={(e) => {
+							displayProtein = e.currentTarget.value;
+							protein = e.currentTarget.valueAsNumber;
+						}}
 						class="col-span-3 hide-arrows"
 					/>
 				</div>
@@ -107,10 +126,13 @@
 					<Label for="fat-add-{product.id}" class="text-right">Grasas</Label>
 					<Input
 						id="fat-add-{product.id}"
-						name="fat"
 						type="number"
 						step="0.01"
-						bind:value={fat}
+						value={displayFat}
+						oninput={(e) => {
+							displayFat = e.currentTarget.value;
+							fat = e.currentTarget.valueAsNumber;
+						}}
 						class="col-span-3 hide-arrows"
 					/>
 				</div>
@@ -118,10 +140,13 @@
 					<Label for="carbs-add-{product.id}" class="text-right">Carbohidratos</Label>
 					<Input
 						id="carbs-add-{product.id}"
-						name="carbs"
 						type="number"
 						step="0.01"
-						bind:value={carbs}
+						value={displayCarbs}
+						oninput={(e) => {
+							displayCarbs = e.currentTarget.value;
+							carbs = e.currentTarget.valueAsNumber;
+						}}
 						class="col-span-3 hide-arrows"
 					/>
 				</div>
