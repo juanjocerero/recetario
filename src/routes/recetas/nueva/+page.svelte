@@ -6,4 +6,6 @@
 	let { form }: { form: ActionData } = $props();
 </script>
 
-<RecipeForm {form} />
+<div class="container mx-auto p-4 md:px-24">
+	<RecipeForm {form} />
+</div>

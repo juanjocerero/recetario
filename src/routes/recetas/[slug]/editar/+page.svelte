@@ -11,11 +11,13 @@
 	}
 </script>
 
-<RecipeForm
-	initialData={data.recipe}
-	recipeId={data.recipe.id}
-	{form}
-	cardTitle="Editar Receta"
-	submitButtonText="Guardar Cambios"
-	onSuccess={handleSuccess}
-/>
+<div class="container mx-auto p-4 md:px-24">
+	<RecipeForm
+		recipeId={data.recipe.id}
+		initialData={data.recipe}
+		{form}
+		cardTitle="Editar Receta"
+		submitButtonText="Actualizar Receta"
+		onSuccess={handleSuccess}
+	/>
+</div>

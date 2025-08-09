@@ -101,9 +101,9 @@
 
 				return {
 					...product,
-					id: product.id, // El ID ya es el CUID del producto
+					id: product.id,
 					quantity: ing.quantity,
-					source: 'local' // Todos los productos guardados son locales
+					source: 'local'
 				};
 			})
 			.filter((ing): ing is IngredientWithDetails => ing !== null);
@@ -111,85 +111,40 @@
 
 	// --- Estado del formulario (unificado) ---
 	let formData: FormState = $state({
-		title: '',
-		steps: [''],
-		imageUrl: null,
-		urls: [],
-		ingredients: []
-	});
-
-	$effect(() => {
-		if (initialData && status === 'editing') {
-			const isPristine =
-				formData.title === '' &&
-				formData.steps.length <= 1 &&
-				formData.steps[0] === '' &&
-				formData.ingredients.length === 0 &&
-				formData.urls.length === 0;
-
-			if (isPristine) {
-				formData.title = initialData.title ?? '';
-				formData.steps = getRecipeSteps(initialData.steps);
-				formData.imageUrl = initialData.imageUrl ?? null;
-				formData.urls = initialData.urls?.map((u) => u.url) ?? [];
-				formData.ingredients = mapInitialIngredients(initialData.ingredients);
-			}
-		}
+		title: initialData?.title ?? '',
+		steps: getRecipeSteps(initialData?.steps ?? ['']),
+		imageUrl: initialData?.imageUrl ?? null,
+		urls: initialData?.urls?.map((u) => u.url) ?? [],
+		ingredients: mapInitialIngredients(initialData?.ingredients)
 	});
 
 	// --- Autoguardado (Lógica de control en el componente) ---
-	const AUTOSAVE_KEY = 'recipe-autosave-draft';
-	type AutosaveDraft = { recipeId: string | null; formData: FormState };
+	const autosaveKey = recipeId ? `recipe-draft-${recipeId}` : 'recipe-draft-new';
 	type Status = 'initializing' | 'awaitingDecision' | 'editing';
 	let status = $state<Status>('initializing');
 
-	const isFormDirty = $derived(
-		(initialData?.title ?? '') !== formData.title ||
-			JSON.stringify(getRecipeSteps(initialData?.steps)) !== JSON.stringify(formData.steps) ||
-			JSON.stringify(initialData?.urls.map((u) => u.url) ?? []) !==
-				JSON.stringify(formData.urls) ||
-			JSON.stringify(mapInitialIngredients(initialData?.ingredients)) !==
-				JSON.stringify(formData.ingredients)
-	);
+	const initialFormState: FormState = {
+		title: initialData?.title ?? '',
+		steps: getRecipeSteps(initialData?.steps),
+		imageUrl: initialData?.imageUrl ?? null,
+		urls: initialData?.urls?.map((u) => u.url) ?? [],
+		ingredients: mapInitialIngredients(initialData?.ingredients)
+	};
+
+	const isFormDirty = $derived(JSON.stringify(initialFormState) !== JSON.stringify(formData));
 
 	function areStatesIdentical(stateA: FormState, stateB: FormState): boolean {
 		return JSON.stringify(stateA) === JSON.stringify(stateB);
 	}
 
 	onMount(() => {
-		// 1. Migración transparente de borradores antiguos
-		const legacyKey = recipeId ? `recipe-autosave-${recipeId}` : 'new-recipe-autosave';
-		if (autosave.hasData(legacyKey)) {
-			const legacyData = autosave.load<FormState>(legacyKey);
-			if (legacyData) {
-				autosave.save(AUTOSAVE_KEY, { recipeId, formData: legacyData });
-			}
-			autosave.clear(legacyKey);
-		}
-
-		// 2. Carga del borrador unificado
-		if (autosave.hasData(AUTOSAVE_KEY)) {
-			const savedDraft = autosave.load<AutosaveDraft>(AUTOSAVE_KEY);
-
-			// Comprobar si el borrador pertenece a la receta actual
-			if (savedDraft && savedDraft.recipeId === recipeId) {
-				const initialFormState: FormState = {
-					title: initialData?.title ?? '',
-					steps: getRecipeSteps(initialData?.steps),
-					imageUrl: initialData?.imageUrl ?? null,
-					urls: initialData?.urls.map((u) => u.url) ?? [],
-					ingredients: mapInitialIngredients(initialData?.ingredients)
-				};
-				// Comparamos con el estado inicial para ver si vale la pena restaurar
-				if (!areStatesIdentical(savedDraft.formData, initialFormState)) {
-					status = 'awaitingDecision';
-				} else {
-					// El borrador es idéntico al del servidor, es inútil.
-					autosave.clear(AUTOSAVE_KEY);
-					status = 'editing';
-				}
+		if (autosave.hasData(autosaveKey)) {
+			const savedDraft = autosave.load<FormState>(autosaveKey);
+			if (savedDraft && !areStatesIdentical(savedDraft, initialFormState)) {
+				status = 'awaitingDecision';
 			} else {
-				// El borrador es de otra receta, se ignora y se sobreescribirá.
+				// El borrador es idéntico al del servidor o inválido, es inútil.
+				autosave.clear(autosaveKey);
 				status = 'editing';
 			}
 		} else {
@@ -198,33 +153,25 @@
 		}
 	});
 
-	autosave.createAutosave(
-		AUTOSAVE_KEY,
-		() => ({
-			recipeId: recipeId,
-			formData: formData
-		}),
-		{
-			enabled: () => status === 'editing',
-			isDirty: () => isFormDirty
-		}
-	);
+	autosave.createAutosave(autosaveKey, () => formData, {
+		enabled: () => status === 'editing',
+		isDirty: () => isFormDirty
+	});
 
 	function handleRestore() {
-		const savedDraft = autosave.load<AutosaveDraft>(AUTOSAVE_KEY);
-		if (savedDraft && savedDraft.recipeId === recipeId) {
-			const dataToRestore = savedDraft.formData;
-			formData.title = dataToRestore.title;
-			formData.steps = dataToRestore.steps;
-			formData.imageUrl = dataToRestore.imageUrl ?? null; // Ensure null instead of undefined
-			formData.urls = dataToRestore.urls;
-			formData.ingredients = dataToRestore.ingredients;
+		const savedDraft = autosave.load<FormState>(autosaveKey);
+		if (savedDraft) {
+			formData.title = savedDraft.title;
+			formData.steps = savedDraft.steps;
+			formData.imageUrl = savedDraft.imageUrl ?? null;
+			formData.urls = savedDraft.urls;
+			formData.ingredients = savedDraft.ingredients;
 		}
 		status = 'editing';
 	}
 
 	function handleDiscard() {
-		autosave.clear(AUTOSAVE_KEY);
+		autosave.clear(autosaveKey);
 		status = 'editing';
 	}
 
@@ -335,7 +282,7 @@
 	let isSubmitting = $state(false);
 </script>
 
-<Card class="max-w-4xl mx-auto my-8">
+<Card class="max-w-4xl mx-auto">
 	<CardHeader>
 		<CardTitle class="mt-4">{cardTitle}</CardTitle>
 		{#if status === 'awaitingDecision'}
@@ -368,7 +315,7 @@
 
 					if (result.type === 'success') {
 						toast.success('Receta guardada con éxito.', { id: toastId });
-						autosave.clear(AUTOSAVE_KEY);
+						autosave.clear(autosaveKey);
 						await onSuccess();
 					} else if (result.type === 'failure') {
 						const message = form?.message || 'Error al guardar la receta. Revisa los campos.';
