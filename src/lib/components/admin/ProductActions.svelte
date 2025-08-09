@@ -7,7 +7,7 @@
 	import type { Product } from '@prisma/client';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import { Pencil, Trash2, Calculator, MoreVertical } from 'lucide-svelte';
+	import { Pencil, Trash2, Calculator, MoreVertical, Image } from 'lucide-svelte';
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
@@ -15,6 +15,7 @@
 		DropdownMenuSeparator,
 		DropdownMenuTrigger
 	} from '$lib/components/ui/dropdown-menu';
+	import ImageManager from '$lib/components/shared/ImageManager.svelte';
 
 	let {
 		product,
@@ -36,6 +37,10 @@
 	let isDeleteDialogOpen = $state(false);
 	let isCalcDialogOpen = $state(false);
 	let isEditDialogOpen = $state(false);
+	let isImageDialogOpen = $state(false);
+
+	// --- Estado para el diálogo de imagen ---
+	let editingImageUrl = $state<string | null>(null);
 
 	// --- Estado para el diálogo de cálculo ---
 	let quantity = $state(100);
@@ -94,6 +99,15 @@
 		<DropdownMenuItem onclick={openEditDialog}>
 			<Pencil class="mr-2 h-4 w-4" />
 			<span>Editar</span>
+		</DropdownMenuItem>
+		<DropdownMenuItem
+			onclick={() => {
+				editingImageUrl = product.imageUrl;
+				isImageDialogOpen = true;
+			}}
+		>
+			<Image class="mr-2 h-4 w-4" />
+			<span>Imagen</span>
 		</DropdownMenuItem>
 		<DropdownMenuSeparator />
 		<DropdownMenuItem
@@ -270,6 +284,49 @@
 			<Dialog.Footer>
 				<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
 				<Button variant="destructive" type="submit">Eliminar</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Diálogo de Imagen -->
+<Dialog.Root bind:open={isImageDialogOpen}>
+	<Dialog.Content class="max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>Gestionar Imagen</Dialog.Title>
+			<Dialog.Description>
+				Sube un archivo o pega una URL para asignarla como imagen del producto "{product.name}".
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/updateImage"
+			use:enhance={() => {
+				const toastId = toast.loading('Actualizando imagen...');
+				return async ({ result }) => {
+					await applyAction(result);
+					if (result.type === 'success') {
+						toast.success('Imagen actualizada.', { id: toastId });
+						isImageDialogOpen = false;
+						await invalidateAll();
+					} else if (result.type === 'failure') {
+						let message = 'Error al actualizar la imagen.';
+						if (result.data && typeof (result.data as any).message === 'string') {
+							message = (result.data as any).message;
+						}
+						toast.error(message, { id: toastId });
+					} else {
+						toast.dismiss(toastId);
+					}
+				};
+			}}
+		>
+			<input type="hidden" name="id" value={product.id} />
+			<div class="py-4">
+				<ImageManager bind:imageUrl={editingImageUrl} />
+			</div>
+			<Dialog.Footer>
+				<Button type="submit">Guardar Imagen</Button>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

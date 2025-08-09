@@ -4,6 +4,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { ProductSchema } from '$lib/schemas/productSchema';
 import { createFailResponse } from '$lib/server/zodErrors';
 import { Prisma } from '@prisma/client';
+import { imageService } from '$lib/server/services/imageService';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
@@ -60,7 +61,8 @@ export const actions: Actions = {
 	update: async ({ request }) => {
 		const formData = Object.fromEntries(await request.formData());
 		const id = formData.id as string;
-		const validation = ProductSchema.safeParse(formData);
+		// Usamos .partial() para permitir la actualización de solo algunos campos
+		const validation = ProductSchema.partial().safeParse(formData);
 
 		if (!validation.success) {
 			return fail(400, {
@@ -104,6 +106,46 @@ export const actions: Actions = {
 			return fail(500, {
 				message: 'No se pudo eliminar el producto.'
 			});
+		}
+	},
+
+	updateImage: async ({ request }) => {
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+		const imageUrl = formData.get('imageUrl') as string;
+
+		if (!id) {
+			return fail(400, { message: 'ID de producto no proporcionado.' });
+		}
+
+		const dataToUpdate = { imageUrl: imageUrl || null };
+
+		// Validamos solo el campo que estamos actualizando.
+		const validation = ProductSchema.partial().safeParse(dataToUpdate);
+		if (!validation.success) {
+			return fail(400, {
+				...createFailResponse('La validación falló', validation.error)
+			});
+		}
+
+		try {
+			let finalImageUrl = validation.data.imageUrl ?? null;
+
+			// Si la imagen existe y NO es un webp en base64, la procesamos.
+			if (finalImageUrl && !finalImageUrl.startsWith('data:image/webp;base64,')) {
+				const processedImage = await imageService.process(finalImageUrl);
+				if (!processedImage) {
+					return fail(400, { message: 'La imagen proporcionada no pudo ser procesada.' });
+				}
+				finalImageUrl = processedImage;
+			}
+
+			await productService.update(id, { imageUrl: finalImageUrl });
+
+			return { success: true, message: 'Imagen actualizada con éxito' };
+		} catch (error) {
+			console.error(`Error al actualizar la imagen del producto ${id}:`, error);
+			return fail(500, { message: 'No se pudo actualizar la imagen.' });
 		}
 	}
 };

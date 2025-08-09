@@ -74,14 +74,17 @@ export const productService = {
 	/**
 	 * Actualiza un producto existente.
 	 */
-	async update(id: string, data: Product) {
-		const normalizedName = normalizeText(data.name);
+	async update(id: string, data: Partial<Product>) {
+		const updateData: Partial<Product> & { normalizedName?: string } = { ...data };
+
+		// Si el nombre está siendo actualizado, también actualizamos el nombre normalizado.
+		if (data.name) {
+			updateData.normalizedName = normalizeText(data.name);
+		}
+
 		return prisma.product.update({
 			where: { id },
-			data: {
-				...data,
-				normalizedName
-			}
+			data: updateData
 		});
 	},
 

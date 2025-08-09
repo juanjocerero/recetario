@@ -15,7 +15,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Alert from '$lib/components/ui/alert';
-	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
+	import ImageManager from '../shared/ImageManager.svelte';
 	import RecipeStepsManager from './RecipeStepsManager.svelte';
 	import IngredientsList from './IngredientsList.svelte';
 	import IngredientSearch from './IngredientSearch.svelte';
@@ -188,29 +188,8 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="image">Imagen de la Receta</Label>
-				<div class="flex items-center gap-4">
-					{#if formData.imageUrl}
-						<img
-							src={formData.imageUrl}
-							alt="Previsualización de la receta"
-							class="h-24 w-24 rounded-md object-cover"
-						/>
-					{/if}
-					<Input id="image" type="file" onchange={handleImageUpload} accept="image/*" />
-				</div>
-				<p class="text-sm text-gray-500">
-					Sube una imagen o deja el campo vacío para intentar usar la de la primera URL de
-					referencia.
-				</p>
-			</div>
-
-			<div class="space-y-2">
-				<Label>URLs de Referencia</Label>
-				<UrlImageFetcher bind:urls={formData.urls} bind:imageUrl={formData.imageUrl} />
-				{#if form?.errors?.urls}
-					<p class="text-sm text-red-500">{form.errors.urls}</p>
-				{/if}
+				<Label>Imagen de la Receta</Label>
+				<ImageManager bind:imageUrl={formData.imageUrl} />
 			</div>
 
 			<RecipeStepsManager

@@ -49,21 +49,16 @@ async function getImageUrlFromPage(url: string): Promise<string | null> {
  * @param imageUrl La URL de la imagen a procesar.
  * @returns La imagen en formato Base64 con el prefijo de datos, o null si falla.
  */
-async function processImage(imageUrl: string): Promise<string | null> {
+async function processImage(imageSource: string | Buffer): Promise<string | null> {
 	try {
-		const imageResponse = await fetch(imageUrl);
-		if (!imageResponse.ok) {
-			console.error(`Error fetching image ${imageUrl}: ${imageResponse.statusText}`);
-			return null;
-		}
+		// sharp puede manejar URLs, buffers, y rutas de archivo.
+		// Para data URIs, necesitamos extraer el buffer.
+		const imageBuffer =
+			typeof imageSource === 'string' && imageSource.startsWith('data:')
+				? Buffer.from(imageSource.split(',')[1], 'base64')
+				: imageSource;
 
-		const imageBuffer = await imageResponse.arrayBuffer();
-
-		// Justificación (Paso 2.2):
-		// Usamos 'sharp' para redimensionar la imagen a un ancho máximo y convertirla a WebP.
-		// WebP ofrece una compresión superior con buena calidad, reduciendo el tamaño
-		// de almacenamiento en la base de datos y mejorando los tiempos de carga.
-		const optimizedImageBuffer = await sharp(Buffer.from(imageBuffer))
+		const optimizedImageBuffer = await sharp(imageBuffer)
 			.resize(MAX_IMAGE_WIDTH, null, { withoutEnlargement: true })
 			.webp({ quality: 60 })
 			.toBuffer();
@@ -71,7 +66,26 @@ async function processImage(imageUrl: string): Promise<string | null> {
 		const base64Image = optimizedImageBuffer.toString('base64');
 		return `data:image/webp;base64,${base64Image}`;
 	} catch (error) {
-		console.error(`Failed to process image at ${imageUrl}`, error);
+		console.error(`Failed to process image`, error);
+		return null;
+	}
+}
+
+/**
+ * Descarga una imagen desde una URL y devuelve su buffer.
+ * @param imageUrl La URL de la imagen a descargar.
+ * @returns El buffer de la imagen o null si falla.
+ */
+async function fetchImageAsBuffer(imageUrl: string): Promise<Buffer | null> {
+	try {
+		const imageResponse = await fetch(imageUrl);
+		if (!imageResponse.ok) {
+			console.error(`Error fetching image ${imageUrl}: ${imageResponse.statusText}`);
+			return null;
+		}
+		return Buffer.from(await imageResponse.arrayBuffer());
+	} catch (error) {
+		console.error(`Failed to fetch image buffer from ${imageUrl}`, error);
 		return null;
 	}
 }
@@ -83,11 +97,22 @@ export const imageService = {
 	 * @param pageUrl La URL de la página de referencia de la receta.
 	 * @returns La imagen procesada en Base64 o null si cualquier paso falla.
 	 */
-	getImageFromUrl: async (pageUrl: string): Promise<string | null> => {
+	getImageFromPageUrl: async (pageUrl: string): Promise<string | null> => {
 		const imageUrl = await getImageUrlFromPage(pageUrl);
 		if (!imageUrl) {
 			return null;
 		}
-		return processImage(imageUrl);
-	}
+		const imageBuffer = await fetchImageAsBuffer(imageUrl);
+		if (!imageBuffer) {
+			return null;
+		}
+		return processImage(imageBuffer);
+	},
+
+	/**
+	 * Procesa una imagen desde una URL directa, un buffer o una cadena Base64.
+	 * @param source La URL de la imagen, el buffer o la cadena Base64.
+	 * @returns La imagen optimizada en formato Base64 WebP, o null si falla.
+	 */
+	process: processImage
 };

@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(400, 'URL no válida');
 		}
 
-		const imageUrl = await imageService.getImageFromUrl(url);
+		const imageUrl = await imageService.getImageFromPageUrl(url);
 
 		if (!imageUrl) {
 			// Si no se encuentra imagen, devolvemos un 404 específico.

@@ -10,7 +10,8 @@ export const ProductSchema = z.object({
 	calories: z.coerce.number().min(0, { message: 'Las calorías no pueden ser negativas.' }),
 	fat: z.coerce.number().min(0, { message: 'La grasa no puede ser negativa.' }),
 	protein: z.coerce.number().min(0, { message: 'La proteína no puede ser negativa.' }),
-	carbs: z.coerce.number().min(0, { message: 'Los carbohidratos no pueden ser negativos.' })
+	carbs: z.coerce.number().min(0, { message: 'Los carbohidratos no pueden ser negativos.' }),
+	imageUrl: z.string().url({ message: 'Debe ser una URL válida' }).nullable().optional()
 });
 
 // Exportamos también el tipo inferido para usarlo en el frontend o donde se necesite
