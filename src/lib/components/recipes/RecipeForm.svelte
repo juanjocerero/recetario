@@ -36,7 +36,7 @@
 		recipeId?: string | null;
 	} = $props();
 
-	// --- Estado Centralizado ---
+	// --- Estado Centralizado y Acciones ---
 	const recipe = createRecipeState(initialData);
 	const formData = recipe.state;
 
@@ -201,7 +201,9 @@
 
 			<RecipeStepsManager
 				steps={formData.steps}
-				onUpdate={(newSteps) => (formData.steps = newSteps)}
+				onAdd={recipe.addStep}
+				onRemove={recipe.removeStep}
+				onUpdateText={recipe.updateStepText}
 				errors={form?.errors?.steps}
 			/>
 

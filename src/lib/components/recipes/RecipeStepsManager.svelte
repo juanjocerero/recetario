@@ -8,30 +8,17 @@
 
 	let {
 		steps,
-		onUpdate,
+		onAdd,
+		onRemove,
+		onUpdateText,
 		errors
 	}: {
 		steps: RecipeStep[];
-		onUpdate: (steps: RecipeStep[]) => void;
+		onAdd: () => void;
+		onRemove: (id: string) => void;
+		onUpdateText: (id: string, text: string) => void;
 		errors?: string;
 	} = $props();
-
-	function addStep() {
-		onUpdate([...steps, { id: crypto.randomUUID(), text: '' }]);
-	}
-
-	function removeStep(id: string) {
-		onUpdate(steps.filter((step) => step.id !== id));
-	}
-
-	function handleStepInput(id: string, value: string) {
-		const newSteps = [...steps];
-		const stepIndex = newSteps.findIndex((step) => step.id === id);
-		if (stepIndex !== -1) {
-			newSteps[stepIndex].text = value;
-			onUpdate(newSteps);
-		}
-	}
 </script>
 
 <div class="space-y-4">
@@ -44,7 +31,7 @@
 					id={step.id}
 					name={`step-${step.id}`}
 					value={step.text}
-					oninput={(e) => handleStepInput(step.id, e.currentTarget.value)}
+					oninput={(e) => onUpdateText(step.id, e.currentTarget.value)}
 					rows={3}
 					placeholder="Describe este paso... (soporta Markdown)"
 				/>
@@ -53,7 +40,7 @@
 				type="button"
 				variant="ghost"
 				size="icon"
-				onclick={() => removeStep(step.id)}
+				onclick={() => onRemove(step.id)}
 				class="mt-6"
 				aria-label="Eliminar paso"
 			>
@@ -61,7 +48,7 @@
 			</Button>
 		</div>
 	{/each}
-	<Button type="button" variant="outline" onclick={addStep}>Añadir Paso</Button>
+	<Button type="button" variant="outline" onclick={onAdd}>Añadir Paso</Button>
 	{#if errors}
 		<p class="text-sm text-red-500">{errors}</p>
 	{/if}

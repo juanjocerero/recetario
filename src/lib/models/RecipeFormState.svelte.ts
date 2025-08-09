@@ -79,10 +79,29 @@ export function createRecipeState(initialData: InitialData | null) {
 		ingredients: mapInitialIngredients(initialData?.ingredients)
 	});
 
+	// --- Métodos de Mutación ---
+	function addStep() {
+		state.steps.push({ id: crypto.randomUUID(), text: '' });
+	}
+
+	function removeStep(id: string) {
+		state.steps = state.steps.filter((step) => step.id !== id);
+	}
+
+	function updateStepText(id: string, text: string) {
+		const step = state.steps.find((s) => s.id === id);
+		if (step) {
+			step.text = text;
+		}
+	}
+
 	return {
 		get state() {
 			return state;
 		},
+		addStep,
+		removeStep,
+		updateStepText,
 
 		get initialFormState(): FormState {
 			return {
