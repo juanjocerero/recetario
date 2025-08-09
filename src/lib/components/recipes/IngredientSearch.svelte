@@ -47,29 +47,62 @@
 
 	$effect(() => {
 		let eventSource: EventSource | null = null;
+
 		if (searchTerm.length < 3) {
 			searchResults = [];
 			isSearching = false;
 		} else {
+			const currentSearchTerm = searchTerm;
 			isSearching = true;
 			searchResults = [];
-			eventSource = new EventSource(`/api/products/search?q=${encodeURIComponent(searchTerm)}`);
+			eventSource = new EventSource(`/api/products/search?q=${encodeURIComponent(currentSearchTerm)}`);
+
 			eventSource.addEventListener('message', (e) => {
-				const newResults = JSON.parse(e.data);
-				searchResults = [...searchResults, ...newResults];
+				if (currentSearchTerm === searchTerm) {
+					const newResults = JSON.parse(e.data) as SearchResult[];
+
+					const combinedResults = [...searchResults, ...newResults];
+					const uniqueNames = new Set<string>();
+
+					const uniqueResults = combinedResults.filter((result) => {
+						// Usamos el nombre como clave de de-duplicación, ya que el ID no es fiable
+						const key = result.name + result.source;
+						if (uniqueNames.has(key)) {
+							return false;
+						}
+						uniqueNames.add(key);
+						return true;
+					});
+
+					searchResults = uniqueResults;
+				}
 			});
-			eventSource.addEventListener('stream_error', (e) => console.error('Error de stream:', e));
+
+			eventSource.addEventListener('stream_error', (e) => {
+				if (currentSearchTerm === searchTerm) {
+					console.error('Error de stream:', e);
+				}
+			});
+
 			eventSource.onerror = (err) => {
 				console.error('Error en EventSource:', err);
-				isSearching = false;
+				if (currentSearchTerm === searchTerm) {
+					isSearching = false;
+				}
 				eventSource?.close();
 			};
+
 			eventSource.addEventListener('close', () => {
-				isSearching = false;
+				if (currentSearchTerm === searchTerm) {
+					isSearching = false;
+				}
 				eventSource?.close();
 			});
 		}
-		return () => eventSource?.close();
+
+		return () => {
+			eventSource?.close();
+		};
 	});
 
 	async function handleSelect(result: SearchResult) {

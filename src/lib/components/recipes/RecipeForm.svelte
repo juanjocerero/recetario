@@ -16,7 +16,8 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import UrlImageFetcher from '$lib/components/recipes/UrlImageFetcher.svelte';
 	import RecipeStepsManager from './RecipeStepsManager.svelte';
-	import IngredientManager from './IngredientManager.svelte';
+	import IngredientsList from './IngredientsList.svelte';
+	import IngredientSearch from './IngredientSearch.svelte';
 	import NutritionalInfoPanel from './NutritionalInfoPanel.svelte';
 
 	// --- Props ---
@@ -230,13 +231,18 @@
 				errors={form?.errors?.steps}
 			/>
 
-			<IngredientManager
-				ingredients={formData.ingredients}
-				onAdd={recipe.addIngredient}
-				onRemove={recipe.removeIngredient}
-				onReorder={recipe.reorderIngredients}
-				errors={form?.errors?.ingredients}
-			/>
+						<div class="space-y-4">
+				<div class="space-y-2">
+					<Label>Añadir Ingrediente</Label>
+					<IngredientSearch onAdd={recipe.addIngredient} />
+				</div>
+				<IngredientsList
+					ingredients={formData.ingredients}
+					onRemove={recipe.removeIngredient}
+					onReorder={recipe.reorderIngredients}
+					errors={form?.errors?.ingredients}
+				/>
+			</div>
 
 			<NutritionalInfoPanel info={nutritionalInfo} />
 
