@@ -3,35 +3,26 @@
 	import IngredientSearch from './IngredientSearch.svelte';
 	import IngredientsList from './IngredientsList.svelte';
 	import { Label } from '$lib/components/ui/label';
-	import type { CalculableProduct } from '$lib/recipeCalculator';
-
-	type IngredientWithDetails = CalculableProduct & {
-		id: string;
-		name: string;
-		source: 'local' | 'off';
-		imageUrl?: string | null;
-	};
+	import type { IngredientWithDetails } from '$lib/models/RecipeFormState.svelte';
 
 	let {
 		ingredients,
-		onUpdate,
+		onAdd,
+		onRemove,
+		onReorder,
 		errors
 	}: {
 		ingredients: IngredientWithDetails[];
-		onUpdate: (ingredients: IngredientWithDetails[]) => void;
+		onAdd: (ingredient: IngredientWithDetails) => void;
+		onRemove: (id: string) => void;
+		onReorder: (sourceIndex: number, targetIndex: number) => void;
 		errors?: string;
 	} = $props();
-
-	function handleAdd(newIngredient: IngredientWithDetails) {
-		if (!ingredients.some((ing) => ing.id === newIngredient.id)) {
-			onUpdate([...ingredients, newIngredient]);
-		}
-	}
 </script>
 
 <div class="space-y-2">
 	<Label>Añadir Ingrediente</Label>
-	<IngredientSearch onAdd={handleAdd} />
+	<IngredientSearch onAdd={onAdd} />
 </div>
 
-<IngredientsList {ingredients} onUpdate={onUpdate} {errors} />
+<IngredientsList {ingredients} onRemove={onRemove} onReorder={onReorder} {errors} />

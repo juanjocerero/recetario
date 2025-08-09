@@ -2,7 +2,7 @@ import { browser } from '$app/environment';
 import type { CalculableProduct } from '$lib/recipeCalculator';
 
 // --- Tipos ---
-type IngredientWithDetails = CalculableProduct & {
+export type IngredientWithDetails = CalculableProduct & {
 	id: string;
 	name: string;
 	source: 'local' | 'off';
@@ -95,13 +95,35 @@ export function createRecipeState(initialData: InitialData | null) {
 		}
 	}
 
+	function addIngredient(ingredient: IngredientWithDetails) {
+		if (!state.ingredients.some((i) => i.id === ingredient.id)) {
+			state.ingredients.push(ingredient);
+		}
+	}
+
+	function removeIngredient(id: string) {
+		state.ingredients = state.ingredients.filter((i) => i.id !== id);
+	}
+
+	function reorderIngredients(sourceIndex: number, targetIndex: number) {
+		const reordered = [...state.ingredients];
+		const [removed] = reordered.splice(sourceIndex, 1);
+		reordered.splice(targetIndex, 0, removed);
+		state.ingredients = reordered;
+	}
+
 	return {
 		get state() {
 			return state;
 		},
+		// Acciones de Pasos
 		addStep,
 		removeStep,
 		updateStepText,
+		// Acciones de Ingredientes
+		addIngredient,
+		removeIngredient,
+		reorderIngredients,
 
 		get initialFormState(): FormState {
 			return {

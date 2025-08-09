@@ -209,7 +209,9 @@
 
 			<IngredientManager
 				ingredients={formData.ingredients}
-				onUpdate={(newIngredients) => (formData.ingredients = newIngredients)}
+				onAdd={recipe.addIngredient}
+				onRemove={recipe.removeIngredient}
+				onReorder={recipe.reorderIngredients}
 				errors={form?.errors?.ingredients}
 			/>
 

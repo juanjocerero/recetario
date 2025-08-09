@@ -5,28 +5,19 @@
 	import { Table, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { GripVertical, Trash2 } from 'lucide-svelte';
 	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
-	import type { CalculableProduct } from '$lib/recipeCalculator';
-
-	type IngredientWithDetails = CalculableProduct & {
-		id: string;
-		name: string;
-		source: 'local' | 'off';
-		imageUrl?: string | null;
-	};
+	import type { IngredientWithDetails } from '$lib/models/RecipeFormState.svelte';
 
 	let {
 		ingredients,
-		onUpdate,
+		onRemove,
+		onReorder,
 		errors
 	}: {
 		ingredients: IngredientWithDetails[];
-		onUpdate: (ingredients: IngredientWithDetails[]) => void;
+		onRemove: (id: string) => void;
+		onReorder: (sourceIndex: number, targetIndex: number) => void;
 		errors?: string;
 	} = $props();
-
-	function removeIngredient(id: string) {
-		onUpdate(ingredients.filter((ing) => ing.id !== id));
-	}
 
 	function handleDrop(state: DragDropState<IngredientWithDetails>) {
 		const { draggedItem, targetElement } = state;
@@ -37,11 +28,7 @@
 		const targetIndex = Array.from(targetRow.parentElement.children).indexOf(targetRow);
 		if (sourceIndex === -1 || targetIndex === -1) return;
 
-		const reorderedIngredients = [...ingredients];
-		const [removed] = reorderedIngredients.splice(sourceIndex, 1);
-		reorderedIngredients.splice(targetIndex, 0, removed);
-
-		onUpdate(reorderedIngredients);
+		onReorder(sourceIndex, targetIndex);
 	}
 </script>
 
@@ -74,7 +61,7 @@
 					<TableCell>
 						<Input
 							type="number"
-							bind:value={ingredient.quantity}
+							bind:value={ingredient.quantity} 
 							min="0.1"
 							step="any"
 							class="w-full hide-arrows"
@@ -86,7 +73,7 @@
 							variant="destructive"
 							size="icon"
 							data-quitar-btn
-							onclick={() => removeIngredient(ingredient.id)}
+							onclick={() => onRemove(ingredient.id)}
 							aria-label="Quitar ingrediente"
 						>
 							<Trash2 class="h-4 w-4" />
