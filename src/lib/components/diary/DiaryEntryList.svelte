@@ -7,6 +7,7 @@
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import EditEntryDialog from './EditEntryDialog.svelte';
+	import { Separator } from '$lib/components/ui/separator';
 
 	let { entries, onDelete }: {
 		entries: DiaryEntry[];
@@ -17,6 +18,29 @@
 	let entryToDelete = $state<DiaryEntry | null>(null);
 	let isEditDialogOpen = $state(false);
 	let isDeleteDialogOpen = $state(false);
+
+	const groupedEntriesArray = $derived(() => {
+		const map = new Map<string, DiaryEntry[]>();
+		for (const entry of entries) {
+			// Normalizamos la fecha a medianoche en UTC para agrupar correctamente
+			const date = new Date(entry.date);
+			const dateKey = new Date(
+				date.getUTCFullYear(),
+				date.getUTCMonth(),
+				date.getUTCDate()
+			).toISOString();
+
+			if (!map.has(dateKey)) {
+				map.set(dateKey, []);
+			}
+			map.get(dateKey)!.push(entry);
+		}
+		return Array.from(map.entries());
+	});
+
+	const dateFormatter = new Intl.DateTimeFormat('es-ES', {
+		dateStyle: 'full'
+	});
 
 	function handleOpenEditDialog(entry: DiaryEntry) {
 		selectedEntry = entry;
@@ -58,39 +82,55 @@
 	}
 </script>
 
-<div class="space-y-3">
-	{#each entries as entry (entry.id)}
-		<div class="flex flex-col md:flex-row items-start md:items-center gap-4 rounded-lg border p-3 bg-card">
-			<!-- Nombre y cantidad (apilable) -->
-			<div class="flex-1 min-w-0">
-				<p class="font-semibold whitespace-normal">{entry.name}</p>
-				<p class="text-sm text-muted-foreground">
-					{entry.quantity.toFixed(0)}g &bull; {entry.calories.toFixed(0)} kcal
-				</p>
-			</div>
+<div class="space-y-4">
+	{#if entries.length > 0}
+		{#each groupedEntriesArray() as [dateKey, dayEntries] (dateKey)}
+			<div class="day-group pt-4 pb-4">
+				<div class="flex items-center gap-4 mb-3">
+					<h3 class="text-lg font-semibold whitespace-nowrap">
+						{dateFormatter.format(new Date(dateKey))}
+					</h3>
+					<Separator class="flex-1" />
+				</div>
+				<div class="space-y-3">
+					{#each dayEntries as entry (entry.id)}
+						<div
+							class="flex flex-row items-start md:items-center gap-4 rounded-lg border p-3 bg-card"
+						>
+							<!-- Nombre y cantidad (apilable) -->
+							<div class="flex-1 min-w-0">
+								<p class="font-semibold whitespace-normal">{entry.name}</p>
+								<p class="text-sm text-muted-foreground">
+									{entry.quantity.toFixed(0)}g &bull; {entry.calories.toFixed(0)} kcal
+								</p>
+							</div>
 
-			<!-- MacroBar (ocupa más espacio en pantallas grandes) -->
-			<div class="w-full md:w-64">
-				<MacroBar protein={entry.protein} carbs={entry.carbs} fat={entry.fat} />
-			</div>
+							<!-- MacroBar (ocupa más espacio en pantallas grandes) -->
+							<div class="w-40 md:w-64 flex-shrink-0">
+								<MacroBar protein={entry.protein} carbs={entry.carbs} fat={entry.fat} />
+							</div>
 
-			<!-- Botones de acción -->
-			<div class="flex gap-2 self-end md:self-center">
-				<Button onclick={() => handleOpenEditDialog(entry)} variant="ghost" size="icon">
-					<Pencil class="h-4 w-4" />
-					<span class="sr-only">Editar</span>
-				</Button>
-				<Button onclick={() => handleOpenDeleteDialog(entry)} variant="ghost" size="icon">
-					<Trash2 class="h-4 w-4" />
-					<span class="sr-only">Eliminar</span>
-				</Button>
+							<!-- Botones de acción -->
+							<div class="flex gap-2 self-end md:self-center">
+								<Button onclick={() => handleOpenEditDialog(entry)} variant="ghost" size="icon">
+									<Pencil class="h-4 w-4" />
+									<span class="sr-only">Editar</span>
+								</Button>
+								<Button onclick={() => handleOpenDeleteDialog(entry)} variant="ghost" size="icon">
+									<Trash2 class="h-4 w-4" />
+									<span class="sr-only">Eliminar</span>
+								</Button>
+							</div>
+						</div>
+					{/each}
+				</div>
 			</div>
-		</div>
+		{/each}
 	{:else}
 		<p class="text-center text-muted-foreground py-8">
 			No hay entradas para la fecha seleccionada.
 		</p>
-	{/each}
+	{/if}
 </div>
 
 <!-- Diálogo de Edición -->
