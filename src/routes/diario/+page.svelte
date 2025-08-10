@@ -168,9 +168,9 @@
 <div class="container mx-auto p-4 md:py-8 md:px-24">
 	<h1 class="text-3xl font-bold mb-6">Diario de Consumo</h1>
 
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+	<div class="flex flex-col lg:flex-row gap-8">
 		<!-- Columna principal (2/3) -->
-		<div class="lg:col-span-2">
+		<div class="lg:w-2/3 order-2 lg:order-1">
 			<!-- Selector de Fecha -->
 			<div class="mb-6">
 				<Popover.Root>
@@ -217,7 +217,7 @@
 		</div>
 
 		<!-- Columna lateral (1/3) -->
-		<div class="sticky top-4">
+		<div class="lg:w-1/3 order-1 lg:order-2 sticky top-4">
 			<NutritionalSummary
 				nutrients={aggregatedNutrients}
 				days={aggregatedNutrients.daysWithEntries}

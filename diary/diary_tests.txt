@@ -34,5 +34,5 @@
     *   [X] **Resultado Esperado:** La entrada debe desaparecer de la lista. El "Resumen Nutricional" debe actualizarse para reflejar la eliminación.
 
 **8. Verificación de la Búsqueda Avanzada (Refactorización)**
-    *   [ ] **Acción:** Navega a `/recetas/busqueda-avanzada`.
-    *   [ ] **Resultado Esperado:** La página debe funcionar correctamente. Los paneles de "Filtros" y "Ordenar por" deben ser desplegables y mantener su funcionalidad, confirmando que la refactorización para eliminar `CollapsiblePanel` fue exitosa.
+    *   [X] **Acción:** Navega a `/recetas/busqueda-avanzada`.
+    *   [X] **Resultado Esperado:** La página debe funcionar correctamente. Los paneles de "Filtros" y "Ordenar por" deben ser desplegables y mantener su funcionalidad, confirmando que la refactorización para eliminar `CollapsiblePanel` fue exitosa.

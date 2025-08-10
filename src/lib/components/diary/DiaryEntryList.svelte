@@ -60,17 +60,22 @@
 
 <div class="space-y-3">
 	{#each entries as entry (entry.id)}
-		<div class="flex items-center gap-4 rounded-lg border p-3 bg-card">
-			<div class="flex-1">
-				<p class="font-semibold">{entry.name}</p>
+		<div class="flex flex-col md:flex-row items-start md:items-center gap-4 rounded-lg border p-3 bg-card">
+			<!-- Nombre y cantidad (apilable) -->
+			<div class="flex-1 min-w-0">
+				<p class="font-semibold whitespace-normal">{entry.name}</p>
 				<p class="text-sm text-muted-foreground">
 					{entry.quantity.toFixed(0)}g &bull; {entry.calories.toFixed(0)} kcal
 				</p>
 			</div>
-			<div class="w-48">
+
+			<!-- MacroBar (ocupa más espacio en pantallas grandes) -->
+			<div class="w-full md:w-64">
 				<MacroBar protein={entry.protein} carbs={entry.carbs} fat={entry.fat} />
 			</div>
-			<div class="flex gap-2">
+
+			<!-- Botones de acción -->
+			<div class="flex gap-2 self-end md:self-center">
 				<Button onclick={() => handleOpenEditDialog(entry)} variant="ghost" size="icon">
 					<Pencil class="h-4 w-4" />
 					<span class="sr-only">Editar</span>
