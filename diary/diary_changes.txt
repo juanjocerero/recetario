@@ -1,0 +1,109 @@
+# Resumen de Cambios: Implementación de la Funcionalidad de Diario
+
+Este documento detalla el proceso de implementación de la funcionalidad de "Diario", incluyendo las decisiones de diseño, las correcciones realizadas y una lista completa de los ficheros afectados.
+
+## Razonamiento General
+
+El objetivo era construir una sección de diario de consumo siguiendo un plan predefinido. La implementación se dividió en hitos, comenzando por el backend (base de datos y API) y avanzando hacia la interfaz de usuario (componentes de Svelte) y la generación de datos de prueba (seeding). A lo largo del proceso, se priorizó la reutilización de componentes existentes, el seguimiento de la arquitectura del proyecto y la corrección de errores de tipado y patrones de código para asegurar una solución robusta y mantenible.
+
+---
+
+## Hito 1: Backend y Base de Datos
+
+### 1.1. Modelo de Base de Datos (`prisma/schema.prisma`)
+*   **Qué se hizo:** Se añadió el modelo `DiaryEntry` al esquema de Prisma. Este modelo incluye campos para la fecha, tipo de entrada (producto/receta), valores nutricionales y relaciones opcionales con los modelos `Product` y `Recipe`.
+*   **Razonamiento:** Este fue el primer paso fundamental para crear la estructura de datos necesaria. El diseño del modelo permite almacenar una "instantánea" de los datos nutricionales en el momento del registro, asegurando que los informes históricos no cambien si se modifica una receta o producto base.
+
+### 1.2. Migración y Servicios (`diaryService.ts`)
+*   **Qué se hizo:** Se ejecutó la migración de la base de datos y se creó el fichero `src/lib/server/services/diaryService.ts`.
+*   **Razonamiento:** Siguiendo la arquitectura existente, se centralizó toda la lógica de negocio relacionada con el diario en un único servicio. Esto mantiene los endpoints de la API limpios y la lógica de base de datos desacoplada.
+
+### 1.3. Endpoints de la API (`src/routes/api/...`)
+*   **Qué se hizo:** Se crearon los endpoints para `GET` (por fecha), `POST` (crear), `PUT` (actualizar) y `DELETE` (eliminar) entradas del diario. También se creó un endpoint de búsqueda unificada (`/api/search/all`) que combina resultados de productos y recetas.
+*   **Razonamiento:** Estos endpoints proporcionan la interfaz necesaria para que el frontend interactúe con el backend. La búsqueda unificada fue un requisito clave para el panel "Añadir Elemento", simplificando la lógica en el cliente.
+*   **Corrección:** Inicialmente, el endpoint de búsqueda no funcionaba porque estaba protegido por el hook de autenticación en `src/hooks.server.ts`. Se modificó el hook para añadir una excepción a esta ruta, permitiendo el acceso público.
+
+### 1.4. Extracción de Tipos (`src/lib/models/recipe.ts`)
+*   **Qué se hizo:** Se creó un nuevo fichero de modelo para extraer la definición del tipo `FullRecipe`.
+*   **Razonamiento:** Se detectó un error de arquitectura al intentar importar un tipo definido en un módulo de servidor (`recipeService.ts`) desde un componente de cliente. La solución correcta fue mover la definición del tipo a un fichero compartido en `$lib/models`, respetando la separación entre cliente y servidor de SvelteKit y creando una fuente única de verdad para el tipo.
+
+---
+
+## Hito 2: Interfaz de Usuario - Vista Principal
+
+### 2.1. Página del Diario (`src/routes/diario/...`)
+*   **Qué se hizo:** Se crearon los ficheros `+page.svelte` y `+page.server.ts` para la nueva ruta `/diario`.
+*   **Razonamiento:** Esto estableció la nueva sección en la aplicación. El `page.server.ts` se encarga de la carga inicial de datos para el día actual.
+
+### 2.2. Selector de Fecha y Componentes UI
+*   **Qué se hizo:** Se implementó un selector de rango de fechas usando `Popover` y `RangeCalendar`.
+*   **Razonamiento:** Proporciona la navegación principal de la página.
+*   **Corrección:** Se cometieron varios errores durante este paso que fueron corregidos gracias a las indicaciones:
+    1.  **Patrones Obsoletos:** Inicialmente se usaron patrones anticuados de `shadcn-svelte` (`asChild`, `let:builder`). Se corrigió para usar la composición directa de componentes, aplicando estilos al `Popover.Trigger`.
+    2.  **Componente Incorrecto:** Se usó `<Calendar>` en lugar de `<RangeCalendar>`, lo que causaba un error de tipos. Se reemplazó por el componente correcto para la selección de rangos.
+
+### 2.3. Lógica de Cálculo (`src/lib/utils.ts`)
+*   **Qué se hizo:** Se creó el componente `NutritionalSummary.svelte` y se centralizó la lógica de cálculo de nutrientes en una nueva función `calculateAggregatedNutrients` dentro de `src/lib/utils.ts`.
+*   **Razonamiento:** Inicialmente, la lógica de cálculo se duplicó en el servidor y el cliente. Para evitar esta redundancia y mejorar el mantenimiento, se extrajo a un fichero de utilidades compartido, accesible desde ambos entornos. Además, se refinó la lógica para que el promedio se calcule solo sobre los días que contienen entradas.
+
+### 2.4. Lista de Entradas (`DiaryEntryList.svelte`)
+*   **Qué se hizo:** Se creó un componente dedicado para renderizar la lista de entradas del diario, mostrando detalles y botones de acción.
+*   **Razonamiento:** Separa la responsabilidad de la visualización de la lista de la lógica principal de la página, haciendo el código más modular.
+
+---
+
+## Hito 3: Añadir y Editar Entradas
+
+### 3.1. Diálogo de Edición (`EditEntryDialog.svelte`)
+*   **Qué se hizo:** Se creó un nuevo diálogo genérico para editar tanto productos como recetas dentro del diario.
+*   **Razonamiento:** Aunque el plan inicial sugería refactorizar un diálogo existente, se optó por crear uno nuevo para no interferir con la funcionalidad ya existente en otras partes de la aplicación (la edición de cantidades de recetas en la página principal). Este nuevo diálogo está específicamente diseñado para trabajar con el modelo `DiaryEntry`.
+
+### 3.2. Panel de Adición (`AddItemPanel.svelte`)
+*   **Qué se hizo:** Se creó el panel desplegable con una barra de búsqueda que consume el endpoint `/api/search/all`.
+*   **Razonamiento:** Proporciona la UI principal para añadir nuevos elementos al diario.
+*   **Corrección:** Se volvió a usar un patrón obsoleto de `Collapsible`, que fue corregido para usar la composición de componentes adecuada.
+
+### 3.3. Lógica de Adición y Eliminación
+*   **Qué se hizo:** Se implementó la lógica en la página `/diario` para manejar la creación de nuevas entradas a través de la API. También se implementó la lógica de eliminación en el componente `DiaryEntryList`.
+*   **Razonamiento:** Conecta la interfaz de usuario con el backend, completando el ciclo de vida de la gestión de entradas.
+
+### 3.4. Correcciones de Tipado en el Backend
+*   **Qué se hizo:** Se corrigieron varios errores de tipado en `diaryService.ts`.
+*   **Razonamiento:** Los errores se debían a un manejo incorrecto de los tipos de Prisma, especialmente con valores nulos en campos JSON y la importación de `Prisma` como tipo en lugar de como valor. Se corrigió la importación a `import { Prisma, type DiaryEntry } ...` y se usó `Prisma.JsonNull` para asegurar la compatibilidad con la base de datos.
+
+---
+
+## Hito 4: Seeding de Datos
+
+### 4.1. Script de Seeding (`prisma/seed.ts`)
+*   **Qué se hizo:** Se añadió una nueva fase al script de seeding para poblar la tabla `DiaryEntry` con datos realistas para un rango de fechas.
+*   **Razonamiento:** Es crucial para poder probar la funcionalidad de la interfaz de usuario de manera efectiva sin tener que introducir todos los datos manualmente.
+*   **Corrección:** El script inicial tenía errores de tipado porque no distinguía correctamente entre los objetos de tipo `Product` y `Recipe`. Se solucionó usando una **unión discriminada** basada en el campo `type`, lo que permite a TypeScript inferir el tipo correcto dentro de cada bloque condicional.
+
+---
+
+## Lista de Ficheros Creados o Modificados
+
+### Ficheros Creados:
+- `src/lib/server/services/diaryService.ts`
+- `src/routes/api/diary/+server.ts`
+- `src/routes/api/diary/[id]/+server.ts`
+- `src/routes/api/diary/[...date]/+server.ts`
+- `src/routes/api/search/all/+server.ts`
+- `src/routes/diario/+page.server.ts`
+- `src/routes/diario/+page.svelte`
+- `src/lib/components/diary/NutritionalSummary.svelte`
+- `src/lib/components/diary/DiaryEntryList.svelte`
+- `src/lib/components/diary/EditEntryDialog.svelte`
+- `src/lib/components/diary/AddItemPanel.svelte`
+- `src/lib/models/recipe.ts`
+- `src/lib/schemas/diarySchema.ts`
+- `diary_changes.txt`
+
+### Ficheros Modificados:
+- `prisma/schema.prisma`
+- `src/hooks.server.ts`
+- `src/lib/utils.ts`
+- `src/lib/server/services/recipeService.ts`
+- `src/routes/recetas/busqueda-avanzada/+page.svelte`
+- `prisma/seed.ts`

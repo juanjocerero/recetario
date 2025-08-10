@@ -5,6 +5,7 @@ import { faker } from '@faker-js/faker';
 import { PrismaClient, type Product } from '@prisma/client';
 import slugify from 'slugify';
 import { normalizeText } from '../src/lib/utils';
+import { calculateNutritionalInfo } from '../src/lib/recipeCalculator';
 
 const prisma = new PrismaClient();
 
@@ -69,7 +70,8 @@ async function fetchAndCreateProduct(searchTerm: string): Promise<Product | null
 
 	const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
 		searchTerm
-	)}&search_simple=1&action=process&json=1&page_size=5`;
+	)}
+&search_simple=1&action=process&json=1&page_size=5`;
 
 	try {
 		const response = await fetch(searchUrl);
@@ -146,6 +148,7 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 async function main() {
 	console.log('--- Limpiando la base de datos... ---');
+	await prisma.diaryEntry.deleteMany();
 	await prisma.recipeIngredient.deleteMany();
 	await prisma.recipeUrl.deleteMany();
 	await prisma.recipe.deleteMany();
@@ -220,6 +223,98 @@ async function main() {
 		await delay(50);
 	}
 	console.log('✅ Fase 3 completada. 50 recetas creadas.');
+
+	console.log('\n--- Fase 4: Creando entradas de diario de prueba... ---');
+	const allRecipes = await prisma.recipe.findMany({
+		include: {
+			ingredients: {
+				include: {
+					product: true
+				}
+			}
+		}
+	});
+	const allProducts = await prisma.product.findMany();
+	const diaryItems = [
+		...allProducts.map((p) => ({ ...p, type: 'PRODUCT' as const })),
+		...allRecipes.map((r) => ({ ...r, type: 'RECIPE' as const }))
+	];
+
+	const userId = 'juanjocerero';
+
+	for (let day = 3; day <= 10; day++) {
+		const date = new Date(`2025-08-${String(day).padStart(2, '0')}`);
+		const numEntries = faker.number.int({ min: 5, max: 10 });
+		const selectedItems = faker.helpers.arrayElements(diaryItems, numEntries);
+
+		console.log(`[DIARIO] Creando ${numEntries} entradas para el ${date.toLocaleDateString('es-ES')}...`);
+
+		for (const item of selectedItems) {
+			const entryDate = new Date(date);
+			entryDate.setHours(
+				faker.number.int({ min: 8, max: 22 }),
+				faker.number.int({ min: 0, max: 59 })
+			);
+
+			if (item.type === 'PRODUCT') {
+				const quantity = faker.number.int({ min: 50, max: 250 });
+				await prisma.diaryEntry.create({
+					data: {
+						userId,
+						date: entryDate,
+						type: 'PRODUCT',
+						name: item.name,
+						quantity,
+						calories: (item.calories / 100) * quantity,
+						protein: (item.protein / 100) * quantity,
+						fat: (item.fat / 100) * quantity,
+						carbs: (item.carbs / 100) * quantity,
+						baseProductId: item.id
+					}
+				});
+			} else {
+				// RECIPE
+				const recipeIngredients = item.ingredients.map((ing) => ({
+					quantity: ing.quantity,
+					calories: ing.product.calories,
+					protein: ing.product.protein,
+					fat: ing.product.fat,
+					carbs: ing.product.carbs
+				}));
+				const totals = calculateNutritionalInfo(recipeIngredients);
+				const totalQuantity = recipeIngredients.reduce((sum, ing) => sum + ing.quantity, 0);
+
+				const ingredientsJson = item.ingredients.map((ing) => ({
+					id: ing.product.id,
+					name: ing.product.name,
+					quantity: ing.quantity,
+					baseValues: {
+						calories: ing.product.calories,
+						protein: ing.product.protein,
+						fat: ing.product.fat,
+						carbs: ing.product.carbs
+					}
+				}));
+
+				await prisma.diaryEntry.create({
+					data: {
+						userId,
+						date: entryDate,
+						type: 'RECIPE',
+						name: item.title,
+						quantity: totalQuantity,
+						calories: totals.totalCalories,
+						protein: totals.totalProtein,
+						fat: totals.totalFat,
+						carbs: totals.totalCarbs,
+						ingredients: ingredientsJson,
+						baseRecipeId: item.id
+					}
+				});
+			}
+		}
+	}
+	console.log('✅ Fase 4 completada. Entradas de diario creadas.');
 }
 
 main()

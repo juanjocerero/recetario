@@ -20,11 +20,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// 3. Endpoints de API públicos.
-	//    - Permite la búsqueda simple (GET a /api/recipes)
-	//    - Permite la búsqueda avanzada (POST a /api/recipes/search)
 	if (
 		(pathname.startsWith('/api/recipes') && event.request.method === 'GET') ||
-		(pathname === '/api/recipes/search' && event.request.method === 'POST')
+		(pathname === '/api/recipes/search' && event.request.method === 'POST') ||
+		(pathname === '/api/search/all' && event.request.method === 'GET')
 	) {
 		return resolve(event);
 	}

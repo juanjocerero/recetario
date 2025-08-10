@@ -24,6 +24,7 @@ model Product {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   recipeIngredients RecipeIngredient[]
+  diaryEntries      DiaryEntry[]
 
   @@index([normalizedName])
 }
@@ -39,6 +40,7 @@ model Recipe {
   updatedAt       DateTime           @updatedAt
   ingredients     RecipeIngredient[]
   urls            RecipeUrl[]
+  diaryEntries    DiaryEntry[]
 
   @@index([normalizedTitle])
   @@index([slug])
@@ -64,4 +66,27 @@ model RecipeIngredient {
 
   @@index([recipeId])
   @@index([productId])
+}
+
+model DiaryEntry {
+  id            String    @id @default(cuid())
+  date          DateTime
+  userId        String?
+  type          String // "PRODUCT" or "RECIPE"
+  name          String
+  quantity      Float
+  calories      Float
+  protein       Float
+  fat           Float
+  carbs         Float
+  ingredients   Json?
+  baseProduct   Product?  @relation(fields: [baseProductId], references: [id], onDelete: SetNull)
+  baseProductId String?
+  baseRecipe    Recipe?   @relation(fields: [baseRecipeId], references: [id], onDelete: SetNull)
+  baseRecipeId  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([date])
 }

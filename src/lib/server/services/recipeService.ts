@@ -3,21 +3,9 @@ import prisma from '$lib/server/prisma';
 import { Prisma } from '@prisma/client';
 import type { SearchFilters as ZodSearchFilters } from '$lib/schemas/searchSchema';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
+import { recipeInclude, type FullRecipe } from '$lib/models/recipe';
 import { generateUniqueSlug } from '$lib/server/slug';
 import { normalizeText } from '$lib/utils';
-
-const recipeInclude = {
-	ingredients: {
-		include: {
-			product: true
-		}
-	},
-	urls: true
-};
-
-type FullRecipe = Prisma.RecipeGetPayload<{
-	include: typeof recipeInclude;
-}>;
 
 // --- Tipos para Búsqueda Avanzada ---
 export type MacroFilter = {
@@ -138,29 +126,56 @@ export const recipeService = {
 	},
 
 	async findPaginated(searchTerm: string | null, limit: number, offset: number) {
-		const normalizedSearchTerm = searchTerm ? normalizeText(searchTerm) : undefined;
-		const whereClause: Prisma.RecipeWhereInput = normalizedSearchTerm
-			? {
-					OR: [
-						{ normalizedTitle: { contains: normalizedSearchTerm } },
-						{
-							ingredients: {
-								some: {
-									product: { normalizedName: { contains: normalizedSearchTerm } }
-								}
-							}
-						}
-					]
-				}
-			: {};
+		/*
+		 * NOTA: Se refactoriza la consulta para evitar duplicados.
+		 * La lógica anterior era una única consulta con un OR, que podía devolver duplicados
+		 * si una receta coincidía tanto por título como por ingrediente.
+		 */
 
-		return prisma.recipe.findMany({
-			where: whereClause,
+		const normalizedSearchTerm = searchTerm ? normalizeText(searchTerm) : undefined;
+		if (!normalizedSearchTerm) {
+			return prisma.recipe.findMany({
+				include: recipeInclude,
+				orderBy: { updatedAt: 'desc' },
+				take: limit,
+				skip: offset
+			});
+		}
+
+		// 1. Encontrar IDs que coincidan por título
+		const recipesByTitle = await prisma.recipe.findMany({
+			where: { normalizedTitle: { contains: normalizedSearchTerm } },
+			select: { id: true }
+		});
+
+		// 2. Encontrar IDs que coincidan por ingrediente
+		const recipesByIngredient = await prisma.recipe.findMany({
+			where: {
+				ingredients: {
+					some: {
+						product: { normalizedName: { contains: normalizedSearchTerm } }
+					}
+				}
+			},
+			select: { id: true }
+		});
+
+		// 3. Combinar y obtener IDs únicos
+		const allIds = [...recipesByTitle.map((r) => r.id), ...recipesByIngredient.map((r) => r.id)];
+		const uniqueIds = [...new Set(allIds)];
+
+		// 4. Obtener las recetas completas para los IDs únicos con paginación
+		const recipes = await prisma.recipe.findMany({
+			where: { id: { in: uniqueIds } },
 			include: recipeInclude,
 			orderBy: { updatedAt: 'desc' },
 			take: limit,
 			skip: offset
 		});
+
+		// WORKAROUND: Forzar la unicidad en JS para mitigar un posible bug de Prisma
+		// que devuelve duplicados incluso cuando se consulta por IDs únicos.
+		return Array.from(new Map(recipes.map((r) => [r.id, r])).values());
 	},
 
 	async findAdvanced(filters: AdvancedSearchFilters): Promise<FullRecipe[]> {
@@ -193,7 +208,7 @@ export const recipeService = {
 		`;
 
 		const selectClause = Prisma.sql`
-			SELECT r.id, r.title, r.imageUrl
+			SELECT r.id, r.title, r."imageUrl"
 			FROM "Recipe" r
 			JOIN "RecipePercentages" rt ON r.id = rt."recipeId"
 		`;
