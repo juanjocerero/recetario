@@ -7,7 +7,6 @@ import { createFailResponse } from '$lib/server/zodErrors';
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const query = url.searchParams.get('q');
-		console.log(`[Search All] Received query: "${query}"`);
 
 		if (!query || query.length < 2) {
 			return json(
@@ -22,16 +21,11 @@ export const GET: RequestHandler = async ({ url }) => {
 			recipeService.findPaginated(query, 20, 0) // Limitamos a 20 recetas por ahora
 		]);
 
-		console.log(`[Search All] Found ${products.length} products.`);
-		console.log(`[Search All] Found ${recipes.length} recipes.`);
-
 		// Añadimos un campo 'type' para poder distinguirlos en el frontend
 		const combinedResults = [
 			...products.map((p) => ({ ...p, type: 'PRODUCT' })),
 			...recipes.map((r) => ({ ...r, type: 'RECIPE' }))
 		];
-
-		console.log(`[Search All] Total combined results: ${combinedResults.length}`);
 
 		// Ordenamos alfabéticamente por nombre/título
 		combinedResults.sort((a, b) => {

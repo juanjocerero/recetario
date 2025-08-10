@@ -1,12 +1,12 @@
 ### **Plan de Pruebas Manuales: Funcionalidad de Diario**
 
 **1. Verificación de la Vista Principal y Carga de Datos**
-    *   [ ] **Acción:** Navega a la ruta `/diario`.
-    *   [ ] **Resultado Esperado:** La página debe cargar sin errores. Deberías ver el título "Diario de Consumo", el selector de fecha (inicializado en la fecha actual), el panel "Añadir Elemento" y el panel de "Resumen Nutricional". La lista de entradas debe mostrar "No hay entradas para la fecha seleccionada", ya que el seed no crea entradas para el día de hoy.
+    *   [X] **Acción:** Navega a la ruta `/diario`.
+    *   [X] **Resultado Esperado:** La página debe cargar sin errores. Deberías ver el título "Diario de Consumo", el selector de fecha (inicializado en la fecha actual), el panel "Añadir Elemento" y el panel de "Resumen Nutricional". La lista de entradas debe mostrar "No hay entradas para la fecha seleccionada", ya que el seed no crea entradas para el día de hoy.
 
 **2. Verificación del Selector de Fecha y Datos de Prueba**
-    *   [ ] **Acción:** Haz clic en el selector de fecha y elige un rango entre el 3 y el 10 de agosto de 2025.
-    *   [ ] **Resultado Esperado:** La lista de "Entradas del Periodo" debería llenarse con los datos generados por el script de seeding. El "Resumen Nutricional" debería actualizarse y mostrar los totales y promedios para el rango seleccionado. El número de días en el título del resumen debe coincidir con los días que tienen entradas.
+    *   [X] **Acción:** Haz clic en el selector de fecha y elige un rango entre el 3 y el 10 de agosto de 2025.
+    *   [X] **Resultado Esperado:** La lista de "Entradas del Periodo" debería llenarse con los datos generados por el script de seeding. El "Resumen Nutricional" debería actualizarse y mostrar los totales y promedios para el rango seleccionado. El número de días en el título del resumen debe coincidir con los días que tienen entradas.
 
 **3. Funcionalidad de Añadir un Producto**
     *   [ ] **Acción:** En el panel "Añadir Elemento", despliégalo y busca un producto existente (ej. "Atún").

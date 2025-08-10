@@ -51,13 +51,11 @@
 		const endDateStr = end.toISOString().split('T')[0];
 
 		const apiUrl = `/api/diary/${startDateStr}/${endDateStr}`;
-		console.log('[Frontend] Fetching entries from:', apiUrl); // LOG DEPURACIÓN
 
 		try {
 			const response = await fetch(apiUrl);
 			if (response.ok) {
 				entries = await response.json();
-				console.log(`[Frontend] Received ${entries.length} entries.`); // LOG DEPURACIÓN
 			} else {
 				console.error('[Frontend] Error fetching entries:', await response.text());
 				entries = [];

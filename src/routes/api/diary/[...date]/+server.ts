@@ -6,7 +6,6 @@ import { createFailResponse } from '$lib/server/zodErrors';
 export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const dateParam = params.date;
-		console.log(`[API Endpoint] Received date parameter: "${dateParam}"`); // LOG DEPURACIÓN
 
 		if (!dateParam) {
 			return json(createFailResponse('Parámetro de fecha no proporcionado'), { status: 400 });
@@ -28,10 +27,8 @@ export const GET: RequestHandler = async ({ params }) => {
 		// Reemplazar este valor hardcodeado con el ID del usuario autenticado
 		// obtenido de `locals.user.id`.
 		const userId = 'juanjocerero';
-		console.log(`[API Endpoint] Parsed dates: START=${startDate.toISOString()} | END=${endDate.toISOString()} | USER=${userId}`); // LOG DEPURACIÓN
 
 		const entries = await diaryService.getDiaryEntries(userId, startDate, endDate);
-		console.log(`[API Endpoint] Found ${entries.length} entries for user.`); // LOG DEPURACIÓN
 		return json(entries);
 	} catch (error) {
 		console.error('Error fetching diary entries:', error);
