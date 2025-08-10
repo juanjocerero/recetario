@@ -144,6 +144,22 @@
 		}
 	}
 
+	async function handleDeleteEntry(entryToDelete: DiaryEntry) {
+		try {
+			const response = await fetch(`/api/diary/${entryToDelete.id}`, {
+				method: 'DELETE'
+			});
+
+			if (response.ok) {
+				entries = entries.filter((e) => e.id !== entryToDelete.id);
+			} else {
+				console.error('Error al eliminar la entrada:', await response.text());
+			}
+		} catch (error) {
+			console.error('Error de red al eliminar:', error);
+		}
+	}
+
 	$effect(() => {
 		fetchEntries(value);
 	});
@@ -195,7 +211,7 @@
 				{#if isLoading}
 					<p class="text-center text-muted-foreground py-8">Cargando...</p>
 				{:else}
-					<DiaryEntryList {entries} />
+					<DiaryEntryList {entries} onDelete={handleDeleteEntry} />
 				{/if}
 			</div>
 		</div>

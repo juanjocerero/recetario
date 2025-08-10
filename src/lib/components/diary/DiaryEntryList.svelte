@@ -3,18 +3,36 @@
 	import type { DiaryEntry } from '@prisma/client';
 	import MacroBar from '$lib/components/shared/MacroBar.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import EditEntryDialog from './EditEntryDialog.svelte';
 
-	let { entries }: { entries: DiaryEntry[] } = $props();
+	let { entries, onDelete }: {
+		entries: DiaryEntry[];
+		onDelete: (entry: DiaryEntry) => void;
+	} = $props();
 
 	let selectedEntry = $state<DiaryEntry | null>(null);
+	let entryToDelete = $state<DiaryEntry | null>(null);
 	let isEditDialogOpen = $state(false);
+	let isDeleteDialogOpen = $state(false);
 
 	function handleOpenEditDialog(entry: DiaryEntry) {
 		selectedEntry = entry;
 		isEditDialogOpen = true;
+	}
+
+	function handleOpenDeleteDialog(entry: DiaryEntry) {
+		entryToDelete = entry;
+		isDeleteDialogOpen = true;
+	}
+
+	function confirmDelete() {
+		if (entryToDelete) {
+			onDelete(entryToDelete);
+		}
+		isDeleteDialogOpen = false;
 	}
 
 	async function handleSave(updatedEntry: DiaryEntry) {
@@ -38,26 +56,6 @@
 			console.error('Error de red al actualizar:', error);
 		}
 	}
-
-	async function handleDelete(entryToDelete: DiaryEntry) {
-		if (!confirm(`¿Estás seguro de que quieres eliminar "${entryToDelete.name}"?`)) {
-			return;
-		}
-
-		try {
-			const response = await fetch(`/api/diary/${entryToDelete.id}`, {
-				method: 'DELETE'
-			});
-
-			if (response.ok) {
-				entries = entries.filter((e) => e.id !== entryToDelete.id);
-			} else {
-				console.error('Error al eliminar la entrada:', await response.text());
-			}
-		} catch (error) {
-			console.error('Error de red al eliminar:', error);
-		}
-	}
 </script>
 
 <div class="space-y-3">
@@ -77,7 +75,7 @@
 					<Pencil class="h-4 w-4" />
 					<span class="sr-only">Editar</span>
 				</Button>
-				<Button onclick={() => handleDelete(entry)} variant="ghost" size="icon">
+				<Button onclick={() => handleOpenDeleteDialog(entry)} variant="ghost" size="icon">
 					<Trash2 class="h-4 w-4" />
 					<span class="sr-only">Eliminar</span>
 				</Button>
@@ -90,9 +88,27 @@
 	{/each}
 </div>
 
+<!-- Diálogo de Edición -->
 <EditEntryDialog
 	entry={selectedEntry}
 	bind:open={isEditDialogOpen}
 	onOpenChange={(isOpen) => (isEditDialogOpen = isOpen)}
 	onSave={handleSave}
 />
+
+<!-- Diálogo de Confirmación de Eliminación -->
+<AlertDialog.Root bind:open={isDeleteDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>¿Estás seguro?</AlertDialog.Title>
+			<AlertDialog.Description>
+				Esta acción no se puede deshacer. Se eliminará permanentemente la entrada
+				"{entryToDelete?.name}" de tu diario.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+			<AlertDialog.Action onclick={confirmDelete}>Eliminar</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
