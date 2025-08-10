@@ -1,7 +1,7 @@
 <!-- Ruta: src/lib/components/diary/NutritionalSummary.svelte -->
 <script lang="ts">
 	import MacroBar from '$lib/components/shared/MacroBar.svelte';
-	import type { AggregatedNutrients } from '$lib/server/services/diaryService';
+	import type { AggregatedNutrients } from '$lib/utils';
 
 	let {
 		nutrients,
@@ -19,7 +19,11 @@
 		<div class="p-4 border rounded-lg bg-muted/50">
 			<div class="flex justify-between items-baseline mb-2">
 				<span class="text-sm font-medium">Calorías</span>
-				<span class="text-lg font-bold">{nutrients.total.calories.toFixed(0)} kcal</span>
+				<span class="text-lg font-bold"
+					>{nutrients.total.calories.toLocaleString('es-ES', {
+						maximumFractionDigits: 0
+					})} kcal</span
+				>
 			</div>
 			<MacroBar
 				protein={nutrients.total.protein}
@@ -36,7 +40,11 @@
 			<div class="p-4 border rounded-lg bg-muted/50">
 				<div class="flex justify-between items-baseline mb-2">
 					<span class="text-sm font-medium">Calorías</span>
-					<span class="text-lg font-bold">{nutrients.average.calories.toFixed(0)} kcal</span>
+					<span class="text-lg font-bold"
+						>{nutrients.average.calories.toLocaleString('es-ES', {
+							maximumFractionDigits: 0
+						})} kcal</span
+					>
 				</div>
 				<MacroBar
 					protein={nutrients.average.protein}

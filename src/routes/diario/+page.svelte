@@ -170,14 +170,14 @@
 
 	<div class="flex flex-col lg:flex-row gap-8">
 		<!-- Columna principal (2/3) -->
-		<div class="lg:w-2/3 order-2 lg:order-1">
+		<div class="lg:w-2/3 order-1 lg:order-1">
 			<!-- Selector de Fecha -->
 			<div class="mb-6">
 				<Popover.Root>
 					<Popover.Trigger
 						class={cn(
 							buttonVariants({ variant: 'outline' }),
-							'w-[360px] justify-start text-left font-normal',
+							'w-full lg:w-[360px] justify-start text-left font-normal h-11',
 							!value && 'text-muted-foreground'
 						)}
 					>
@@ -217,7 +217,7 @@
 		</div>
 
 		<!-- Columna lateral (1/3) -->
-		<div class="lg:w-1/3 order-1 lg:order-2 sticky top-4">
+		<div class="lg:w-1/3 order-2 lg:order-2 lg:sticky top-4">
 			<NutritionalSummary
 				nutrients={aggregatedNutrients}
 				days={aggregatedNutrients.daysWithEntries}
