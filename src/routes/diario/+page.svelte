@@ -46,18 +46,21 @@
 		isLoading = true;
 		entries = []; // Clear previous results immediately to show skeletons
 
-		const start = range.start.toDate(getLocalTimeZone());
-		const end = range.end?.toDate(getLocalTimeZone()) ?? start;
-
-		const startDateStr = start.toISOString().split('T')[0];
-		const endDateStr = end.toISOString().split('T')[0];
+		// FIX: Build date string manually to avoid timezone issues
+		const start = range.start;
+		const end = range.end ?? start;
+		const startDateStr = `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`;
+		const endDateStr = `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`;
 
 		const apiUrl = `/api/diary/${startDateStr}/${endDateStr}`;
+		console.log(`[DEBUG] Fetching entries from: ${apiUrl}`);
 
 		try {
-			const response = await fetch(apiUrl);
+			const response = await fetch(apiUrl, { cache: 'no-store' }); // Evitar caché
 			if (response.ok) {
-				entries = await response.json();
+				const data = await response.json();
+				console.log('[DEBUG] Raw data received from fetchEntries:', data);
+				entries = data;
 			} else {
 				console.error('[Frontend] Error fetching entries:', await response.text());
 			}
@@ -68,13 +71,8 @@
 		}
 	}
 
-	async function handleAddItem(item: SearchResult) {
-		const selectedDate = value?.start?.toDate(getLocalTimeZone());
-		if (!selectedDate) {
-			// No debería ocurrir si el calendario siempre tiene un valor, pero es una buena guarda.
-			console.error('No hay una fecha seleccionada para añadir la entrada.');
-			return;
-		}
+	async function handleAddItem({ item, date }: { item: SearchResult; date: Date }) {
+		const selectedDate = date;
 
 		let newEntryData: Omit<NewDiaryEntryData, 'userId'>;
 
@@ -134,8 +132,9 @@
 
 			if (response.ok) {
 				const savedEntry = await response.json();
-				entries.push(savedEntry);
-				entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+				console.log('[DEBUG] Entry saved successfully:', savedEntry);
+				console.log('[DEBUG] Now refetching entries...');
+				await fetchEntries(value);
 			} else {
 				console.error('Error al guardar la entrada:', await response.text());
 			}

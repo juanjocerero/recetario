@@ -32,12 +32,11 @@
 		if (entries.length === 0) return [];
 		const map = new Map<string, DiaryEntry[]>();
 		for (const entry of entries) {
-			const date = new Date(entry.date);
-			const dateKey = new Date(
-				date.getUTCFullYear(),
-				date.getUTCMonth(),
-				date.getUTCDate()
-			).toISOString();
+			const localDate = new Date(entry.date);
+			const year = localDate.getFullYear();
+			const month = String(localDate.getMonth() + 1).padStart(2, '0');
+			const day = String(localDate.getDate()).padStart(2, '0');
+			const dateKey = `${year}-${month}-${day}`; // Key is "YYYY-MM-DD" in local time
 
 			if (!map.has(dateKey)) {
 				map.set(dateKey, []);
@@ -145,7 +144,7 @@
 				<div class="day-group pt-4 pb-4">
 					<div class="flex items-center gap-4 mb-3">
 						<h3 class="text-lg font-semibold whitespace-nowrap">
-							{dateFormatter.format(new Date(dateKey))}
+							{dateFormatter.format(new Date(dateKey + 'T00:00:00'))}
 						</h3>
 						<Separator class="flex-1" />
 					</div>
