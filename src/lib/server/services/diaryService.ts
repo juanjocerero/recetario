@@ -31,6 +31,7 @@ export const diaryService = {
 		startDate: Date,
 		endDate: Date
 	): Promise<DiaryEntry[]> {
+		console.log(`[DB Service] Querying DB for userId: "${userId}" between ${startDate.toISOString()} and ${endDate.toISOString()}`); // LOG DEPURACIÓN
 		return prisma.diaryEntry.findMany({
 			where: {
 				userId,

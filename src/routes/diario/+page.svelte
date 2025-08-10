@@ -34,6 +34,12 @@
 
 	let aggregatedNutrients = $derived(calculateAggregatedNutrients(entries));
 
+	let selectedDays = $derived(
+		value?.end && value.start
+			? Math.round((value.end.toDate(getLocalTimeZone()).getTime() - value.start.toDate(getLocalTimeZone()).getTime()) / (1000 * 60 * 60 * 24)) + 1
+			: 1
+	);
+
 	async function fetchEntries(range: DateRange | undefined) {
 		if (!range?.start) return;
 
@@ -44,16 +50,20 @@
 		const startDateStr = start.toISOString().split('T')[0];
 		const endDateStr = end.toISOString().split('T')[0];
 
+		const apiUrl = `/api/diary/${startDateStr}/${endDateStr}`;
+		console.log('[Frontend] Fetching entries from:', apiUrl); // LOG DEPURACIÓN
+
 		try {
-			const response = await fetch(`/api/diary/${startDateStr}/${endDateStr}`);
+			const response = await fetch(apiUrl);
 			if (response.ok) {
 				entries = await response.json();
+				console.log(`[Frontend] Received ${entries.length} entries.`); // LOG DEPURACIÓN
 			} else {
-				console.error('Error fetching entries:', await response.text());
+				console.error('[Frontend] Error fetching entries:', await response.text());
 				entries = [];
 			}
 		} catch (error) {
-			console.error('Fetch error:', error);
+			console.error('[Frontend] Fetch error:', error);
 			entries = [];
 		} finally {
 			isLoading = false;
