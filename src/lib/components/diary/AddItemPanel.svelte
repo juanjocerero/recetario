@@ -100,7 +100,7 @@
 								No se encontraron resultados.
 							{/if}
 						</Command.Empty>
-						{#each searchResults as item (item.id)}
+						{#each searchResults as item (`${item.type}-${item.id}`)}
 							<Command.Item
 								onSelect={() => handleSelect(item)}
 								value={item.type === 'PRODUCT' ? item.name : item.title}
