@@ -206,10 +206,7 @@
 			</div>
 
 			<!-- Lista de entradas -->
-			<div class="p-4 border rounded-lg bg-card text-card-foreground">
-				<h2 class="text-xl font-semibold mb-4">Entradas del Periodo</h2>
-				<DiaryEntryList {entries} {isLoading} onDelete={handleDeleteEntry} />
-			</div>
+			<DiaryEntryList {entries} {isLoading} onDelete={handleDeleteEntry} />
 		</div>
 
 		<!-- Columna lateral (1/3) -->
