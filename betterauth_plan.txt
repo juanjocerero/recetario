@@ -51,10 +51,10 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
         2.  Importar `hashPassword` de `better-auth/password`.
         3.  Añadir la lógica para crear dos usuarios:
             *   Un usuario `ADMIN` con email `juanjocerero@gmail.com`.
-            *   Un usuario `USER` con email `test@example.com`.
+            *   Un usuario `USER` con email `ana.14mp@hotmail.com`.
         4.  Asignar contraseñas seguras pero conocidas para el entorno de desarrollo y hashearlas con `hashPassword` antes de guardarlas.
     *   **Justificación:** Se asegura que la base de datos de desarrollo siempre tenga los usuarios necesarios para las pruebas funcionales y de permisos, con contraseñas seguras.
-    *   **Verificación:** Detenerse y ejecutar `npx prisma db seed`. Confirmar que el script se ejecuta sin errores y que los nuevos usuarios se han creado en la base de datos.
+    *   **Verificación:** Detenerse y ejecutar `npx prisma db seed`. Confirmar que el script se ejecuta sin errores y que los nuevos usuarios se han creado en la base de datos. Informa al usuario de cuáles son las contraseñas creadas para cada uno de los usuarios.
 
 ---
 
@@ -63,12 +63,12 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
 **Objetivo:** Configurar y poner en marcha la lógica de servidor de Better Auth.
 
 *   **Paso 4.1: Configurar variables de entorno.**
-    *   **Acción:** Editar el fichero `.env.example` y añadir las siguientes variables: `BETTER_AUTH_SECRET=""` y `BETTER_AUTH_URL="http://localhost:5173"`. Crear un fichero `.env` a partir del ejemplo si no existe y generar un secreto para `BETTER_AUTH_SECRET`.
+    *   **Acción:** Editar el fichero `.env.example` y añadir las siguientes variables: `BETTER_AUTH_SECRET=""` y `BETTER_AUTH_URL="http://localhost:5173"`. Instar al usuario a modificar el fichero `.env` a partir del ejemplo y generar un secreto para `BETTER_AUTH_SECRET`.
     *   **Justificación:** Better Auth requiere un secreto para firmar tokens y una URL base para construir las URLs de callback.
     *   **Verificación:** Detenerse y asegurarse de que las variables están presentes en `.env.example` y configuradas en el fichero `.env` local.
 
 *   **Paso 4.2: Crear el fichero de configuración de Better Auth.**
-    *   **Acción:** Crear un nuevo fichero en `src/lib/server/auth.ts`. En este fichero, se configurará la instancia de Better Auth usando el adaptador de Prisma (`prismaAdapter`) y se habilitará el proveedor de `emailAndPassword`.
+    *   **Acción:** Crear un nuevo fichero en `src/lib/server/auth.ts` o modificar el ya existente. En este fichero, se configurará la instancia de Better Auth usando el adaptador de Prisma (`prismaAdapter`) y se habilitará el proveedor de `emailAndPassword`.
     *   **Justificación:** Centraliza toda la configuración de autenticación del lado del servidor en un único módulo, siguiendo las mejores prácticas.
     *   **Verificación:** Detenerse y revisar que el fichero `src/lib/server/auth.ts` se ha creado y exporta correctamente la instancia `auth`.
 
@@ -94,7 +94,7 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
     *   **Verificación:** Detenerse, iniciar la aplicación y probar a iniciar sesión con el usuario de prueba. Comprobar las peticiones de red en el navegador para ver la llamada a `/api/auth/email/signin`.
 
 *   **Paso 5.2: Crear la página de registro.**
-    *   **Acción:** Crear los ficheros `src/routes/signup/+page.svelte` y, si es necesario, `+page.server.ts`. El Svelte component contendrá un formulario similar al de login, pero llamará a `authClient.signUp.email(...)`.
+    *   **Acción:** Crear los ficheros `src/routes/signup/+page.svelte` y, si es necesario, `+page.server.ts`. El Svelte component contendrá un formulario similar al de login, pero llamará a `authClient.signUp.email(...)`. Pedir al usuario un ejemplo de código de una página o componente similar para usar el diseño como guía de implementación. Por defecto, simular la vista de login.
     *   **Justificación:** Se proporciona a los nuevos usuarios una forma de registrarse en la aplicación.
     *   **Verificación:** Detenerse y probar el flujo de registro creando un nuevo usuario.
 
@@ -112,16 +112,16 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
 **Objetivo:** Eliminar el código obsoleto y realizar una comprobación final completa.
 
 *   **Paso 6.1: Eliminar código de autenticación antiguo.**
-    *   **Acción:** Buscar y eliminar cualquier fichero o fragmento de código relacionado con la implementación anterior (Lucia) que ya no se utilice. Esto incluye ficheros de configuración, adaptadores o utilidades.
+    *   **Acción:** Buscar y eliminar cualquier fichero o fragmento de código relacionado con la implementación anterior que ya no se utilice. Esto incluye ficheros de configuración, adaptadores o utilidades.
     *   **Justificación:** Mantiene la base de código limpia, legible y libre de código muerto.
-    *   **Verificación:** Detenerse y realizar una búsqueda global de "lucia" o nombres de ficheros relacionados para asegurar que todo ha sido eliminado.
+    *   **Verificación:** Detenerse y realizar una búsqueda global de elementos relacionados para asegurar que todo ha sido eliminado.
 
 *   **Paso 6.2: Realizar pruebas funcionales completas.**
-    *   **Acción:**
+    *   **Acción: Pedir al usuario:**
         1.  Iniciar la aplicación desde cero.
         2.  Registrar un nuevo usuario.
         3.  Cerrar sesión.
-        4.  Iniciar sesión con el usuario `test@example.com`.
+        4.  Iniciar sesión con el usuario `ana.14mp@hotmail.com`.
         5.  Iniciar sesión con el usuario administrador `juanjocerero@gmail.com`.
         6.  Verificar que los roles se asignan y se pueden leer correctamente.
         7.  Intentar acceder a rutas protegidas sin estar autenticado.
