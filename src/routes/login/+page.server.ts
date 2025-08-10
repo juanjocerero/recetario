@@ -23,10 +23,6 @@ export const actions: Actions = {
 			return fail(500, { message: 'Error de configuración en el servidor' });
 		}
 
-		console.log('--- DEBUG LOGIN ---');
-		console.log('Password recibido:', password);
-		console.log('Hash desde .env:', env.ADMIN_PASSWORD_HASH);
-
 		const isAdminUser = user === 'juanjocerero';
 		const isPasswordValid = await comparePasswords(password, env.ADMIN_PASSWORD_HASH);
 
