@@ -165,7 +165,7 @@
 	});
 </script>
 
-<div class="container mx-auto p-4">
+<div class="container mx-auto p-4 md:py-8 md:px-24">
 	<h1 class="text-3xl font-bold mb-6">Diario de Consumo</h1>
 
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
