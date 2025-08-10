@@ -75,9 +75,12 @@
 		PercentFilters
 	} from '$lib/components/recipes/MacroFilters.svelte';
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';
-		import { CollapsiblePanel } from '$lib/components/ui/collapsible';
+	import * as Collapsible from '$lib/components/ui/collapsible';
+	import { buttonVariants } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import X from 'lucide-svelte/icons/x';
+	import ChevronsUpDown from 'lucide-svelte/icons/chevrons-up-down';
+	import { cn } from '$lib/utils';
 
 	type Ingredient = {
 		id: string;
@@ -331,48 +334,70 @@
 
 	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
 		<aside class="lg:col-span-1 space-y-6 sticky top-4">
-			<CollapsiblePanel title="Filtros" startOpen={isDesktop}>
-				<div class="space-y-6">
-					<div class="space-y-2">
-						<h3 class="text-lg font-semibold">Productos</h3>
-						<IngredientCombobox
-							onSelect={handleAddIngredient}
-							selectedIds={filters.selectedIngredients.map((i) => i.id)}
-							onClear={clearIngredients}
-						/>
-						<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
-							{#each filters.selectedIngredients as ingredient (ingredient.id)}
-								<Badge variant="secondary" class="flex items-center gap-2">
-									{ingredient.name}
-									<button
-										onclick={() => handleRemoveIngredient(ingredient.id)}
-										class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-									>
-										<X class="h-3 w-3" />
-									</button>
-								</Badge>
-							{/each}
-						</div>
-					</div>
-					<hr />
-					<MacroFilters
-						gramFilters={filters.gramFilters}
-						percentFilters={filters.percentFilters}
-						onGramsChange={handleGramsChange}
-						onPercentChange={handlePercentChange}
-						onClear={handleClearMacros}
-					/>
+			<Collapsible.Root open={isDesktop} class="border rounded-lg p-4">
+				<div class="flex items-center justify-between">
+					<h3 class="text-xl font-semibold">Filtros</h3>
+					<Collapsible.Trigger
+						class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'w-9 p-0')}
+					>
+						<ChevronsUpDown class="h-4 w-4" />
+						<span class="sr-only">Toggle Filtros</span>
+					</Collapsible.Trigger>
 				</div>
-			</CollapsiblePanel>
+				<Collapsible.Content class="mt-4">
+					<div class="space-y-6">
+						<div class="space-y-2">
+							<h3 class="text-lg font-semibold">Productos</h3>
+							<IngredientCombobox
+								onSelect={handleAddIngredient}
+								selectedIds={filters.selectedIngredients.map((i) => i.id)}
+								onClear={clearIngredients}
+							/>
+							<div class="flex flex-wrap gap-2 pt-2 min-h-[24px]">
+								{#each filters.selectedIngredients as ingredient (ingredient.id)}
+									<Badge variant="secondary" class="flex items-center gap-2">
+										{ingredient.name}
+										<button
+											onclick={() => handleRemoveIngredient(ingredient.id)}
+											class="focus:ring-ring rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+										>
+											<X class="h-3 w-3" />
+										</button>
+									</Badge>
+								{/each}
+							</div>
+						</div>
+						<hr />
+						<MacroFilters
+							gramFilters={filters.gramFilters}
+							percentFilters={filters.percentFilters}
+							onGramsChange={handleGramsChange}
+							onPercentChange={handlePercentChange}
+							onClear={handleClearMacros}
+						/>
+					</div>
+				</Collapsible.Content>
+			</Collapsible.Root>
 
-			<CollapsiblePanel title="Ordenar por" startOpen={isDesktop}>
-				<SortOptions
-					field={sortField}
-					direction={sortDirection}
-					onFieldChange={(value) => (sortField = value)}
-					onDirectionChange={(value) => (sortDirection = value)}
-				/>
-			</CollapsiblePanel>
+			<Collapsible.Root open={isDesktop} class="border rounded-lg p-4">
+				<div class="flex items-center justify-between">
+					<h3 class="text-xl font-semibold">Ordenar por</h3>
+					<Collapsible.Trigger
+						class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'w-9 p-0')}
+					>
+						<ChevronsUpDown class="h-4 w-4" />
+						<span class="sr-only">Toggle Ordenar</span>
+					</Collapsible.Trigger>
+				</div>
+				<Collapsible.Content class="mt-4">
+					<SortOptions
+						field={sortField}
+						direction={sortDirection}
+						onFieldChange={(value) => (sortField = value)}
+						onDirectionChange={(value) => (sortDirection = value)}
+					/>
+				</Collapsible.Content>
+			</Collapsible.Root>
 		</aside>
 
 		<main class="lg:col-span-2">

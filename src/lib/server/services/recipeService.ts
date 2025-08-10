@@ -3,21 +3,9 @@ import prisma from '$lib/server/prisma';
 import { Prisma } from '@prisma/client';
 import type { SearchFilters as ZodSearchFilters } from '$lib/schemas/searchSchema';
 import type { RecipeData } from '$lib/schemas/recipeSchema';
+import { recipeInclude, type FullRecipe } from '$lib/models/recipe';
 import { generateUniqueSlug } from '$lib/server/slug';
 import { normalizeText } from '$lib/utils';
-
-const recipeInclude = {
-	ingredients: {
-		include: {
-			product: true
-		}
-	},
-	urls: true
-};
-
-type FullRecipe = Prisma.RecipeGetPayload<{
-	include: typeof recipeInclude;
-}>;
 
 // --- Tipos para Búsqueda Avanzada ---
 export type MacroFilter = {
