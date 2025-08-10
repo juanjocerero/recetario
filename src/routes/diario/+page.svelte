@@ -34,33 +34,23 @@
 
 	let aggregatedNutrients = $derived(calculateAggregatedNutrients(entries));
 
-	let selectedDays = $derived(
-		value?.end && value.start
-			? Math.round((value.end.toDate(getLocalTimeZone()).getTime() - value.start.toDate(getLocalTimeZone()).getTime()) / (1000 * 60 * 60 * 24)) + 1
-			: 1
-	);
-
 	async function fetchEntries(range: DateRange | undefined) {
 		if (!range?.start) return;
 
 		isLoading = true;
 		entries = []; // Clear previous results immediately to show skeletons
 
-		// FIX: Build date string manually to avoid timezone issues
 		const start = range.start;
 		const end = range.end ?? start;
 		const startDateStr = `${start.year}-${String(start.month).padStart(2, '0')}-${String(start.day).padStart(2, '0')}`;
 		const endDateStr = `${end.year}-${String(end.month).padStart(2, '0')}-${String(end.day).padStart(2, '0')}`;
 
 		const apiUrl = `/api/diary/${startDateStr}/${endDateStr}`;
-		console.log(`[DEBUG] Fetching entries from: ${apiUrl}`);
 
 		try {
-			const response = await fetch(apiUrl, { cache: 'no-store' }); // Evitar caché
+			const response = await fetch(apiUrl, { cache: 'no-store' });
 			if (response.ok) {
-				const data = await response.json();
-				console.log('[DEBUG] Raw data received from fetchEntries:', data);
-				entries = data;
+				entries = await response.json();
 			} else {
 				console.error('[Frontend] Error fetching entries:', await response.text());
 			}
@@ -131,9 +121,6 @@
 			});
 
 			if (response.ok) {
-				const savedEntry = await response.json();
-				console.log('[DEBUG] Entry saved successfully:', savedEntry);
-				console.log('[DEBUG] Now refetching entries...');
 				await fetchEntries(value);
 			} else {
 				console.error('Error al guardar la entrada:', await response.text());

@@ -10,6 +10,8 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { ArrowUp, ArrowDown } from 'lucide-svelte';
+	import { formatInTimeZone } from 'date-fns-tz';
+	import { getLocalTimeZone } from '@internationalized/date';
 
 	let {
 		entries,
@@ -22,6 +24,7 @@
 	} = $props();
 
 	let sortOrder: 'asc' | 'desc' = $state('asc');
+	const timezone = getLocalTimeZone();
 
 	let selectedEntry = $state<DiaryEntry | null>(null);
 	let entryToDelete = $state<DiaryEntry | null>(null);
@@ -32,11 +35,7 @@
 		if (entries.length === 0) return [];
 		const map = new Map<string, DiaryEntry[]>();
 		for (const entry of entries) {
-			const localDate = new Date(entry.date);
-			const year = localDate.getFullYear();
-			const month = String(localDate.getMonth() + 1).padStart(2, '0');
-			const day = String(localDate.getDate()).padStart(2, '0');
-			const dateKey = `${year}-${month}-${day}`; // Key is "YYYY-MM-DD" in local time
+			const dateKey = formatInTimeZone(entry.date, timezone, 'yyyy-MM-dd');
 
 			if (!map.has(dateKey)) {
 				map.set(dateKey, []);
