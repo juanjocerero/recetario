@@ -181,7 +181,7 @@ export const recipeService = {
 		`;
 
 		const selectClause = Prisma.sql`
-			SELECT r.id, r.title, r.imageUrl
+			SELECT r.id, r.title, r."imageUrl"
 			FROM "Recipe" r
 			JOIN "RecipePercentages" rt ON r.id = rt."recipeId"
 		`;
