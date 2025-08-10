@@ -9,14 +9,14 @@
     *   [X] **Resultado Esperado:** La lista de "Entradas del Periodo" debería llenarse con los datos generados por el script de seeding. El "Resumen Nutricional" debería actualizarse y mostrar los totales y promedios para el rango seleccionado. El número de días en el título del resumen debe coincidir con los días que tienen entradas.
 
 **3. Funcionalidad de Añadir un Producto**
-    *   [ ] **Acción:** En el panel "Añadir Elemento", despliégalo y busca un producto existente (ej. "Atún").
-    *   [ ] **Acción:** Haz clic en el producto desde los resultados.
-    *   [ ] **Resultado Esperado:** El producto debería aparecer inmediatamente en la lista de entradas del día actual (con una cantidad por defecto de 100g). El "Resumen Nutricional" debería actualizarse para reflejar los valores del nuevo producto.
+    *   [X] **Acción:** En el panel "Añadir Elemento", despliégalo y busca un producto existente (ej. "Atún").
+    *   [X] **Acción:** Haz clic en el producto desde los resultados.
+    *   [X] **Resultado Esperado:** El producto debería aparecer inmediatamente en la lista de entradas del día actual (con una cantidad por defecto de 100g). El "Resumen Nutricional" debería actualizarse para reflejar los valores del nuevo producto.
 
 **4. Funcionalidad de Añadir una Receta**
-    *   [ ] **Acción:** En el panel "Añadir Elemento", busca una receta (puedes usar un término genérico como "Pollo" o "Arroz").
-    *   [ ] **Acción:** Haz clic en la receta desde los resultados.
-    *   [ ] **Resultado Esperado:** La receta debería aparecer en la lista de entradas del día actual. Sus valores nutricionales y cantidad total deberían haberse calculado correctamente. El "Resumen Nutricional" debe actualizarse.
+    *   [X] **Acción:** En el panel "Añadir Elemento", busca una receta (puedes usar un término genérico como "Pollo" o "Arroz").
+    *   [X] **Acción:** Haz clic en la receta desde los resultados.
+    *   [X] **Resultado Esperado:** La receta debería aparecer en la lista de entradas del día actual. Sus valores nutricionales y cantidad total deberían haberse calculado correctamente. El "Resumen Nutricional" debe actualizarse.
 
 **5. Funcionalidad de Editar una Entrada (Producto)**
     *   [ ] **Acción:** En la entrada del producto que acabas de añadir, haz clic en el icono del lápiz (Editar).

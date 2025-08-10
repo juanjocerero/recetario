@@ -69,11 +69,18 @@
 	}
 
 	async function handleAddItem(item: SearchResult) {
+		const selectedDate = value?.start?.toDate(getLocalTimeZone());
+		if (!selectedDate) {
+			// No debería ocurrir si el calendario siempre tiene un valor, pero es una buena guarda.
+			console.error('No hay una fecha seleccionada para añadir la entrada.');
+			return;
+		}
+
 		let newEntryData: Omit<NewDiaryEntryData, 'userId'>;
 
 		if (item.type === 'PRODUCT') {
 			newEntryData = {
-				date: new Date(),
+				date: selectedDate,
 				type: 'PRODUCT',
 				name: item.name,
 				quantity: 100, // Cantidad por defecto
@@ -95,7 +102,7 @@
 			const totals = calculateNutritionalInfo(recipeIngredients);
 
 			newEntryData = {
-				date: new Date(),
+				date: selectedDate,
 				type: 'RECIPE',
 				name: item.title,
 				quantity: recipeIngredients.reduce((sum, ing) => sum + ing.quantity, 0),
