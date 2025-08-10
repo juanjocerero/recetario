@@ -127,3 +127,7 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
         7.  Intentar acceder a rutas protegidas sin estar autenticado.
     *   **Justificación:** Se valida de forma exhaustiva que todos los flujos de autenticación y los casos de uso principales funcionan como se espera.
     *   **Verificación:** El plan se considerará completado con éxito cuando todas estas pruebas pasen sin errores.
+
+*   **Paso 6.3: Unir la rama al main principal de GitHub.**
+     **Acción:**
+     1. Unir la rama 'feat/better-auth-migration' y convertirla en la principal (main) tras asegurarse de que todo funciona correctamente y sin errores.
