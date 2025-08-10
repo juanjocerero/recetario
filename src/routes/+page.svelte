@@ -1,6 +1,5 @@
 <!--
-// Fichero: src/routes/+page.svelte
-// --- VERSIÓN FINAL CON ABORTCONTROLLER ---
+Fichero: src/routes/+page.svelte
 -->
 <script lang="ts">
 	import RecipeCard from '$lib/components/recipes/RecipeCard.svelte';

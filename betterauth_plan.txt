@@ -29,7 +29,7 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
     *   **Acción:** Editar el fichero `prisma/schema.prisma`.
         1.  Añadir un `enum Role` para definir los roles de usuario.
         2.  Eliminar los modelos `Key` y `Session` existentes (probablemente de Lucia).
-        3.  Modificar el modelo `User` para que se ajuste a Better Auth, eliminando campos específicos de Lucia y añadiendo el campo `role`.
+        3.  Modificar el modelo `User` para que se ajuste a Better Auth, eliminando campos y añadiendo el campo `role`.
         4.  Añadir los nuevos modelos `Session` y `VerificationToken` que requiere Better Auth.
     *   **Justificación:** Se actualiza la estructura de la base de datos para que sea compatible con Better Auth. El `enum Role` formaliza el sistema de permisos requerido.
     *   **Verificación:** Detenerse y revisar el fichero `prisma/schema.prisma` para asegurar que los cambios son sintácticamente correctos y reflejan los modelos de Better Auth.
