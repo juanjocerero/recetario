@@ -72,7 +72,7 @@
 	}
 </script>
 
-<div class="flex flex-col gap-3">
+<div class="flex flex-col md:flex-row gap-3">
 	<div class="flex-1">
 		<p class="text-sm font-medium mb-2">Fecha</p>
 		<DatePicker bind:value={addDate} />

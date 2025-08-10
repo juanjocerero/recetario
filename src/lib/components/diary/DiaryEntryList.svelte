@@ -102,7 +102,7 @@
 
 <div class="p-4 border rounded-lg bg-card text-card-foreground">
 	<div class="flex justify-between items-center mb-4">
-		<h2 class="text-xl font-semibold">Entradas del Periodo</h2>
+		<h2 class="text-xl font-light">Comidas</h2>
 		<Button onclick={toggleSortOrder} variant="ghost" size="sm">
 			{#if sortOrder === 'asc'}
 				<ArrowUp class="h-4 w-4 mr-2" />

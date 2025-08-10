@@ -32,7 +32,7 @@
 		end: today(getLocalTimeZone())
 	});
 
-	let aggregatedNutrients = $derived(calculateAggregatedNutrients(entries));
+	let aggregatedNutrients = $derived(calculateAggregatedNutrients(entries, getLocalTimeZone()));
 
 	async function fetchEntries(range: DateRange | undefined) {
 		if (!range?.start) return;
@@ -152,7 +152,7 @@
 </script>
 
 <div class="container mx-auto p-4 md:py-8 md:px-24">
-	<h1 class="text-3xl font-bold mb-6">Diario de Consumo</h1>
+	<h1 class="text-3xl font-bold mb-6">Diario</h1>
 
 	<div class="flex flex-col lg:flex-row gap-8">
 		<!-- Columna principal (2/3) -->

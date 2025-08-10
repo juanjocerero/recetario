@@ -42,7 +42,7 @@
 	{:else}
 		<!-- Totales del Periodo -->
 		<div>
-			<h3 class="text-lg font-semibold mb-2">Totales del Periodo ({days} día{days > 1 ? 's' : ''})</h3>
+			<h3 class="text-lg font-semibold mb-2">Totales del período ({days} día{days > 1 ? 's' : ''})</h3>
 			<div class="p-4 border rounded-lg bg-muted/50">
 				<div class="flex justify-between items-baseline mb-2">
 					<span class="text-sm font-medium">Calorías</span>
@@ -63,7 +63,7 @@
 		<!-- Promedio Diario -->
 		{#if days > 1}
 			<div>
-				<h3 class="text-lg font-semibold mb-2">Promedio Diario</h3>
+				<h3 class="text-lg font-semibold mb-2">Promedio diario</h3>
 				<div class="p-4 border rounded-lg bg-muted/50">
 					<div class="flex justify-between items-baseline mb-2">
 						<span class="text-sm font-medium">Calorías</span>
