@@ -44,6 +44,8 @@
 		if (!range?.start) return;
 
 		isLoading = true;
+		entries = []; // Clear previous results immediately to show skeletons
+
 		const start = range.start.toDate(getLocalTimeZone());
 		const end = range.end?.toDate(getLocalTimeZone()) ?? start;
 
@@ -58,11 +60,9 @@
 				entries = await response.json();
 			} else {
 				console.error('[Frontend] Error fetching entries:', await response.text());
-				entries = [];
 			}
 		} catch (error) {
 			console.error('[Frontend] Fetch error:', error);
-			entries = [];
 		} finally {
 			isLoading = false;
 		}
@@ -208,17 +208,14 @@
 			<!-- Lista de entradas -->
 			<div class="p-4 border rounded-lg bg-card text-card-foreground">
 				<h2 class="text-xl font-semibold mb-4">Entradas del Periodo</h2>
-				{#if isLoading}
-					<p class="text-center text-muted-foreground py-8">Cargando...</p>
-				{:else}
-					<DiaryEntryList {entries} onDelete={handleDeleteEntry} />
-				{/if}
+				<DiaryEntryList {entries} {isLoading} onDelete={handleDeleteEntry} />
 			</div>
 		</div>
 
 		<!-- Columna lateral (1/3) -->
 		<div class="lg:w-1/3 order-2 lg:order-2 lg:sticky top-4">
 			<NutritionalSummary
+				{isLoading}
 				nutrients={aggregatedNutrients}
 				days={aggregatedNutrients.daysWithEntries}
 			/>

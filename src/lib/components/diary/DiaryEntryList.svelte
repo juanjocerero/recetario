@@ -8,10 +8,16 @@
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import EditEntryDialog from './EditEntryDialog.svelte';
 	import { Separator } from '$lib/components/ui/separator';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 
-	let { entries, onDelete }: {
+	let {
+		entries,
+		onDelete,
+		isLoading = false
+	}: {
 		entries: DiaryEntry[];
 		onDelete: (entry: DiaryEntry) => void;
+		isLoading?: boolean;
 	} = $props();
 
 	let selectedEntry = $state<DiaryEntry | null>(null);
@@ -20,9 +26,9 @@
 	let isDeleteDialogOpen = $state(false);
 
 	const groupedEntriesArray = $derived(() => {
+		if (entries.length === 0) return [];
 		const map = new Map<string, DiaryEntry[]>();
 		for (const entry of entries) {
-			// Normalizamos la fecha a medianoche en UTC para agrupar correctamente
 			const date = new Date(entry.date);
 			const dateKey = new Date(
 				date.getUTCFullYear(),
@@ -83,7 +89,31 @@
 </script>
 
 <div class="space-y-4">
-	{#if entries.length > 0}
+	{#if isLoading}
+		<div class="space-y-3 pt-4">
+			{#each { length: 4 } as _}
+				<div
+					class="flex flex-row items-start md:items-center gap-4 rounded-lg border p-3 bg-card"
+				>
+					<div class="flex-1 min-w-0 space-y-2">
+						<Skeleton class="h-5 w-3/4" />
+						<Skeleton class="h-4 w-1/2" />
+					</div>
+					<div class="w-40 md:w-64 flex-shrink-0">
+						<Skeleton class="h-5 w-full" />
+					</div>
+					<div class="flex gap-2 self-end md:self-center">
+						<Skeleton class="h-9 w-9" />
+						<Skeleton class="h-9 w-9" />
+					</div>
+				</div>
+			{/each}
+		</div>
+	{:else if groupedEntriesArray().length === 0}
+		<p class="text-center text-muted-foreground py-8">
+			No hay entradas para la fecha seleccionada.
+		</p>
+	{:else}
 		{#each groupedEntriesArray() as [dateKey, dayEntries] (dateKey)}
 			<div class="day-group pt-4 pb-4">
 				<div class="flex items-center gap-4 mb-3">
@@ -126,10 +156,6 @@
 				</div>
 			</div>
 		{/each}
-	{:else}
-		<p class="text-center text-muted-foreground py-8">
-			No hay entradas para la fecha seleccionada.
-		</p>
 	{/if}
 </div>
 
