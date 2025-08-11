@@ -155,7 +155,7 @@
 				</div>
 			</div>
 			<Dialog.Footer>
-				<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
+				<Dialog.Close class={buttonVariants({ variant: 'outline' })} type="button">Cancelar</Dialog.Close>
 				<Button type="submit">Añadir a la Base de Datos</Button>
 			</Dialog.Footer>
 		</form>
