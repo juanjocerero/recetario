@@ -44,6 +44,9 @@
 		onDelete: (recipe: Recipe) => void;
 	} = $props();
 
+	// --- STATE (Svelte 5) ---
+	let menuOpen = $state(false);
+
 	// --- LÓGICA DE CÁLCULO ---
 	const calculableProducts = $derived(
 		recipe.ingredients.map((ing) => {
@@ -63,11 +66,13 @@
 	function handleEditQuantities(event: MouseEvent) {
 		event.preventDefault();
 		onEditQuantities(recipe);
+		menuOpen = false;
 	}
 
 	function handleDelete(event: MouseEvent) {
 		event.preventDefault();
 		onDelete(recipe);
+		menuOpen = false;
 	}
 </script>
 
@@ -84,7 +89,7 @@
 
 			{#if isAdmin}
 				<div class="absolute top-2 right-2">
-					<DropdownMenu>
+					<DropdownMenu bind:open={menuOpen}>
 						<DropdownMenuTrigger
 							class="bg-background/60 hover:bg-background/80 backdrop-blur-sm rounded-full h-8 w-8 inline-flex items-center justify-center"
 							onclick={(e: MouseEvent) => {
