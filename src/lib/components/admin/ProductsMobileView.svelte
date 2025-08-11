@@ -1,24 +1,41 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input';
 	import type { PageData } from '../../../routes/admin/products/$types';
-	import { Search, X } from 'lucide-svelte';
+	import { Search, X, Plus, UtensilsCrossed } from 'lucide-svelte';
 	import ProductActions from '$lib/components/admin/ProductActions.svelte';
 	import MacroBar from '$lib/components/shared/MacroBar.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import AddCustomProductDialog from '$lib/components/shared/AddCustomProductDialog.svelte';
 
 	let {
 		data,
+		form = $bindable(),
 		searchTerm = $bindable(),
 		editingProductName = $bindable(),
 		editingProductId = $bindable()
 	} = $props<{
 		data: PageData;
+		form: any;
 		searchTerm: string;
 		editingProductName: string;
 		editingProductId: string | null;
 	}>();
+
+	let isAddDialogOpen = $state(false);
 </script>
 
 <div class="block md:hidden mt-16">
+	<div class="mb-4 flex gap-2">
+		<Button variant="outline" size="sm" href="/admin/products/off" class="flex-1">
+			<UtensilsCrossed class="mr-2 h-4 w-4" />
+			Buscar en OFF
+		</Button>
+		<Button onclick={() => (isAddDialogOpen = true)} size="sm" class="flex-1">
+			<Plus class="mr-2 h-4 w-4" />
+			Añadir
+		</Button>
+	</div>
+
 	<div class="mb-4 flex items-center justify-between gap-2">
 		<div class="relative flex-grow">
 			<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -47,12 +64,13 @@
 
 				<MacroBar protein={product.protein} carbs={product.carbs} fat={product.fat} />
 
-				<div class="flex justify-end">
-					<ProductActions bind:editingProductName bind:editingProductId {product} />
+				<div class="flex">
+					<ProductActions bind:editingProductName bind:editingProductId {product} mode="buttons" />
 				</div>
 			</div>
 		{:else}
 			<p class="text-center text-muted-foreground">No hay productos.</p>
 		{/each}
 	</div>
+	<AddCustomProductDialog bind:open={isAddDialogOpen} bind:form />
 </div>

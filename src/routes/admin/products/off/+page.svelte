@@ -160,7 +160,7 @@
 	}
 </script>
 
-<div class="container mx-auto p-4 md:py-8 md:px-24">
+<div class="container mx-auto mt-16 p-4 md:py-8 md:px-24">
 	<div class="space-y-8 p-4 md:p-8">
 		<div class="flex items-center gap-4">
 			<a href="/admin/products" class={buttonVariants({ variant: 'outline', size: 'icon' })}>

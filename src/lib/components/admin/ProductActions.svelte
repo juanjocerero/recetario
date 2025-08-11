@@ -20,11 +20,13 @@
 	let {
 		product,
 		editingProductName = $bindable(),
-		editingProductId = $bindable()
+		editingProductId = $bindable(),
+		mode = 'dropdown'
 	} = $props<{
 		product: Product;
 		editingProductName: string;
 		editingProductId: string | null;
+		mode?: 'dropdown' | 'buttons';
 	}>();
 
 	// --- Estado local para los campos del formulario de edición ---
@@ -79,46 +81,80 @@
 	});
 </script>
 
-<!-- Menú Desplegable de Acciones -->
-<DropdownMenu>
-	<DropdownMenuTrigger
-		class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-		onclick={(e) => {
-			e.stopPropagation();
-			e.preventDefault();
-		}}
-	>
-		<MoreVertical class="h-4 w-4" />
-		<span class="sr-only">Abrir menú</span>
-	</DropdownMenuTrigger>
-	<DropdownMenuContent align="end" onclick={(e) => e.stopPropagation()}>
-		<DropdownMenuItem onclick={() => (isCalcDialogOpen = true)}>
+{#if mode === 'dropdown'}
+	<!-- Menú Desplegable de Acciones -->
+	<DropdownMenu>
+		<DropdownMenuTrigger
+			class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+			onclick={(e) => {
+				e.stopPropagation();
+				e.preventDefault();
+			}}
+		>
+			<MoreVertical class="h-4 w-4" />
+			<span class="sr-only">Abrir menú</span>
+		</DropdownMenuTrigger>
+		<DropdownMenuContent align="end" onclick={(e) => e.stopPropagation()}>
+			<DropdownMenuItem onclick={() => (isCalcDialogOpen = true)}>
+				<Calculator class="mr-2 h-4 w-4" />
+				<span>Calcular</span>
+			</DropdownMenuItem>
+			<DropdownMenuItem onclick={openEditDialog}>
+				<Pencil class="mr-2 h-4 w-4" />
+				<span>Editar</span>
+			</DropdownMenuItem>
+			<DropdownMenuItem
+				onclick={() => {
+					editingImageUrl = product.imageUrl;
+					isImageDialogOpen = true;
+				}}
+			>
+				<Image class="mr-2 h-4 w-4" />
+				<span>Imagen</span>
+			</DropdownMenuItem>
+			<DropdownMenuSeparator />
+			<DropdownMenuItem
+				onclick={() => (isDeleteDialogOpen = true)}
+				class="text-destructive focus:text-destructive"
+			>
+				<Trash2 class="mr-2 h-4 w-4" />
+				<span>Eliminar</span>
+			</DropdownMenuItem>
+		</DropdownMenuContent>
+	</DropdownMenu>
+{:else}
+	<div class="flex flex-1 gap-2 pt-2">
+		<Button variant="outline" size="sm" class="flex-1" onclick={() => (isCalcDialogOpen = true)}>
 			<Calculator class="mr-2 h-4 w-4" />
-			<span>Calcular</span>
-		</DropdownMenuItem>
-		<DropdownMenuItem onclick={openEditDialog}>
+			Calcular
+		</Button>
+		<Button variant="outline" size="sm" class="flex-1" onclick={openEditDialog}>
 			<Pencil class="mr-2 h-4 w-4" />
-			<span>Editar</span>
-		</DropdownMenuItem>
-		<DropdownMenuItem
+			Editar
+		</Button>
+		<Button
+			variant="outline"
+			size="sm"
+			class="flex-1"
 			onclick={() => {
 				editingImageUrl = product.imageUrl;
 				isImageDialogOpen = true;
 			}}
 		>
 			<Image class="mr-2 h-4 w-4" />
-			<span>Imagen</span>
-		</DropdownMenuItem>
-		<DropdownMenuSeparator />
-		<DropdownMenuItem
+			Imagen
+		</Button>
+		<Button
+			variant="destructive"
+			size="sm"
+			class="flex-1"
 			onclick={() => (isDeleteDialogOpen = true)}
-			class="text-destructive focus:text-destructive"
 		>
 			<Trash2 class="mr-2 h-4 w-4" />
-			<span>Eliminar</span>
-		</DropdownMenuItem>
-	</DropdownMenuContent>
-</DropdownMenu>
+			Eliminar
+		</Button>
+	</div>
+{/if}
 
 <!-- Diálogo de Calcular -->
 <Dialog.Root bind:open={isCalcDialogOpen}>
