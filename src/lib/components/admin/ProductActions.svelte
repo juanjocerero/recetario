@@ -125,12 +125,10 @@
 {:else}
 	<div class="flex flex-1 gap-2 pt-2">
 		<Button variant="outline" size="sm" class="flex-1" onclick={() => (isCalcDialogOpen = true)}>
-			<Calculator class="mr-2 h-4 w-4" />
-			Calcular
+			<Calculator class="h-4 w-4" />
 		</Button>
 		<Button variant="outline" size="sm" class="flex-1" onclick={openEditDialog}>
-			<Pencil class="mr-2 h-4 w-4" />
-			Editar
+			<Pencil class="h-4 w-4" />
 		</Button>
 		<Button
 			variant="outline"
@@ -141,8 +139,7 @@
 				isImageDialogOpen = true;
 			}}
 		>
-			<Image class="mr-2 h-4 w-4" />
-			Imagen
+			<Image class="h-4 w-4" />
 		</Button>
 		<Button
 			variant="destructive"
@@ -150,8 +147,7 @@
 			class="flex-1"
 			onclick={() => (isDeleteDialogOpen = true)}
 		>
-			<Trash2 class="mr-2 h-4 w-4" />
-			Eliminar
+			<Trash2 class="h-4 w-4" />
 		</Button>
 	</div>
 {/if}
