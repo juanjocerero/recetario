@@ -58,18 +58,26 @@
 			`/api/products/search?q=${encodeURIComponent(searchTerm)}&page=${pageToFetch}`
 		);
 
-		eventSource.addEventListener('message', (event) => {
-			const newResults = JSON.parse(event.data);
-
-			if (newResults.length < 2) {
-				hasMore = false;
-			}
-
+		const addResults = (newResults: SearchResult[]) => {
 			if (newResults.length > 0) {
-				const existingIds = new Set(results.map((r: SearchResult) => r.id));
-				const uniqueNewResults = newResults.filter((r: SearchResult) => !existingIds.has(r.id));
+				const existingIds = new Set(results.map((r) => r.id));
+				const uniqueNewResults = newResults.filter((r) => !existingIds.has(r.id));
 				results = [...results, ...uniqueNewResults];
 			}
+		};
+
+		eventSource.addEventListener('local_results', (event) => {
+			const newResults = JSON.parse(event.data);
+			addResults(newResults);
+		});
+
+		eventSource.addEventListener('message', (event) => {
+			const newResults = JSON.parse(event.data);
+			const PAGE_SIZE = 20;
+			if (newResults.length < PAGE_SIZE) {
+				hasMore = false;
+			}
+			addResults(newResults);
 		});
 
 		eventSource.addEventListener('stream_error', (event) => {

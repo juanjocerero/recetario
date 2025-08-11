@@ -57,7 +57,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 							imageUrl: p.imageUrl
 						};
 					});
-					sendEvent('message', formattedLocalResults);
+					sendEvent('local_results', formattedLocalResults);
 				}
 
 				// 2. Búsqueda externa en OpenFoodFacts
@@ -93,7 +93,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 									return {
 										id: p.code,
 										name: p.product_name,
-										source: 'off' as const,
+									source: 'off' as const,
 										imageUrl: p.image_front_small_url || null,
 										calories: parseNutriment(p.nutriments?.['energy-kcal_100g']),
 										protein: parseNutriment(p.nutriments?.['proteins_100g']),
@@ -103,15 +103,15 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 								});
 
 								if (uniqueOffProducts.length > 0) {
-										sendEvent('message', uniqueOffProducts);
-									}
+											sendEvent('message', uniqueOffProducts);
+										}
 						})
 						.catch((err) => {
 							if (err.name !== 'AbortError') {
-								console.error(`Failed to fetch from ${brand}: ${err.message}`);
+									console.error(`Failed to fetch from ${brand}: ${err.message}`);
 								sendEvent('stream_error', {
-									source: 'off-api',
-									message: `Error con la marca ${brand}`
+										source: 'off-api',
+										message: `Error con la marca ${brand}`
 								});
 							}
 						});
