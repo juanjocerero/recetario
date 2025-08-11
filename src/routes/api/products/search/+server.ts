@@ -80,11 +80,25 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 								.filter((p: OffProduct) => p.code && !localBarcodes.has(p.code))
 								.map((p: OffProduct) => {
 									localBarcodes.add(p.code); // Evita duplicados en la misma sesión de búsqueda
+
+									const parseNutriment = (value: unknown): number => {
+										if (typeof value === 'number') return value;
+										if (typeof value === 'string') {
+											const parsed = parseFloat(value);
+											return isNaN(parsed) ? 0 : parsed;
+										}
+										return 0;
+									};
+
 									return {
 										id: p.code,
 										name: p.product_name,
 										source: 'off' as const,
-										imageUrl: p.image_front_small_url || null
+										imageUrl: p.image_front_small_url || null,
+										calories: parseNutriment(p.nutriments?.['energy-kcal_100g']),
+										protein: parseNutriment(p.nutriments?.['proteins_100g']),
+										fat: parseNutriment(p.nutriments?.['fat_100g']),
+										carbs: parseNutriment(p.nutriments?.['carbohydrates_100g'])
 									};
 								});
 

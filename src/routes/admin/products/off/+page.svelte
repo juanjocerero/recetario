@@ -55,7 +55,9 @@
 			if (newResults.length === 0) {
 				hasMore = false;
 			} else {
-				results = [...results, ...newResults];
+				const existingIds = new Set(results.map((r: SearchResult) => r.id));
+				const uniqueNewResults = newResults.filter((r: SearchResult) => !existingIds.has(r.id));
+				results = [...results, ...uniqueNewResults];
 				page++;
 			}
 		});
