@@ -4,9 +4,10 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { ArrowLeft, X } from 'lucide-svelte';
+	import { ArrowLeft, X, Plus } from 'lucide-svelte';
 	import OFFProductDialog from '$lib/components/admin/OFFProductDialog.svelte';
 	import ConfirmIncompleteProductDialog from '$lib/components/admin/ConfirmIncompleteProductDialog.svelte';
+	import AddCustomProductDialog from '$lib/components/shared/AddCustomProductDialog.svelte';
 
 	type SearchResult = {
 		id: string;
@@ -26,6 +27,10 @@
 	// State for confirmation dialog
 	let productToCheck = $state<SearchResult | null>(null);
 	let isConfirmDialogOpen = $state(false);
+
+	// State for custom add dialog
+	let isAddCustomDialogOpen = $state(false);
+	let customProductForm = $state<any>(null);
 
 	let searchTerm = $state('');
 	let results = $state<SearchResult[]>([]);
@@ -56,7 +61,7 @@
 		eventSource.addEventListener('message', (event) => {
 			const newResults = JSON.parse(event.data);
 
-			if (newResults.length < 5) {
+			if (newResults.length < 2) {
 				hasMore = false;
 			}
 
@@ -150,77 +155,80 @@
 <div class="container mx-auto p-4 md:py-8 md:px-24">
 	<div class="space-y-8 p-4 md:p-8">
 		<div class="flex items-center gap-4">
-		<a href="/admin/products" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-			<ArrowLeft class="h-4 w-4" />
-		</a>
-		<h1 class="text-xl font-bold">Añadir productos desde OpenFoodFacts</h1>
-	</div>
-		
+			<a href="/admin/products" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+				<ArrowLeft class="h-4 w-4" />
+			</a>
+			<h1 class="text-xl font-bold">Añadir productos desde OpenFoodFacts</h1>
+		</div>
+
 		<div class="flex items-center gap-2">
 			<div class="relative flex-grow">
-			<Input
-				bind:value={searchTerm}
-				placeholder="Buscar por nombre (ej. tomate frito)..."
-				class="pr-10"
-			/>
-			{#if searchTerm}
-				<Button
-					onclick={() => (searchTerm = '')}
-					variant="ghost"
-					size="icon"
-					class="absolute right-0 top-0 h-full rounded-l-none"
-				>
-					<X class="h-4 w-4" />
-				</Button>
-			{/if}
-		</div>
-		</div>
-		
-		{#if isLoading && results.length === 0}
-		<div class="flex justify-center py-8">
-			<div class="spinner"></div>
-		</div>
-		{:else if results.length > 0}
-		<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-			{#each results as result, i (result.id)}
-			<div animate:flip={{ duration: 300 }} in:fade={{ duration: 250, delay: i * 20 }}>
-				<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
-					<CardHeader>
-						<img
-						src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
-						alt={result.name}
-						class="aspect-square w-full rounded-md object-cover"
-						/>
-					</CardHeader>
-					<CardContent class="flex flex-col justify-between space-y-4">
-						<CardTitle class="text-sm">{result.name}</CardTitle>
-						{#if result.source === 'off'}
-							<Button onclick={() => handleAddClick(result)} class="w-full">
-								Añadir
-							</Button>
-						{:else}
-							<Button class="w-full" disabled>Añadido</Button>
-						{/if}
-					</CardContent>
-				</Card>
+				<Input
+					bind:value={searchTerm}
+					placeholder="Buscar por nombre (ej. tomate frito)..."
+					class="pr-10"
+				/>
+				{#if searchTerm}
+					<Button
+						onclick={() => (searchTerm = '')}
+						variant="ghost"
+						size="icon"
+						class="absolute right-0 top-0 h-full rounded-l-none"
+					>
+						<X class="h-4 w-4" />
+					</Button>
+				{/if}
 			</div>
-			{/each}
 		</div>
 
-		{#if isLoading && results.length > 0}
-			<div class="flex justify-center py-4">
+		{#if isLoading && results.length === 0}
+			<div class="flex justify-center py-8">
 				<div class="spinner"></div>
 			</div>
-		{:else if !hasMore && results.length > 0}
-			<p class="py-4 text-center text-sm text-gray-500">No hay más resultados.</p>
-		{:else if hasMore && !isLoading}
-			<div use:onVisible={() => searchProducts(true)} class="h-10"></div>
-		{/if}
+		{:else if results.length > 0}
+			<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+				{#each results as result, i (result.id)}
+					<div animate:flip={{ duration: 300 }} in:fade={{ duration: 250, delay: i * 20 }}>
+						<Card class={result.source === 'local' ? 'ring-2 ring-green-500' : ''}>
+							<CardHeader>
+								<img
+									src={result.imageUrl || 'https://placehold.co/400x400?text=Sin+Imagen'}
+									alt={result.name}
+									class="aspect-square w-full rounded-md object-cover"
+								/>
+							</CardHeader>
+							<CardContent class="flex flex-col justify-between space-y-4">
+								<CardTitle class="text-sm">{result.name}</CardTitle>
+								{#if result.source === 'off'}
+									<Button onclick={() => handleAddClick(result)} class="w-full">
+										Añadir
+									</Button>
+								{:else}
+									<Button class="w-full" disabled>Añadido</Button>
+								{/if}
+							</CardContent>
+						</Card>
+					</div>
+				{/each}
+			</div>
 
+			{#if isLoading && results.length > 0}
+				<div class="flex justify-center py-4">
+					<div class="spinner"></div>
+				</div>
+			{:else if !hasMore && results.length > 0}
+				<p class="py-4 text-center text-sm text-gray-500">No hay más resultados.</p>
+			{:else if hasMore && !isLoading}
+				<div use:onVisible={() => searchProducts(true)} class="h-10"></div>
+			{/if}
 		{:else if !isLoading && searchAttempted}
-		<div class="text-center text-gray-500 py-8">
-			<p>No se encontraron resultados para tu búsqueda.</p>
-		</div>
+			<div class="py-8 text-center text-gray-500">
+				<p>No se encontraron resultados para tu búsqueda.</p>
+				<Button onclick={() => (isAddCustomDialogOpen = true)} variant="link" class="mt-4">
+					<Plus class="mr-2 h-4 w-4" />
+					Añadir producto personalizado
+				</Button>
+			</div>
 		{/if}
 	</div>
 	{#if productToCheck}
@@ -238,6 +246,11 @@
 			onProductAdded={handleProductAdded}
 		/>
 	{/if}
+	<AddCustomProductDialog
+		bind:open={isAddCustomDialogOpen}
+		bind:form={customProductForm}
+		action="/admin/products?/addCustom"
+	/>
 </div>
 
 <style>
