@@ -225,7 +225,13 @@
 					<div class="spinner"></div>
 				</div>
 			{:else if !hasMore && results.length > 0}
-				<p class="py-4 text-center text-sm text-gray-500">No hay más resultados.</p>
+				<div class="py-8 text-center text-gray-500">
+					<p>No hay más resultados.</p>
+					<Button onclick={() => (isAddCustomDialogOpen = true)} variant="link" class="mt-4">
+						<Plus class="mr-2 h-4 w-4" />
+						Añadir producto personalizado
+					</Button>
+				</div>
 			{:else if hasMore && !isLoading}
 				<div use:onVisible={() => searchProducts(true)} class="h-10"></div>
 			{/if}
