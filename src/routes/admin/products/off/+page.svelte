@@ -46,19 +46,24 @@
 		isLoading = true;
 		searchAttempted = true;
 
+		const pageToFetch = page;
+		page++;
+
 		const eventSource = new EventSource(
-			`/api/products/search?q=${encodeURIComponent(searchTerm)}&page=${page}`
+			`/api/products/search?q=${encodeURIComponent(searchTerm)}&page=${pageToFetch}`
 		);
 
 		eventSource.addEventListener('message', (event) => {
 			const newResults = JSON.parse(event.data);
-			if (newResults.length === 0) {
+
+			if (newResults.length < 5) {
 				hasMore = false;
-			} else {
+			}
+
+			if (newResults.length > 0) {
 				const existingIds = new Set(results.map((r: SearchResult) => r.id));
 				const uniqueNewResults = newResults.filter((r: SearchResult) => !existingIds.has(r.id));
 				results = [...results, ...uniqueNewResults];
-				page++;
 			}
 		});
 
@@ -206,6 +211,8 @@
 			<div class="flex justify-center py-4">
 				<div class="spinner"></div>
 			</div>
+		{:else if !hasMore && results.length > 0}
+			<p class="py-4 text-center text-sm text-gray-500">No hay más resultados.</p>
 		{:else if hasMore && !isLoading}
 			<div use:onVisible={() => searchProducts(true)} class="h-10"></div>
 		{/if}
