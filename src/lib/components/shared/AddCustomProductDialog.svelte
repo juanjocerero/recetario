@@ -30,18 +30,20 @@
 			protein = form.data.protein ?? '';
 			fat = form.data.fat ?? '';
 			carbs = form.data.carbs ?? '';
-		} else if (form === null) {
-			name = '';
-			calories = '';
-			protein = '';
-			fat = '';
-			carbs = '';
 		}
 	});
 
+	function clearForm() {
+		name = '';
+		calories = '';
+		protein = '';
+		fat = '';
+		carbs = '';
+		form = null;
+	}
+
 	function closeDialog() {
 		open = false;
-		form = null;
 	}
 </script>
 
@@ -60,6 +62,7 @@
 					if (result.type === 'success') {
 						toast.success('Producto añadido con éxito.', { id: toastId });
 						closeDialog();
+						clearForm();
 						await invalidateAll();
 					} else if (result.type === 'failure') {
 						form = result.data;
