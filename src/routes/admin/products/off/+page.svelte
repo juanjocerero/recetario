@@ -6,6 +6,7 @@
 	import { flip } from 'svelte/animate';
 	import { ArrowLeft, X } from 'lucide-svelte';
 	import OFFProductDialog from '$lib/components/admin/OFFProductDialog.svelte';
+	import ConfirmIncompleteProductDialog from '$lib/components/admin/ConfirmIncompleteProductDialog.svelte';
 
 	type SearchResult = {
 		id: string;
@@ -18,15 +19,20 @@
 		carbs: number;
 	};
 
+	// State for edit dialog
 	let productToEdit = $state<SearchResult | null>(null);
-	let isDialogOpen = $state(false);
-	
+	let isEditDialogOpen = $state(false);
+
+	// State for confirmation dialog
+	let productToCheck = $state<SearchResult | null>(null);
+	let isConfirmDialogOpen = $state(false);
+
 	let searchTerm = $state('');
 	let results = $state<SearchResult[]>([]);
 	let isLoading = $state(false);
 	let searchAttempted = $state(false);
 	let page = $state(1);
-	let hasMore = $state(true); // Para saber si hay más resultados que cargar
+	let hasMore = $state(true);
 
 	function searchProducts(loadMore = false) {
 		if (isLoading) return;
@@ -88,6 +94,30 @@
 			return () => clearTimeout(handler);
 		}
 	});
+
+	function handleAddClick(product: SearchResult) {
+		const hasIncompleteData = !product.calories || !product.protein || !product.fat || !product.carbs;
+		if (hasIncompleteData) {
+			productToCheck = product;
+			isConfirmDialogOpen = true;
+		} else {
+			productToEdit = product;
+			isEditDialogOpen = true;
+		}
+	}
+
+	function handleConfirmAdd() {
+		if (!productToCheck) return;
+		productToEdit = productToCheck;
+		isEditDialogOpen = true;
+		productToCheck = null;
+	}
+
+	function handleCancelAdd() {
+		if (!productToCheck) return;
+		results = results.filter((p) => p.id !== productToCheck!.id);
+		productToCheck = null;
+	}
 
 	function handleProductAdded(addedProductId: string) {
 		results = results.filter((p) => p.id !== addedProductId);
@@ -158,13 +188,7 @@
 					<CardContent class="flex flex-col justify-between space-y-4">
 						<CardTitle class="text-sm">{result.name}</CardTitle>
 						{#if result.source === 'off'}
-							<Button
-								onclick={() => {
-									productToEdit = result;
-									isDialogOpen = true;
-								}}
-								class="w-full"
-							>
+							<Button onclick={() => handleAddClick(result)} class="w-full">
 								Añadir
 							</Button>
 						{:else}
@@ -190,9 +214,17 @@
 		</div>
 		{/if}
 	</div>
+	{#if productToCheck}
+		<ConfirmIncompleteProductDialog
+			bind:open={isConfirmDialogOpen}
+			productName={productToCheck.name}
+			onConfirm={handleConfirmAdd}
+			onCancel={handleCancelAdd}
+		/>
+	{/if}
 	{#if productToEdit}
 		<OFFProductDialog
-			bind:open={isDialogOpen}
+			bind:open={isEditDialogOpen}
 			product={productToEdit}
 			onProductAdded={handleProductAdded}
 		/>
@@ -218,4 +250,3 @@
 		}
 	}
 </style>
-
