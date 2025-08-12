@@ -55,18 +55,18 @@ const getRecipeSteps = (stepsData: unknown): RecipeStep[] => {
 const mapInitialIngredients = (ingredientsData: InitialData['ingredients'] | undefined) => {
 	if (!ingredientsData) return [];
 	return ingredientsData
-		.map((ing): IngredientWithDetails | null => {
-			const product = ing.product;
-			if (!product) return null;
-
-			return {
-				...product,
-				id: product.id,
-				quantity: ing.quantity,
-				source: 'local'
-			};
-		})
-		.filter((ing): ing is IngredientWithDetails => ing !== null);
+	.map((ing): IngredientWithDetails | null => {
+		const product = ing.product;
+		if (!product) return null;
+		
+		return {
+			...product,
+			id: product.id,
+			quantity: ing.quantity,
+			source: 'local'
+		};
+	})
+	.filter((ing): ing is IngredientWithDetails => ing !== null);
 };
 
 // --- Modelo de Estado ---
@@ -78,40 +78,40 @@ export function createRecipeState(initialData: InitialData | null) {
 		urls: initialData?.urls?.map((u) => u.url) ?? [],
 		ingredients: mapInitialIngredients(initialData?.ingredients)
 	});
-
+	
 	// --- Métodos de Mutación ---
 	function addStep() {
 		state.steps.push({ id: crypto.randomUUID(), text: '' });
 	}
-
+	
 	function removeStep(id: string) {
 		state.steps = state.steps.filter((step) => step.id !== id);
 	}
-
+	
 	function updateStepText(id: string, text: string) {
 		const step = state.steps.find((s) => s.id === id);
 		if (step) {
 			step.text = text;
 		}
 	}
-
+	
 	function addIngredient(ingredient: IngredientWithDetails) {
 		if (!state.ingredients.some((i) => i.id === ingredient.id)) {
 			state.ingredients.push(ingredient);
 		}
 	}
-
+	
 	function removeIngredient(id: string) {
 		state.ingredients = state.ingredients.filter((i) => i.id !== id);
 	}
-
+	
 	function reorderIngredients(sourceIndex: number, targetIndex: number) {
 		const reordered = [...state.ingredients];
 		const [removed] = reordered.splice(sourceIndex, 1);
 		reordered.splice(targetIndex, 0, removed);
 		state.ingredients = reordered;
 	}
-
+	
 	return {
 		get state() {
 			return state;
@@ -124,7 +124,7 @@ export function createRecipeState(initialData: InitialData | null) {
 		addIngredient,
 		removeIngredient,
 		reorderIngredients,
-
+		
 		get initialFormState(): FormState {
 			return {
 				title: initialData?.title ?? '',

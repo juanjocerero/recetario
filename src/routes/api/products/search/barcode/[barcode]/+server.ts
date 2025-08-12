@@ -9,20 +9,20 @@ import { productService } from '$lib/server/services/productService';
 // Se importa `RequestHandler` desde `./$types` para obtener el tipado correcto de `params`.
 export const GET: RequestHandler = async ({ params }) => {
 	const { barcode } = params;
-
+	
 	if (!barcode) {
 		return json({ message: 'El código de barras es requerido' }, { status: 400 });
 	}
-
+	
 	try {
 		const product = await productService.findByBarcode(barcode);
-
+		
 		if (!product) {
 			// Si el producto no se encuentra ni en la caché ni en la API de OFF,
 			// devolvemos un 404 Not Found, que es el código de estado HTTP correcto.
 			return json({ message: 'Producto no encontrado' }, { status: 404 });
 		}
-
+		
 		// Devolvemos el producto encontrado (ya sea de la caché o de la API).
 		return json(product);
 	} catch (error) {

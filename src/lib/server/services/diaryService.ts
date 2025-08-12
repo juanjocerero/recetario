@@ -2,6 +2,7 @@
 import prisma from '$lib/server/prisma';
 import { calculateAggregatedNutrients, type AggregatedNutrients } from '$lib/utils';
 import { Prisma, type DiaryEntry } from '@prisma/client';
+import { getLocalTimeZone } from '@internationalized/date';
 
 // Tipo para los datos de una nueva entrada del diario
 export type NewDiaryEntryData = {
@@ -24,8 +25,8 @@ export type UpdateDiaryEntryData = Partial<Omit<NewDiaryEntryData, 'userId' | 't
 
 export const diaryService = {
 	/**
-	 * Obtiene las entradas del diario para un usuario en un rango de fechas.
-	 */
+	* Obtiene las entradas del diario para un usuario en un rango de fechas.
+	*/
 	async getDiaryEntries(
 		userId: string,
 		startDate: Date,
@@ -44,10 +45,10 @@ export const diaryService = {
 			}
 		});
 	},
-
+	
 	/**
-	 * Añade una nueva entrada al diario.
-	 */
+	* Añade una nueva entrada al diario.
+	*/
 	async addDiaryEntry(data: NewDiaryEntryData): Promise<DiaryEntry> {
 		return prisma.diaryEntry.create({
 			data: {
@@ -66,44 +67,45 @@ export const diaryService = {
 			}
 		});
 	},
-
+	
 	/**
-	 * Actualiza una entrada existente en el diario.
-	 */
+	* Actualiza una entrada existente en el diario.
+	*/
 	async updateDiaryEntry(
 		entryId: string,
 		updates: UpdateDiaryEntryData
 	): Promise<DiaryEntry | null> {
 		const { ingredients, ...rest } = updates;
-
+		
 		const data: Prisma.DiaryEntryUpdateInput = {
 			...rest
 		};
-
+		
 		if (ingredients !== undefined) {
 			data.ingredients = ingredients ?? Prisma.JsonNull;
 		}
-
+		
 		return prisma.diaryEntry.update({
 			where: { id: entryId },
 			data
 		});
 	},
-
+	
 	/**
-	 * Elimina una entrada del diario.
-	 */
+	* Elimina una entrada del diario.
+	*/
 	async deleteDiaryEntry(entryId: string): Promise<DiaryEntry | null> {
 		return prisma.diaryEntry.delete({
 			where: { id: entryId }
 		});
 	},
-
+	
 	/**
-	 * Calcula los nutrientes totales y promedio de una lista de entradas.
-	 * Es un wrapper sobre la función de utilidades.
-	 */
+	* Calcula los nutrientes totales y promedio de una lista de entradas.
+	* Es un wrapper sobre la función de utilidades.
+	*/
 	getAggregatedNutrients(entries: DiaryEntry[]): AggregatedNutrients {
-		return calculateAggregatedNutrients(entries);
+		const timezone = getLocalTimeZone();
+		return calculateAggregatedNutrients(entries, timezone);
 	}
 };

@@ -8,39 +8,39 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { toast } from 'svelte-sonner';
-
+	
 	let email = '';
 	let password = '';
 	let loading = false;
 	let errorMessage: string | null = null;
-
+	
 	async function handleLogin() {
 		loading = true;
 		errorMessage = null;
-
+		
 		await authClient.signIn.email(
-			{
-				email,
-				password
+		{
+			email,
+			password
+		},
+		{
+			onSuccess: () => {
+				toast.success('¡Bienvenido de nuevo!');
+				// Leemos el parámetro 'redirectTo' de la URL.
+				const redirectTo = $page.url.searchParams.get('redirectTo');
+				// Redirigimos al usuario a la ruta deseada o a la raíz.
+				goto(redirectTo || '/', { invalidateAll: true });
 			},
-			{
-				onSuccess: () => {
-					toast.success('¡Bienvenido de nuevo!');
-					// Leemos el parámetro 'redirectTo' de la URL.
-					const redirectTo = $page.url.searchParams.get('redirectTo');
-					// Redirigimos al usuario a la ruta deseada o a la raíz.
-					goto(redirectTo || '/', { invalidateAll: true });
-				},
-				onError: (ctx) => {
-					errorMessage = ctx.error.message;
-					toast.error('Error al iniciar sesión', {
-						description: ctx.error.message
-					});
-				},
-				onSettled: () => {
-					loading = false;
-				}
+			onError: (ctx) => {
+				errorMessage = ctx.error.message;
+				toast.error('Error al iniciar sesión', {
+					description: ctx.error.message
+				});
+			},
+			onSettled: () => {
+				loading = false;
 			}
+		}
 		);
 	}
 </script>
@@ -53,7 +53,7 @@
 		</Card.Header>
 		<Card.Content>
 			<!-- El formulario ahora llama a una función del lado del cliente
-			 en lugar de usar una form action. Esto nos da más control sobre la UI. -->
+			en lugar de usar una form action. Esto nos da más control sobre la UI. -->
 			<form on:submit|preventDefault={handleLogin} class="space-y-4">
 				<div class="space-y-2">
 					<Label for="email">Email</Label>
@@ -63,11 +63,11 @@
 					<Label for="password">Contraseña</Label>
 					<Input bind:value={password} id="password" name="password" type="password" required />
 				</div>
-
+				
 				{#if errorMessage}
-					<p class="text-sm font-medium text-destructive">{errorMessage}</p>
+				<p class="text-sm font-medium text-destructive">{errorMessage}</p>
 				{/if}
-
+				
 				<Button type="submit" class="w-full" disabled={loading}>
 					{loading ? 'Entrando...' : 'Entrar'}
 				</Button>

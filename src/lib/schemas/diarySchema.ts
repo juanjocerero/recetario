@@ -2,9 +2,9 @@
 import { z } from 'zod';
 
 /**
- * Esquema para validar la creación y actualización de una entrada en el diario.
- * Se usa `z.coerce.date()` para convertir automáticamente strings de fecha a objetos Date.
- */
+* Esquema para validar la creación y actualización de una entrada en el diario.
+* Se usa `z.coerce.date()` para convertir automáticamente strings de fecha a objetos Date.
+*/
 export const DiaryEntrySchema = z.object({
 	date: z.coerce.date(),
 	type: z.enum(['PRODUCT', 'RECIPE']),

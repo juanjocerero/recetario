@@ -7,40 +7,40 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { toast } from 'svelte-sonner';
-
+	
 	let name = '';
 	let email = '';
 	let password = '';
 	let loading = false;
 	let errorMessage: string | null = null;
-
+	
 	async function handleSignup() {
 		loading = true;
 		errorMessage = null;
-
+		
 		await authClient.signUp.email(
-			{
-				name,
-				email,
-				password
+		{
+			name,
+			email,
+			password
+		},
+		{
+			onSuccess: () => {
+				toast.success('¡Cuenta creada con éxito!', {
+					description: 'Te hemos redirigido a la página principal.'
+				});
+				goto('/', { invalidateAll: true });
 			},
-			{
-				onSuccess: () => {
-					toast.success('¡Cuenta creada con éxito!', {
-						description: 'Te hemos redirigido a la página principal.'
-					});
-					goto('/', { invalidateAll: true });
-				},
-				onError: (ctx) => {
-					errorMessage = ctx.error.message;
-					toast.error('Error en el registro', {
-						description: ctx.error.message
-					});
-				},
-				onSettled: () => {
-					loading = false;
-				}
+			onError: (ctx) => {
+				errorMessage = ctx.error.message;
+				toast.error('Error en el registro', {
+					description: ctx.error.message
+				});
+			},
+			onSettled: () => {
+				loading = false;
 			}
+		}
 		);
 	}
 </script>
@@ -64,23 +64,23 @@
 				<div class="space-y-2">
 					<Label for="password">Contraseña</Label>
 					<Input
-						bind:value={password}
-						id="password"
-						name="password"
-						type="password"
-						required
-						minlength={8}
+					bind:value={password}
+					id="password"
+					name="password"
+					type="password"
+					required
+					minlength={8}
 					/>
 				</div>
-
+				
 				{#if errorMessage}
-					<p class="text-sm font-medium text-destructive">{errorMessage}</p>
+				<p class="text-sm font-medium text-destructive">{errorMessage}</p>
 				{/if}
-
+				
 				<Button type="submit" class="w-full" disabled={loading}>
 					{loading ? 'Creando cuenta...' : 'Crear cuenta'}
 				</Button>
-
+				
 				<div class="mt-4 text-center text-sm">
 					¿Ya tienes una cuenta?
 					<a href="/login" class="underline"> Inicia sesión </a>

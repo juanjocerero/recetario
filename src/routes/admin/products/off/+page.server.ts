@@ -18,21 +18,21 @@ export const actions: Actions = {
 	add: async ({ request }) => {
 		const data = await request.formData();
 		const parsed = addProductSchema.safeParse(Object.fromEntries(data));
-
+		
 		if (!parsed.success) {
 			const error = parsed.error.flatten().fieldErrors;
 			return fail(400, { success: false, error: Object.values(error).flat().join(', ') });
 		}
-
+		
 		try {
 			// Comprobar si ya existe un producto con ese barcode
 			const existingProduct = await productService.findByBarcodeInDbOnly(parsed.data.barcode);
 			if (existingProduct) {
 				return fail(409, { success: false, error: 'Ya existe un producto con este código de barras.' });
 			}
-
+			
 			const newProduct = await productService.create(parsed.data);
-
+			
 			return { success: true, product: newProduct };
 		} catch (error) {
 			console.error(error);

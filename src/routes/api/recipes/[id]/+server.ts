@@ -8,8 +8,8 @@ import { ZodError } from 'zod';
 import { createFailResponse } from '$lib/server/zodErrors';
 
 /**
- * Maneja las peticiones GET para obtener una receta por su ID.
- */
+* Maneja las peticiones GET para obtener una receta por su ID.
+*/
 export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const recipe = await recipeService.getById(params.id);
@@ -24,13 +24,13 @@ export const GET: RequestHandler = async ({ params }) => {
 };
 
 /**
- * Maneja las peticiones PUT para actualizar una receta.
- */
+* Maneja las peticiones PUT para actualizar una receta.
+*/
 export const PUT: RequestHandler = async ({ request, params }) => {
 	try {
 		const body = await request.json();
 		const validatedData = RecipeSchema.parse(body);
-
+		
 		const updatedRecipe = await recipeService.update(params.id, validatedData);
 		if (!updatedRecipe) {
 			return json(createFailResponse('Receta no encontrada para actualizar'), { status: 404 });
@@ -46,8 +46,8 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 };
 
 /**
- * Maneja las peticiones DELETE para eliminar una receta.
- */
+* Maneja las peticiones DELETE para eliminar una receta.
+*/
 export const DELETE: RequestHandler = async ({ params }) => {
 	try {
 		await recipeService.deleteById(params.id);

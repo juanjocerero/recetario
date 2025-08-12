@@ -11,24 +11,24 @@ import { JSDOM } from 'jsdom';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const recipe = await recipeService.getBySlug(params.slug);
-
+	
 	if (!recipe) {
 		throw error(404, 'Receta no encontrada');
 	}
-
+	
 	const window = new JSDOM('').window;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const sanitizer = createDOMPurify(window as any);
-
+	
 	const processedSteps = await Promise.all(
 		Array.isArray(recipe.steps)
-			? recipe.steps.map(async (step) => {
-					const rawHtml = await marked.parse(String(step ?? ''));
-					return sanitizer.sanitize(rawHtml);
-				})
-			: []
+		? recipe.steps.map(async (step) => {
+			const rawHtml = await marked.parse(String(step ?? ''));
+			return sanitizer.sanitize(rawHtml);
+		})
+		: []
 	);
-
+	
 	return {
 		recipe: {
 			...recipe,
@@ -41,22 +41,22 @@ export const actions: Actions = {
 	default: async ({ request, params }) => {
 		const formData = await request.formData();
 		const data = Object.fromEntries(formData.entries());
-
+		
 		const dataToValidate = {
 			...data,
 			ingredients: JSON.parse(data.ingredients as string),
 			urls: JSON.parse(data.urls as string),
 			steps: JSON.parse(data.steps as string)
 		};
-
+		
 		const validation = RecipeSchema.safeParse(dataToValidate);
-
+		
 		if (!validation.success) {
 			// Justificación: Se usa la nueva utilidad para el fallo de validación.
 			const response = createFailResponse('La validación falló. Revisa los campos.', validation.error);
 			return fail(400, response);
 		}
-
+		
 		try {
 			// Aquí necesitamos el ID, no el slug, para la actualización.
 			// Lo obtenemos de la receta original cargada.
@@ -64,7 +64,7 @@ export const actions: Actions = {
 			if (!originalRecipe) {
 				throw error(404, 'Receta no encontrada para actualizar');
 			}
-
+			
 			const updatedRecipe = await recipeService.update(originalRecipe.id, validation.data);
 			return {
 				status: 200,

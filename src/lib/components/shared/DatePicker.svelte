@@ -11,13 +11,13 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { Calendar } from '$lib/components/ui/calendar';
 	import * as Popover from '$lib/components/ui/popover';
-
+	
 	type Props = {
 		value?: DateValue | undefined;
 	};
-
+	
 	let { value: date = $bindable(today(getLocalTimeZone())) }: Props = $props();
-
+	
 	const df = new DateFormatter('es-ES', {
 		dateStyle: 'long'
 	});
@@ -25,12 +25,12 @@
 
 <Popover.Root>
 	<Popover.Trigger
-		class={cn(
-			buttonVariants({ variant: 'outline' }),
-			'w-full justify-start text-left font-normal',
-			!date && 'text-muted-foreground'
+	class={cn(
+		buttonVariants({ variant: 'outline' }),
+		'w-full justify-start text-left font-normal',
+		!date && 'text-muted-foreground'
 		)}
-	>
+		>
 		<CalendarIcon class="mr-2 h-4 w-4" />
 		{date ? df.format(date.toDate(getLocalTimeZone())) : 'Selecciona una fecha'}
 	</Popover.Trigger>

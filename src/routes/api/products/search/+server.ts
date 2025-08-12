@@ -18,13 +18,13 @@ type OffProduct = {
 export const GET: RequestHandler = ({ url, fetch }) => {
 	const query = url.searchParams.get('q');
 	const page = url.searchParams.get('page') ?? '1';
-
+	
 	if (!query) {
 		return json({ error: 'Query parameter "q" is required' }, { status: 400 });
 	}
-
+	
 	const abortController = new AbortController();
-
+	
 	const stream = new ReadableStream({
 		async start(controller) {
 			type SearchResult = {
@@ -33,7 +33,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 				source: 'local' | 'off';
 				imageUrl: string | null;
 			};
-
+			
 			const sendEvent = (event: string, data: object) => {
 				try {
 					controller.enqueue(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -41,12 +41,12 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 					console.warn(`Stream enqueue failed: ${(e as Error).message}`);
 				}
 			};
-
+			
 			try {
 				// 1. Búsqueda en la base de datos local
 				const localResults = await productService.searchByName(query);
 				const localBarcodes = new Set<string>();
-
+				
 				if (localResults.length > 0) {
 					const formattedLocalResults: SearchResult[] = localResults.map((p: Product) => {
 						if (p.barcode) localBarcodes.add(p.barcode);
@@ -59,8 +59,9 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 					});
 					sendEvent('local_results', formattedLocalResults);
 				}
-
+				
 				// 2. Búsqueda externa en OpenFoodFacts
+				// TODO: permitir otras marcas añadiendo una segunda barra de supermercado o marca al buscador de productos de off
 				const brands = ['Hacendado', 'Mercadona'];
 				const offSearchPromises = brands.map((brand) => {
 					const offQuery = `${query} ${brand}`;
@@ -68,55 +69,55 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 						offQuery
 					)}
 &search_simple=1&action=process&json=1&page_size=20&page=${page}&fields=code,product_name,image_front_small_url,nutriments`;
-
+					
 					return fetch(offUrl, { signal: abortController.signal })
-						.then((res) => {
-							if (!res.ok) throw new Error(`API returned status ${res.status}`);
-							return res.json();
-						})
-						.then((response) => {
-							const offProducts = response?.products ?? [];
-							const uniqueOffProducts: SearchResult[] = offProducts
-								.filter((p: OffProduct) => p.code && !localBarcodes.has(p.code))
-								.map((p: OffProduct) => {
-									localBarcodes.add(p.code); // Evita duplicados en la misma sesión de búsqueda
-
-									const parseNutriment = (value: unknown): number => {
-										if (typeof value === 'number') return value;
-										if (typeof value === 'string') {
-											const parsed = parseFloat(value);
-											return isNaN(parsed) ? 0 : parsed;
-										}
-										return 0;
-									};
-
-									return {
-										id: p.code,
-										name: p.product_name,
-									source: 'off' as const,
-										imageUrl: p.image_front_small_url || null,
-										calories: parseNutriment(p.nutriments?.['energy-kcal_100g']),
-										protein: parseNutriment(p.nutriments?.['proteins_100g']),
-										fat: parseNutriment(p.nutriments?.['fat_100g']),
-										carbs: parseNutriment(p.nutriments?.['carbohydrates_100g'])
-									};
-								});
-
-								if (uniqueOffProducts.length > 0) {
-											sendEvent('message', uniqueOffProducts);
-										}
-						})
-						.catch((err) => {
-							if (err.name !== 'AbortError') {
-									console.error(`Failed to fetch from ${brand}: ${err.message}`);
-								sendEvent('stream_error', {
-										source: 'off-api',
-										message: `Error con la marca ${brand}`
-								});
-							}
+					.then((res) => {
+						if (!res.ok) throw new Error(`API returned status ${res.status}`);
+						return res.json();
+					})
+					.then((response) => {
+						const offProducts = response?.products ?? [];
+						const uniqueOffProducts: SearchResult[] = offProducts
+						.filter((p: OffProduct) => p.code && !localBarcodes.has(p.code))
+						.map((p: OffProduct) => {
+							localBarcodes.add(p.code); // Evita duplicados en la misma sesión de búsqueda
+							
+							const parseNutriment = (value: unknown): number => {
+								if (typeof value === 'number') return value;
+								if (typeof value === 'string') {
+									const parsed = parseFloat(value);
+									return isNaN(parsed) ? 0 : parsed;
+								}
+								return 0;
+							};
+							
+							return {
+								id: p.code,
+								name: p.product_name,
+								source: 'off' as const,
+								imageUrl: p.image_front_small_url || null,
+								calories: parseNutriment(p.nutriments?.['energy-kcal_100g']),
+								protein: parseNutriment(p.nutriments?.['proteins_100g']),
+								fat: parseNutriment(p.nutriments?.['fat_100g']),
+								carbs: parseNutriment(p.nutriments?.['carbohydrates_100g'])
+							};
 						});
+						
+						if (uniqueOffProducts.length > 0) {
+							sendEvent('message', uniqueOffProducts);
+						}
+					})
+					.catch((err) => {
+						if (err.name !== 'AbortError') {
+							console.error(`Failed to fetch from ${brand}: ${err.message}`);
+							sendEvent('stream_error', {
+								source: 'off-api',
+								message: `Error con la marca ${brand}`
+							});
+						}
+					});
 				});
-
+				
 				await Promise.allSettled(offSearchPromises);
 			} catch (error) {
 				if (error instanceof Error && error.name !== 'AbortError') {
@@ -136,7 +137,7 @@ export const GET: RequestHandler = ({ url, fetch }) => {
 			abortController.abort(reason);
 		}
 	});
-
+	
 	return new Response(stream, {
 		headers: {
 			'Content-Type': 'text/event-stream',

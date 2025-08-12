@@ -14,11 +14,11 @@ const RecipeIngredientSchema = z.object({
 export const RecipeSchema = z.object({
 	title: z.string().min(1, { message: 'El título no puede estar vacío.' }),
 	steps: z
-		.array(z.string().min(1, { message: 'El paso no puede estar vacío.' }))
-		.min(1, { message: 'Debe haber al menos un paso.' }),
+	.array(z.string().min(1, { message: 'El paso no puede estar vacío.' }))
+	.min(1, { message: 'Debe haber al menos un paso.' }),
 	ingredients: z
-		.array(RecipeIngredientSchema)
-		.min(1, { message: 'La receta debe tener al menos un ingrediente.' }),
+	.array(RecipeIngredientSchema)
+	.min(1, { message: 'La receta debe tener al menos un ingrediente.' }),
 	// Justificación (Paso 3.1): Añadimos la validación para la URL de la imagen.
 	// Debe ser una cadena opcional que puede ser un data URL.
 	imageUrl: z.string().optional(),

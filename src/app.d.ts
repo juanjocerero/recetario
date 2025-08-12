@@ -19,7 +19,7 @@ declare global {
 		}
 		// interface PageState {}
 		// interface Platform {}
-
+		
 		interface User extends BetterAuthUser {
 			role: string;
 		}

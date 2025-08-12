@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
 	const sort = url.searchParams.get('sort') ?? 'name';
 	const order = url.searchParams.get('order') ?? 'asc';
-
+	
 	try {
 		// Ahora solo hay un tipo de producto: Product. El servicio se ha simplificado.
 		const products = await productService.getAll(search, sort, order);
@@ -37,17 +37,17 @@ export const actions: Actions = {
 	addCustom: async ({ request }) => {
 		const formData = Object.fromEntries(await request.formData());
 		const validation = ProductSchema.safeParse(formData);
-
+		
 		if (!validation.success) {
 			return fail(400, {
 				data: formData,
 				...createFailResponse('La validación falló', validation.error)
 			});
 		}
-
+		
 		try {
 			await productService.create(validation.data);
-			return { success: true, message: 'Producto añadido con éxito' };
+			return { success: true, message: 'Producto añadido con éxito.' };
 		} catch (error) {
 			console.error('Error al crear el producto:', error);
 			return fail(500, {
@@ -56,24 +56,24 @@ export const actions: Actions = {
 			});
 		}
 	},
-
+	
 	// La acción de actualizar ahora opera sobre el modelo Product.
 	update: async ({ request }) => {
 		const formData = Object.fromEntries(await request.formData());
 		const id = formData.id as string;
 		// Usamos .partial() para permitir la actualización de solo algunos campos
 		const validation = ProductSchema.partial().safeParse(formData);
-
+		
 		if (!validation.success) {
 			return fail(400, {
 				data: formData,
 				...createFailResponse('La validación falló', validation.error)
 			});
 		}
-
+		
 		try {
 			await productService.update(id, validation.data);
-			return { success: true, message: 'Producto actualizado con éxito' };
+			return { success: true, message: 'Producto actualizado con éxito.' };
 		} catch (error) {
 			console.error(`Error al actualizar el producto ${id}:`, error);
 			return fail(500, {
@@ -82,16 +82,16 @@ export const actions: Actions = {
 			});
 		}
 	},
-
+	
 	// La acción de eliminar ahora opera sobre el modelo Product.
 	delete: async ({ request }) => {
 		const formData = Object.fromEntries(await request.formData());
 		const id = formData.id as string;
-
+		
 		if (!id) {
 			return fail(400, { message: 'ID de producto no proporcionado.' });
 		}
-
+		
 		try {
 			await productService.delete(id);
 			return { success: true, message: 'Producto eliminado con éxito' };
@@ -108,18 +108,18 @@ export const actions: Actions = {
 			});
 		}
 	},
-
+	
 	updateImage: async ({ request }) => {
 		const formData = await request.formData();
 		const id = formData.get('id') as string;
 		const imageUrl = formData.get('imageUrl') as string;
-
+		
 		if (!id) {
 			return fail(400, { message: 'ID de producto no proporcionado.' });
 		}
-
+		
 		const dataToUpdate = { imageUrl: imageUrl || null };
-
+		
 		// Validamos solo el campo que estamos actualizando.
 		const validation = ProductSchema.partial().safeParse(dataToUpdate);
 		if (!validation.success) {
@@ -127,10 +127,10 @@ export const actions: Actions = {
 				...createFailResponse('La validación falló', validation.error)
 			});
 		}
-
+		
 		try {
 			let finalImageUrl = validation.data.imageUrl ?? null;
-
+			
 			// Si la imagen existe y NO es un webp en base64, la procesamos.
 			if (finalImageUrl && !finalImageUrl.startsWith('data:image/webp;base64,')) {
 				const processedImage = await imageService.process(finalImageUrl);
@@ -139,10 +139,10 @@ export const actions: Actions = {
 				}
 				finalImageUrl = processedImage;
 			}
-
+			
 			await productService.update(id, { imageUrl: finalImageUrl });
-
-			return { success: true, message: 'Imagen actualizada con éxito' };
+			
+			return { success: true, message: 'Imagen actualizada con éxito.' };
 		} catch (error) {
 			console.error(`Error al actualizar la imagen del producto ${id}:`, error);
 			return fail(500, { message: 'No se pudo actualizar la imagen.' });

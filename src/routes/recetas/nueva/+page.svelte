@@ -2,7 +2,7 @@
 <script lang="ts">
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
 	import type { ActionData } from './$types';
-
+	
 	let { form }: { form: ActionData } = $props();
 </script>
 

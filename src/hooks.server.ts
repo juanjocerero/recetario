@@ -16,18 +16,30 @@ const authorizationHandle: Handle = async ({ event, resolve }) => {
 	// Solo ejecutamos esta lógica si no estamos en una ruta de la API de auth
 	if (!event.url.pathname.startsWith('/api/auth')) {
 		// Obtenemos la sesión del usuario en cada petición
-		event.locals.session = await auth.api.getSession({
+		const sessionInfo = await auth.api.getSession({
 			headers: event.request.headers
 		});
 
+		if (sessionInfo && sessionInfo.user) {
+			event.locals.session = {
+				session: sessionInfo.session,
+				user: {
+					...sessionInfo.user,
+					role: sessionInfo.user.role ?? 'user'
+				}
+			};
+		} else {
+			event.locals.session = null;
+		}
+		
 		const { pathname } = event.url;
-
+		
 		// Rutas públicas que no requieren autenticación
 		const publicRoutes = ['/login', '/signup', '/', '/recetas/busqueda-avanzada'];
 		if (publicRoutes.includes(pathname)) {
 			return resolve(event);
 		}
-
+		
 		// Endpoints de API públicos
 		if (
 			(pathname.startsWith('/api/recipes') && event.request.method === 'GET') ||
@@ -36,13 +48,13 @@ const authorizationHandle: Handle = async ({ event, resolve }) => {
 		) {
 			return resolve(event);
 		}
-
+		
 		// Si el usuario no está autenticado, redirigir al login
 		if (!event.locals.session) {
 			throw redirect(303, `/login?redirectTo=${pathname}`);
 		}
 	}
-
+	
 	// Continuar con la petición
 	return resolve(event);
 };

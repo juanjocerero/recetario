@@ -22,10 +22,10 @@ export type NutritionalInfo = {
 };
 
 /**
- * Calcula la información nutricional total para una lista de productos.
- * @param products - Un array de productos con su cantidad y valores nutricionales por 100g.
- * @returns Un objeto con los totales de calorías, proteínas, grasas y carbohidratos.
- */
+* Calcula la información nutricional total para una lista de productos.
+* @param products - Un array de productos con su cantidad y valores nutricionales por 100g.
+* @returns Un objeto con los totales de calorías, proteínas, grasas y carbohidratos.
+*/
 export function calculateNutritionalInfo(products: CalculableProduct[]): NutritionalInfo {
 	const totals: NutritionalInfo = {
 		totalCalories: 0,
@@ -33,7 +33,7 @@ export function calculateNutritionalInfo(products: CalculableProduct[]): Nutriti
 		totalFat: 0,
 		totalCarbs: 0
 	};
-
+	
 	for (const product of products) {
 		const factor = product.quantity / 100;
 		totals.totalCalories += (product.calories || 0) * factor;
@@ -41,7 +41,7 @@ export function calculateNutritionalInfo(products: CalculableProduct[]): Nutriti
 		totals.totalFat += (product.fat || 0) * factor;
 		totals.totalCarbs += (product.carbs || 0) * factor;
 	}
-
+	
 	// Redondeamos a 2 decimales para una mejor presentación
 	return {
 		totalCalories: Math.round(totals.totalCalories * 100) / 100,

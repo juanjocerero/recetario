@@ -13,22 +13,22 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 		if (!entryId) {
 			return json(createFailResponse('Falta el ID de la entrada'), { status: 400 });
 		}
-
+		
 		const body = await request.json();
 		// const validatedData = UpdateDiaryEntrySchema.parse(body); // TODO: Habilitar validación
-
+		
 		const updatedEntry = await diaryService.updateDiaryEntry(entryId, body);
-
+		
 		if (!updatedEntry) {
 			return json(createFailResponse('Entrada no encontrada'), { status: 404 });
 		}
-
+		
 		return json(updatedEntry, { status: 200 });
 	} catch (error) {
 		if (error instanceof ZodError) {
 			return json(createFailResponse('La validación falló', error), { status: 400 });
 		}
-		console.error('Error updating diary entry:', error);
+		console.error('Error actualizando la entrada:', error);
 		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };
@@ -39,16 +39,16 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		if (!entryId) {
 			return json(createFailResponse('Falta el ID de la entrada'), { status: 400 });
 		}
-
+		
 		const deletedEntry = await diaryService.deleteDiaryEntry(entryId);
-
+		
 		if (!deletedEntry) {
 			return json(createFailResponse('Entrada no encontrada'), { status: 404 });
 		}
-
-		return json({ success: true, message: 'Entrada eliminada con éxito' }, { status: 200 });
+		
+		return json({ success: true, message: 'Entrada eliminada con éxito.' }, { status: 200 });
 	} catch (error) {
-		console.error('Error deleting diary entry:', error);
+		console.error('Error eliminando entrada', error);
 		return json(createFailResponse('Error interno del servidor'), { status: 500 });
 	}
 };

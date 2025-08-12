@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		const search = url.searchParams.get('search') ?? undefined;
 		const sort = url.searchParams.get('sort') ?? 'name';
 		const order = url.searchParams.get('order') ?? 'asc';
-
+		
 		const products = await productService.getAll(search, sort, order);
 		return json(products);
 	} catch (error) {
@@ -38,13 +38,13 @@ export const POST: RequestHandler = async ({ request }) => {
 export const DELETE: RequestHandler = async ({ request }) => {
 	try {
 		const { id } = await request.json();
-
+		
 		if (!id || typeof id !== 'string') {
 			return json(createFailResponse('Falta el campo "id"'), { status: 400 });
 		}
-
+		
 		await productService.delete(id);
-
+		
 		return json({ success: true, message: 'Producto eliminado con éxito' }, { status: 200 });
 	} catch (error) {
 		console.error('Error al eliminar el producto:', error);

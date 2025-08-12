@@ -11,11 +11,11 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 	if (!id) {
 		return json(createFailResponse('Id de producto requerido'), { status: 400 });
 	}
-
+	
 	try {
 		const body = await request.json();
 		const validatedData = ProductSchema.parse(body);
-
+		
 		const updatedProduct = await productService.update(id, validatedData);
 		return json(updatedProduct);
 	} catch (error) {
@@ -32,7 +32,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	if (!id) {
 		return json(createFailResponse('Id de producto requerido'), { status: 400 });
 	}
-
+	
 	try {
 		await productService.delete(id);
 		return new Response(null, { status: 204 }); // 204 No Content

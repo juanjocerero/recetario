@@ -1,12 +1,12 @@
 <!-- src/lib/components/recipes/NutritionalInfoPanel.svelte -->
 <script lang="ts">
 	import type { NutritionalInfo } from '$lib/recipeCalculator';
-
+	
 	let { info }: { info: NutritionalInfo } = $props();
 </script>
 
 <div class="space-y-2 p-4 border rounded-lg bg-muted/20">
-	<h3 class="text-lg font-medium">Información Nutricional</h3>
+	<h3 class="text-lg font-medium">Información nutricional</h3>
 	<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 		<div>
 			<p class="font-bold text-xl">{info.totalCalories.toFixed(1)}</p>
@@ -22,7 +22,7 @@
 		</div>
 		<div>
 			<p class="font-bold text-xl">{info.totalCarbs.toFixed(1)} g</p>
-			<p class="text-sm font-semibold text-green-500">Carbohidratos</p>
+			<p class="text-sm font-semibold text-green-500">Carbs</p>
 		</div>
 	</div>
 </div>

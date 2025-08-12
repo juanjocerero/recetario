@@ -5,18 +5,18 @@ import { fail, redirect } from '@sveltejs/kit';
 const RECIPES_PER_PAGE = 50;
 
 /**
- * Función `load` para la carga inicial de datos.
- * Carga el primer lote de recetas de forma paginada.
- */
+* Función `load` para la carga inicial de datos.
+* Carga el primer lote de recetas de forma paginada.
+*/
 export const load: PageServerLoad = async () => {
 	// Justificación: Se llama a `findPaginated` para cargar solo la primera página
 	// de resultados. Esto mejora drásticamente el tiempo de carga inicial.
 	// Se solicita un elemento más para determinar si hay más páginas.
 	const recipesPlusOne = await recipeService.findPaginated(null, RECIPES_PER_PAGE + 1, 0);
-
+	
 	const hasMore = recipesPlusOne.length > RECIPES_PER_PAGE;
 	const recipes = recipesPlusOne.slice(0, RECIPES_PER_PAGE);
-
+	
 	return {
 		recipes,
 		hasMore
@@ -24,34 +24,34 @@ export const load: PageServerLoad = async () => {
 };
 
 /**
- * Acciones del servidor para la página de recetas.
- */
+* Acciones del servidor para la página de recetas.
+*/
 export const actions: Actions = {
 	/**
-	 * Acción de Logout:
-	 * - Elimina la cookie de sesión.
-	 * - Redirige al usuario a la página de inicio.
-	 */
+	* Acción de Logout:
+	* - Elimina la cookie de sesión.
+	* - Redirige al usuario a la página de inicio.
+	*/
 	logout: async ({ cookies }) => {
 		// Justificación: Al eliminar la cookie, es crucial especificar el `path`
 		// para asegurar que se borre correctamente en todo el dominio.
 		cookies.delete('session', { path: '/' });
-
+		
 		// Redirigimos al usuario a la página principal.
 		throw redirect(303, '/');
 	},
-
+	
 	/**
-	 * Acción `delete`: Gestiona la eliminación de una receta.
-	 */
+	* Acción `delete`: Gestiona la eliminación de una receta.
+	*/
 	delete: async ({ request }) => {
 		const data = await request.formData();
 		const id = data.get('id');
-
+		
 		if (typeof id !== 'string' || !id) {
 			return fail(400, { message: 'ID de receta no válido' });
 		}
-
+		
 		try {
 			await recipeService.deleteById(id);
 			return {

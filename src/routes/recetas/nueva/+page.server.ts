@@ -12,7 +12,7 @@ export const actions: Actions = {
 	default: async ({ request }) => {
 		const formData = await request.formData();
 		const data = Object.fromEntries(formData.entries());
-
+		
 		const dataToValidate = {
 			...data,
 			// Los datos complejos se envían como JSON string desde el cliente.
@@ -20,9 +20,9 @@ export const actions: Actions = {
 			urls: JSON.parse(data.urls as string),
 			steps: JSON.parse(data.steps as string)
 		};
-
+		
 		const validation = RecipeSchema.safeParse(dataToValidate);
-
+		
 		if (!validation.success) {
 			const response = createFailResponse(
 				'La validación falló. Revisa los campos.',
@@ -30,7 +30,7 @@ export const actions: Actions = {
 			);
 			return fail(400, response);
 		}
-
+		
 		try {
 			const newRecipe = await recipeService.create(validation.data);
 			if (newRecipe) {

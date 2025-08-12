@@ -181,7 +181,7 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 			Volver a todas las recetas
 		</Button>
 
-		{#if data.user?.isAdmin}
+		{#if data.user?.role === 'admin'}
 			<Button href="/recetas/{recipe.slug}/editar">Editar Receta</Button>
 		{/if}
 	</div>

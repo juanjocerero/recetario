@@ -24,8 +24,8 @@ type OpenFoodFactsResponse = {
 
 export const productService = {
 	/**
-	 * Busca productos por nombre en la base de datos.
-	 */
+	* Busca productos por nombre en la base de datos.
+	*/
 	async searchByName(query: string) {
 		const normalizedQuery = normalizeText(query);
 		return prisma.product.findMany({
@@ -36,30 +36,30 @@ export const productService = {
 			}
 		});
 	},
-
+	
 	/**
-	 * Obtiene todos los productos, con opción de búsqueda y ordenación.
-	 */
+	* Obtiene todos los productos, con opción de búsqueda y ordenación.
+	*/
 	async getAll(search?: string, sort: string = 'name', order: string = 'asc') {
 		const whereClause = search
-			? {
-					normalizedName: {
-						contains: normalizeText(search)
-					}
-			  }
-			: {};
-
+		? {
+			normalizedName: {
+				contains: normalizeText(search)
+			}
+		}
+		: {};
+		
 		const orderByClause = { [sort]: order };
-
+		
 		return prisma.product.findMany({
 			where: whereClause,
 			orderBy: orderByClause
 		});
 	},
-
+	
 	/**
-	 * Crea un nuevo producto.
-	 */
+	* Crea un nuevo producto.
+	*/
 	async create(data: Product, barcode?: string) {
 		const normalizedName = normalizeText(data.name);
 		return prisma.product.create({
@@ -70,36 +70,36 @@ export const productService = {
 			}
 		});
 	},
-
+	
 	/**
-	 * Actualiza un producto existente.
-	 */
+	* Actualiza un producto existente.
+	*/
 	async update(id: string, data: Partial<Product>) {
 		const updateData: Partial<Product> & { normalizedName?: string } = { ...data };
-
+		
 		// Si el nombre está siendo actualizado, también actualizamos el nombre normalizado.
 		if (data.name) {
 			updateData.normalizedName = normalizeText(data.name);
 		}
-
+		
 		return prisma.product.update({
 			where: { id },
 			data: updateData
 		});
 	},
-
+	
 	/**
-	 * Elimina un producto.
-	 */
+	* Elimina un producto.
+	*/
 	async delete(id: string) {
 		return prisma.product.delete({
 			where: { id }
 		});
 	},
-
+	
 	/**
-	 * Obtiene los detalles completos de una lista de productos por sus IDs.
-	 */
+	* Obtiene los detalles completos de una lista de productos por sus IDs.
+	*/
 	async getByIds(ids: string[]) {
 		if (ids.length === 0) {
 			return [];
@@ -108,44 +108,44 @@ export const productService = {
 			where: { id: { in: ids } }
 		});
 	},
-
+	
 	/**
-	 * Busca un producto por su código de barras solo en la base de datos local.
-	 */
+	* Busca un producto por su código de barras solo en la base de datos local.
+	*/
 	async findByBarcodeInDbOnly(barcode: string) {
 		if (!barcode) return null;
 		return prisma.product.findUnique({
 			where: { barcode }
 		});
 	},
-
+	
 	/**
-	 * Busca un producto por su código de barras.
-	 * Primero intenta encontrarlo en la base de datos local.
-	 * Si no lo encuentra, lo busca en la API de Open Food Facts,
-	 * lo guarda en la base de datos y luego lo devuelve.
-	 */
+	* Busca un producto por su código de barras.
+	* Primero intenta encontrarlo en la base de datos local.
+	* Si no lo encuentra, lo busca en la API de Open Food Facts,
+	* lo guarda en la base de datos y luego lo devuelve.
+	*/
 	async findByBarcode(barcode: string) {
 		const cachedProduct = await prisma.product.findUnique({
 			where: { barcode }
 		});
-
+		
 		if (cachedProduct) {
 			return cachedProduct;
 		}
-
+		
 		const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
-
+		
 		try {
 			const response = await ky.get(url).json<OpenFoodFactsResponse>();
-
+			
 			if (response.status === 0 || !response.product) {
 				return null;
 			}
-
+			
 			const productFromApi = response.product;
 			const productName = productFromApi.product_name;
-
+			
 			const parseNutriment = (value: unknown): number => {
 				if (typeof value === 'number') return value;
 				if (typeof value === 'string') {
@@ -154,7 +154,7 @@ export const productService = {
 				}
 				return 0;
 			};
-
+			
 			const newProduct = await prisma.product.create({
 				data: {
 					name: productName,
@@ -167,7 +167,7 @@ export const productService = {
 					carbs: parseNutriment(productFromApi.nutriments.carbohydrates_100g)
 				}
 			});
-
+			
 			return newProduct;
 		} catch (error) {
 			console.error(`[OFF] Error fetching product ${barcode}:`, error);

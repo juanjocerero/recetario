@@ -9,24 +9,18 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const body = await request.json();
 		const validatedData = DiaryEntrySchema.parse(body);
-
+		
 		// TODO: GESTIÓN DE USUARIOS (FUTURO)
 		// La siguiente sección deberá ser refactorizada cuando se implemente un sistema
 		// de autenticación completo.
-		// 1. Se deberá obtener el objeto `locals` del parámetro de la función:
-		//    `async ({ request, locals }) => { ... }`
-		// 2. Comprobar si hay un usuario autenticado. Si no, devolver un error 401.
-		//    Ejemplo:
-		//    if (!locals.user) {
-		//      return json(createFailResponse('No autorizado para realizar esta acción'), { status: 401 });
-		//    }
+		// Comprobar si hay un usuario autenticado. Si no, devolver un error 401.
 		// 3. Reemplazar el userId hardcodeado con el del usuario de la sesión.
 		//    Ejemplo:
 		//    const userId = locals.user.id;
 		const userId = 'juanjocerero'; // Valor temporal para el usuario administrador.
-
+		
 		const dataWithUser = { ...validatedData, userId };
-
+		
 		const newEntry = await diaryService.addDiaryEntry(dataWithUser);
 		return json(newEntry, { status: 201 });
 	} catch (error) {
