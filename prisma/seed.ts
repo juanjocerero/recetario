@@ -6,78 +6,75 @@ import { PrismaClient, type Product } from '@prisma/client';
 import slugify from 'slugify';
 import { normalizeText } from '../src/lib/utils';
 import { calculateNutritionalInfo } from '../src/lib/recipeCalculator';
-import { hash } from '@node-rs/argon2';
+import { auth } from '../src/lib/server/auth';
 
 const prisma = new PrismaClient();
 
 // =================================================================
 // --- FASE 0: CREACIÓN DE USUARIOS ---
 // =================================================================
+// Type guard para comprobar de forma segura si un objeto tiene un mensaje de error
+function isErrorWithMessage(error: unknown): error is { message: string } {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'message' in error &&
+		typeof (error as { message: unknown }).message === 'string'
+	);
+}
+
 async function createUsers() {
 	console.log('--- Limpiando usuarios y sesiones antiguas... ---');
 	await prisma.user.deleteMany();
-	await prisma.session.deleteMany();
 	console.log('✅ Usuarios y sesiones limpiados.');
 
-	console.log('--- Creando usuarios de prueba... ---');
-	const hashOptions = {
-		timeCost: 3,
-		memoryCost: 12288, // 12 MiB
-		parallelism: 1
-	};
-	const adminPassword = await hash('admin1234', hashOptions);
-	const userPassword = await hash('user1234', hashOptions);
+	console.log('--- Creando usuarios de prueba usando la API de Better Auth... ---');
 
-	await prisma.user.create({
-		data: {
+	// Creamos el usuario administrador
+	const adminResult = await auth.api.signUpEmail({
+		body: {
 			email: 'juanjocerero@gmail.com',
-			name: 'Admin User',
-			role: 'ADMIN',
-			emailVerified: true,
-			accounts: {
-				create: {
-					providerId: 'email',
-					accountId: 'juanjocerero@gmail.com',
-					password: adminPassword,
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
-			},
-			createdAt: new Date(),
-			updatedAt: new Date()
+			password: 'admin1234',
+			name: 'Admin User'
 		}
 	});
 
-	await prisma.user.create({
-		data: {
+	if ('user' in adminResult && adminResult.user) {
+		await prisma.user.update({
+			where: { id: adminResult.user.id },
+			data: { role: 'ADMIN' }
+		});
+		console.log('-> Administrador creado: juanjocerero@gmail.com (Contraseña: admin1234)');
+	} else if ('error' in adminResult) {
+		const errorMessage = isErrorWithMessage(adminResult.error)
+			? adminResult.error.message
+			: 'Error desconocido';
+		console.error('Error al crear el usuario administrador:', errorMessage);
+	}
+
+	// Creamos el usuario estándar
+	const userResult = await auth.api.signUpEmail({
+		body: {
 			email: 'ana.14mp@hotmail.com',
-			name: 'Ana User',
-			role: 'USER',
-			emailVerified: true,
-			accounts: {
-				create: {
-					providerId: 'email',
-					accountId: 'ana.14mp@hotmail.com',
-					password: userPassword,
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
-			},
-			createdAt: new Date(),
-			updatedAt: new Date()
+			password: 'user1234',
+			name: 'Ana User'
 		}
 	});
 
-	console.log('✅ Usuarios de prueba creados:');
-	console.log('-> Administrador: juanjocerero@gmail.com (Contraseña: admin1234)');
-	console.log('-> Usuario: ana.14mp@hotmail.com (Contraseña: user1234)');
+	if ('user' in userResult && userResult.user) {
+		console.log('-> Usuario creado: ana.14mp@hotmail.com (Contraseña: user1234)');
+	} else if ('error' in userResult) {
+		const errorMessage = isErrorWithMessage(userResult.error)
+			? userResult.error.message
+			: 'Error desconocido';
+		console.error('Error al crear el usuario estándar:', errorMessage);
+	}
 }
 
 // =================================================================
 // --- FASE 1: OBTENCIÓN DE PRODUCTOS DE OPENFOODFACTS (OFF) ---
 // =================================================================
 
-// Tipos para la respuesta de la API de OpenFoodFacts
 interface OffNutriments {
 	'energy-kcal_100g'?: number;
 	proteins_100g?: number;
@@ -124,67 +121,51 @@ const SEARCH_TERMS_FOR_SEEDING = [
 	'Salmón Ahumado Hacendado'
 ];
 
-/**
- * Busca un producto en OpenFoodFacts y lo guarda en la base de datos si es válido.
- * @param {string} searchTerm - Término de búsqueda para el producto.
- * @returns {Promise<Product | null>} El producto creado o null si no es válido.
- */
 async function fetchAndCreateProduct(searchTerm: string): Promise<Product | null> {
 	console.log(`[OFF] Buscando producto para el término: "${searchTerm}"...`);
-
 	const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
 		searchTerm
-	)}
-&search_simple=1&action=process&json=1&page_size=5`;
+	)}&search_simple=1&action=process&json=1&page_size=5`;
 
 	try {
 		const response = await fetch(searchUrl);
-		if (!response.ok) {
-			throw new Error(`La API de OFF devolvió el estado ${response.status}`);
-		}
+		if (!response.ok) throw new Error(`La API de OFF devolvió el estado ${response.status}`);
 		const data: OffSearchResponse = await response.json();
 
-		const productData = data.products.find((p: OffProduct) => {
-			const nutriments = p.nutriments;
-			return (
+		const productData = data.products.find(
+			(p) =>
 				p.code &&
 				p.product_name &&
-				nutriments?.['energy-kcal_100g'] &&
-				nutriments?.proteins_100g &&
-				nutriments?.fat_100g &&
-				nutriments?.carbohydrates_100g
-			);
-		});
+				p.nutriments?.['energy-kcal_100g'] &&
+				p.nutriments?.proteins_100g &&
+				p.nutriments?.fat_100g &&
+				p.nutriments?.carbohydrates_100g
+		);
 
 		if (!productData) {
 			console.warn(`-> [ADVERTENCIA] No se encontró un producto válido para "${searchTerm}".`);
 			return null;
 		}
 
-		const barcode = productData.code;
-		console.log(`-> [INFO] Producto encontrado: "${productData.product_name}" (${barcode})`);
-
-		const existingProduct = await prisma.product.findUnique({ where: { barcode } });
+		const existingProduct = await prisma.product.findUnique({ where: { barcode: productData.code } });
 		if (existingProduct) {
 			console.log(`-> [CACHE] El producto "${existingProduct.name}" ya existe. Omitiendo.`);
 			return existingProduct;
 		}
 
-		const productName = productData.product_name;
 		const createdProduct = await prisma.product.create({
 			data: {
-				name: productName,
-				normalizedName: normalizeText(productName),
-				barcode: barcode,
+				name: productData.product_name,
+				normalizedName: normalizeText(productData.product_name),
+				barcode: productData.code,
 				imageUrl: productData.image_url,
-				calories: productData.nutriments['energy-kcal_100g'] ?? 0,
-				protein: productData.nutriments.proteins_100g ?? 0,
-				fat: productData.nutriments.fat_100g ?? 0,
-				carbs: productData.nutriments.carbohydrates_100g ?? 0
+				calories: Number(productData.nutriments['energy-kcal_100g']) || 0,
+				protein: Number(productData.nutriments.proteins_100g) || 0,
+				fat: Number(productData.nutriments.fat_100g) || 0,
+				carbs: Number(productData.nutriments.carbohydrates_100g) || 0
 			}
 		});
-
-		console.log(`-> [ÉXITO] Producto "${createdProduct.name}" guardado en la base de datos.`);
+		console.log(`-> [ÉXITO] Producto "${createdProduct.name}" guardado.`);
 		return createdProduct;
 	} catch (error) {
 		console.error(`-> [ERROR] Fallo al procesar "${searchTerm}":`, (error as Error).message);
@@ -193,7 +174,7 @@ async function fetchAndCreateProduct(searchTerm: string): Promise<Product | null
 }
 
 // =================================================================
-// --- FASE 2: CREACIÓN DE PRODUCTOS Y RECETAS ---
+// --- FASE 2: CREACIÓN DE PRODUCTOS Y RECETAS (Resto del script) ---
 // =================================================================
 
 const BASE_PRODUCTS = [
@@ -213,13 +194,13 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 async function main() {
 	await createUsers();
 
-	console.log('--- Limpiando la base de datos... ---');
+	console.log('\n--- Limpiando datos antiguos (excepto usuarios)... ---');
 	await prisma.diaryEntry.deleteMany();
 	await prisma.recipeIngredient.deleteMany();
 	await prisma.recipeUrl.deleteMany();
 	await prisma.recipe.deleteMany();
 	await prisma.product.deleteMany();
-	console.log('✅ Base de datos limpia.');
+	console.log('✅ Datos antiguos limpiados.');
 
 	console.log('\n--- Fase 1: Poblando productos desde OpenFoodFacts... ---');
 	const offProducts = (
@@ -248,6 +229,7 @@ async function main() {
 	console.log('\n--- Fase 3: Creando recetas de prueba... ---');
 	const allAvailableProducts = [...offProducts, ...baseProducts];
 	const usedSlugs = new Set<string>();
+	const adminUser = await prisma.user.findUnique({ where: { email: 'juanjocerero@gmail.com' } });
 
 	for (let i = 0; i < 50; i++) {
 		const mainProduct = faker.helpers.arrayElement(allAvailableProducts);
@@ -291,96 +273,64 @@ async function main() {
 	console.log('✅ Fase 3 completada. 50 recetas creadas.');
 
 	console.log('\n--- Fase 4: Creando entradas de diario de prueba... ---');
-	const allRecipes = await prisma.recipe.findMany({
-		include: {
-			ingredients: {
-				include: {
-					product: true
+	if (adminUser) {
+		const allRecipes = await prisma.recipe.findMany({ include: { ingredients: { include: { product: true } } } });
+		const allProducts = await prisma.product.findMany();
+		const diaryItems = [...allProducts.map(p => ({ ...p, type: 'PRODUCT' as const })), ...allRecipes.map(r => ({ ...r, type: 'RECIPE' as const }))];
+
+		for (let day = 3; day <= 10; day++) {
+			const date = new Date(`2025-08-${String(day).padStart(2, '0')}`);
+			const numEntries = faker.number.int({ min: 5, max: 10 });
+			const selectedItems = faker.helpers.arrayElements(diaryItems, numEntries);
+
+			console.log(`[DIARIO] Creando ${numEntries} entradas para el ${date.toLocaleDateString('es-ES')}...`);
+
+			for (const item of selectedItems) {
+				const entryDate = new Date(date);
+				entryDate.setHours(faker.number.int({ min: 8, max: 22 }), faker.number.int({ min: 0, max: 59 }));
+
+				if (item.type === 'PRODUCT') {
+					const quantity = faker.number.int({ min: 50, max: 250 });
+					await prisma.diaryEntry.create({
+						data: {
+							userId: adminUser.id,
+							date: entryDate,
+							type: 'PRODUCT',
+							name: item.name,
+							quantity,
+							calories: (item.calories / 100) * quantity,
+							protein: (item.protein / 100) * quantity,
+							fat: (item.fat / 100) * quantity,
+							carbs: (item.carbs / 100) * quantity,
+							baseProductId: item.id
+						}
+					});
+				} else {
+					const recipeIngredients = item.ingredients.map(ing => ({ quantity: ing.quantity, ...ing.product }));
+					const totals = calculateNutritionalInfo(recipeIngredients);
+					const totalQuantity = recipeIngredients.reduce((sum, ing) => sum + ing.quantity, 0);
+					const ingredientsJson = item.ingredients.map(ing => ({ id: ing.product.id, name: ing.product.name, quantity: ing.quantity, baseValues: { calories: ing.product.calories, protein: ing.product.protein, fat: ing.product.fat, carbs: ing.product.carbs } }));
+
+					await prisma.diaryEntry.create({
+						data: {
+							userId: adminUser.id,
+							date: entryDate,
+							type: 'RECIPE',
+							name: item.title,
+							quantity: totalQuantity,
+							calories: totals.totalCalories,
+							protein: totals.totalProtein,
+							fat: totals.totalFat,
+							carbs: totals.totalCarbs,
+							ingredients: ingredientsJson,
+							baseRecipeId: item.id
+						}
+					});
 				}
 			}
 		}
-	});
-	const allProducts = await prisma.product.findMany();
-	const diaryItems = [
-		...allProducts.map((p) => ({ ...p, type: 'PRODUCT' as const })),
-		...allRecipes.map((r) => ({ ...r, type: 'RECIPE' as const }))
-	];
-
-	const userId = 'admin-id';
-
-	for (let day = 3; day <= 10; day++) {
-		const date = new Date(`2025-08-${String(day).padStart(2, '0')}`);
-		const numEntries = faker.number.int({ min: 5, max: 10 });
-		const selectedItems = faker.helpers.arrayElements(diaryItems, numEntries);
-
-		console.log(`[DIARIO] Creando ${numEntries} entradas para el ${date.toLocaleDateString('es-ES')}...`);
-
-		for (const item of selectedItems) {
-			const entryDate = new Date(date);
-			entryDate.setHours(
-				faker.number.int({ min: 8, max: 22 }),
-				faker.number.int({ min: 0, max: 59 })
-			);
-
-			if (item.type === 'PRODUCT') {
-				const quantity = faker.number.int({ min: 50, max: 250 });
-				await prisma.diaryEntry.create({
-					data: {
-						userId,
-						date: entryDate,
-						type: 'PRODUCT',
-						name: item.name,
-						quantity,
-						calories: (item.calories / 100) * quantity,
-						protein: (item.protein / 100) * quantity,
-						fat: (item.fat / 100) * quantity,
-						carbs: (item.carbs / 100) * quantity,
-						baseProductId: item.id
-					}
-				});
-			} else {
-				// RECIPE
-				const recipeIngredients = item.ingredients.map((ing) => ({
-					quantity: ing.quantity,
-					calories: ing.product.calories,
-					protein: ing.product.protein,
-					fat: ing.product.fat,
-					carbs: ing.product.carbs
-				}));
-				const totals = calculateNutritionalInfo(recipeIngredients);
-				const totalQuantity = recipeIngredients.reduce((sum, ing) => sum + ing.quantity, 0);
-
-				const ingredientsJson = item.ingredients.map((ing) => ({
-					id: ing.product.id,
-					name: ing.product.name,
-					quantity: ing.quantity,
-					baseValues: {
-						calories: ing.product.calories,
-						protein: ing.product.protein,
-						fat: ing.product.fat,
-						carbs: ing.product.carbs
-					}
-				}));
-
-				await prisma.diaryEntry.create({
-					data: {
-						userId,
-						date: entryDate,
-						type: 'RECIPE',
-						name: item.title,
-						quantity: totalQuantity,
-						calories: totals.totalCalories,
-						protein: totals.totalProtein,
-						fat: totals.totalFat,
-						carbs: totals.totalCarbs,
-						ingredients: ingredientsJson,
-						baseRecipeId: item.id
-					}
-				});
-			}
-		}
+		console.log('✅ Fase 4 completada. Entradas de diario creadas.');
 	}
-	console.log('✅ Fase 4 completada. Entradas de diario creadas.');
 }
 
 main()
