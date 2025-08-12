@@ -21,10 +21,6 @@ Fichero: src/routes/+layout.svelte
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 	let isMenuOpen = $state(false);
 
-	$effect(() => {
-		console.log('DEBUG: User data in layout:', data.user);
-	});
-
 	// --- Efectos del Tema ---
 	$effect(() => {
 		if (!browser) return;
