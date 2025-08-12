@@ -49,6 +49,7 @@
 	/>
 	<ProductsMobileView
 		{data}
+		{form}
 		bind:searchTerm
 		bind:editingProductName
 		bind:editingProductId
