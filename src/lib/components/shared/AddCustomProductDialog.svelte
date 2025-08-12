@@ -60,7 +60,7 @@
 				const toastId = toast.loading('Añadiendo producto...');
 				return async ({ result }) => {
 					if (result.type === 'success') {
-						toast.success('Producto añadido con éxito.', { id: toastId });
+						toast.success('Producto añadido con éxito.', { id: toastId, duration: 2000 });
 						closeDialog();
 						clearForm();
 						await invalidateAll();
