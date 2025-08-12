@@ -1,39 +1,53 @@
 // Ruta: src/hooks.server.ts
-import { verifyToken } from '$lib/server/auth';
+import { auth } from '$lib/server/auth';
+import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { building } from '$app/environment';
 import { redirect, type Handle } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
 
-/**
- * Middleware que se ejecuta en cada petición al servidor.
- * Su propósito es centralizar la autenticación y autorización.
- */
-export const handle: Handle = async ({ event, resolve }) => {
-	// 1. Obtenemos el usuario a partir del token en cada petición.
-	const token = event.cookies.get('session');
-	event.locals.user = token ? await verifyToken(token) : null;
+// El manejador de Better Auth se encarga de las rutas /api/auth/*
+// y necesita el flag `building` para funcionar correctamente.
+const betterAuthHandle: Handle = async ({ event, resolve }) => {
+	return svelteKitHandler({ event, resolve, auth, building });
+};
 
-	const { pathname } = event.url;
+// Tu lógica de autorización personalizada
+const authorizationHandle: Handle = async ({ event, resolve }) => {
+	// Solo ejecutamos esta lógica si no estamos en una ruta de la API de auth
+	if (!event.url.pathname.startsWith('/api/auth')) {
+		// Obtenemos la sesión del usuario en cada petición
+		event.locals.session = await auth.api.getSession({
+			headers: event.request.headers
+		});
 
-	// 2. Rutas públicas accesibles por CUALQUIER usuario (autenticado o no).
-	const alwaysPublicRoutes = ['/login', '/', '/recetas/busqueda-avanzada'];
-	if (alwaysPublicRoutes.includes(pathname)) {
-		return resolve(event);
+		const { pathname } = event.url;
+
+		// Rutas públicas que no requieren autenticación
+		const publicRoutes = ['/login', '/signup', '/', '/recetas/busqueda-avanzada'];
+		if (publicRoutes.includes(pathname)) {
+			return resolve(event);
+		}
+
+		// Endpoints de API públicos
+		if (
+			(pathname.startsWith('/api/recipes') && event.request.method === 'GET') ||
+			(pathname === '/api/recipes/search' && event.request.method === 'POST') ||
+			(pathname === '/api/search/all' && event.request.method === 'GET')
+		) {
+			return resolve(event);
+		}
+
+		// Si el usuario no está autenticado, redirigir al login
+		if (!event.locals.session) {
+			throw redirect(303, `/login?redirectTo=${pathname}`);
+		}
 	}
 
-	// 3. Endpoints de API públicos.
-	if (
-		(pathname.startsWith('/api/recipes') && event.request.method === 'GET') ||
-		(pathname === '/api/recipes/search' && event.request.method === 'POST') ||
-		(pathname === '/api/search/all' && event.request.method === 'GET')
-	) {
-		return resolve(event);
-	}
-
-	// 4. Para cualquier otra ruta, el usuario DEBE estar autenticado.
-	//    Si no hay un usuario en `event.locals`, lo redirigimos al login.
-	if (!event.locals.user) {
-		throw redirect(303, `/login?redirectTo=${pathname}`);
-	}
-
-	// 5. Si el usuario está autenticado, puede continuar.
+	// Continuar con la petición
 	return resolve(event);
 };
+
+// Usamos `sequence` para encadenar los manejadores.
+// Better Auth se ejecuta primero para gestionar sus rutas y sesiones,
+// y luego se ejecuta nuestra lógica de autorización personalizada.
+export const handle = sequence(betterAuthHandle, authorizationHandle);
