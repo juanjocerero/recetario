@@ -100,21 +100,6 @@
 					<p class="col-span-3 col-start-2 text-sm text-red-500">{form.errors.calories[0]}</p>
 				{/if}
 				<div class="grid grid-cols-4 items-center gap-4">
-					<Label for="protein" class="text-right">Proteínas</Label>
-					<Input
-						id="protein"
-						name="protein"
-						type="number"
-						step="0.01"
-						class="col-span-3 hide-arrows"
-						required
-						bind:value={protein}
-					/>
-				</div>
-				{#if form?.errors?.protein}
-					<p class="col-span-3 col-start-2 text-sm text-red-500">{form.errors.protein[0]}</p>
-				{/if}
-				<div class="grid grid-cols-4 items-center gap-4">
 					<Label for="fat" class="text-right">Grasas</Label>
 					<Input
 						id="fat"
@@ -143,6 +128,21 @@
 				</div>
 				{#if form?.errors?.carbs}
 					<p class="col-span-3 col-start-2 text-sm text-red-500">{form.errors.carbs[0]}</p>
+				{/if}
+				<div class="grid grid-cols-4 items-center gap-4">
+					<Label for="protein" class="text-right">Proteínas</Label>
+					<Input
+						id="protein"
+						name="protein"
+						type="number"
+						step="0.01"
+						class="col-span-3 hide-arrows"
+						required
+						bind:value={protein}
+					/>
+				</div>
+				{#if form?.errors?.protein}
+					<p class="col-span-3 col-start-2 text-sm text-red-500">{form.errors.protein[0]}</p>
 				{/if}
 			</div>
 			<Dialog.Footer>
