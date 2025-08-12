@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { authClient } from '$lib/auth-client';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -17,28 +18,25 @@
 		loading = true;
 		errorMessage = null;
 
-		const { error } = await authClient.signIn.email(
+		await authClient.signIn.email(
 			{
 				email,
 				password
 			},
 			{
-				// El callback onSuccess se usa para redirigir al usuario
-				// después de un inicio de sesión exitoso.
 				onSuccess: () => {
 					toast.success('¡Bienvenido de nuevo!');
-					goto('/', { invalidateAll: true });
+					// Leemos el parámetro 'redirectTo' de la URL.
+					const redirectTo = $page.url.searchParams.get('redirectTo');
+					// Redirigimos al usuario a la ruta deseada o a la raíz.
+					goto(redirectTo || '/', { invalidateAll: true });
 				},
-				// El callback onError nos permite mostrar un mensaje de
-				// error específico sin recargar la página.
 				onError: (ctx) => {
 					errorMessage = ctx.error.message;
 					toast.error('Error al iniciar sesión', {
 						description: ctx.error.message
 					});
 				},
-				// El callback onSettled se ejecuta siempre, tanto en éxito
-				// como en error, ideal para resetear el estado de carga.
 				onSettled: () => {
 					loading = false;
 				}
