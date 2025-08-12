@@ -2,7 +2,6 @@
 // for information about these interfaces
 import type { Session as BetterAuthSession, User as BetterAuthUser } from 'better-auth';
 
-// El objeto que devuelve auth.api.getSession()
 type AuthSession = {
 	session: BetterAuthSession;
 	user: BetterAuthUser;
@@ -12,10 +11,12 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			// Ahora `session` tiene el tipo correcto
 			session: AuthSession;
 		}
-		// interface PageData {}
+		interface PageData {
+			session?: BetterAuthSession;
+			user?: BetterAuthUser;
+		}
 		// interface PageState {}
 		// interface Platform {}
 	}
