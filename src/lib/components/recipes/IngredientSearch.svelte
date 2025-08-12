@@ -78,6 +78,27 @@
 				}
 			});
 
+			eventSource.addEventListener('local_results', (e) => {
+				if (currentSearchTerm === searchTerm) {
+					const newResults = JSON.parse(e.data) as SearchResult[];
+
+					const combinedResults = [...searchResults, ...newResults];
+					const uniqueNames = new Set<string>();
+
+					const uniqueResults = combinedResults.filter((result) => {
+						// Usamos el nombre como clave de de-duplicación, ya que el ID no es fiable
+						const key = result.name + result.source;
+						if (uniqueNames.has(key)) {
+							return false;
+						}
+						uniqueNames.add(key);
+						return true;
+					});
+
+					searchResults = uniqueResults;
+				}
+			});
+
 			eventSource.addEventListener('stream_error', (e) => {
 				if (currentSearchTerm === searchTerm) {
 					console.error('Error de stream:', e);
