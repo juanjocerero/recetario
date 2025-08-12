@@ -6,8 +6,76 @@ import { PrismaClient, type Product } from '@prisma/client';
 import slugify from 'slugify';
 import { normalizeText } from '../src/lib/utils';
 import { calculateNutritionalInfo } from '../src/lib/recipeCalculator';
+import { hash } from '@node-rs/argon2';
 
 const prisma = new PrismaClient();
+
+// =================================================================
+// --- FASE 0: CREACIÓN DE USUARIOS ---
+// =================================================================
+async function createUsers() {
+	console.log('--- Limpiando usuarios y sesiones antiguas... ---');
+	await prisma.user.deleteMany();
+	await prisma.session.deleteMany();
+	console.log('✅ Usuarios y sesiones limpiados.');
+
+	console.log('--- Creando usuarios de prueba... ---');
+	const hashOptions = {
+		timeCost: 3,
+		memoryCost: 12288, // 12 MiB
+		parallelism: 1
+	};
+	const adminPassword = await hash('admin1234', hashOptions);
+	const userPassword = await hash('user1234', hashOptions);
+
+	await prisma.user.create({
+		data: {
+			id: 'admin-id',
+			email: 'juanjocerero@gmail.com',
+			name: 'Admin User',
+			role: 'ADMIN',
+			emailVerified: true,
+			accounts: {
+				create: {
+					id: 'admin-account-id',
+					providerId: 'email',
+					accountId: 'juanjocerero@gmail.com',
+					password: adminPassword,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			},
+			createdAt: new Date(),
+			updatedAt: new Date()
+		}
+	});
+
+	await prisma.user.create({
+		data: {
+			id: 'user-id',
+			email: 'ana.14mp@hotmail.com',
+			name: 'Ana User',
+			role: 'USER',
+			emailVerified: true,
+			accounts: {
+				create: {
+					id: 'user-account-id',
+					providerId: 'email',
+					accountId: 'ana.14mp@hotmail.com',
+					password: userPassword,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			},
+			createdAt: new Date(),
+			updatedAt: new Date()
+		}
+	});
+
+	console.log('✅ Usuarios de prueba creados:');
+	console.log('-> Administrador: juanjocerero@gmail.com (Contraseña: admin1234)');
+	console.log('-> Usuario: ana.14mp@hotmail.com (Contraseña: user1234)');
+}
 
 // =================================================================
 // --- FASE 1: OBTENCIÓN DE PRODUCTOS DE OPENFOODFACTS (OFF) ---
@@ -147,6 +215,8 @@ function createMarkdownSteps(): string[] {
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 async function main() {
+	await createUsers();
+
 	console.log('--- Limpiando la base de datos... ---');
 	await prisma.diaryEntry.deleteMany();
 	await prisma.recipeIngredient.deleteMany();
@@ -240,7 +310,7 @@ async function main() {
 		...allRecipes.map((r) => ({ ...r, type: 'RECIPE' as const }))
 	];
 
-	const userId = 'juanjocerero';
+	const userId = 'admin-id';
 
 	for (let day = 3; day <= 10; day++) {
 		const date = new Date(`2025-08-${String(day).padStart(2, '0')}`);
