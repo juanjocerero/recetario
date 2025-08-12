@@ -30,14 +30,12 @@ async function createUsers() {
 
 	await prisma.user.create({
 		data: {
-			id: 'admin-id',
 			email: 'juanjocerero@gmail.com',
 			name: 'Admin User',
 			role: 'ADMIN',
 			emailVerified: true,
 			accounts: {
 				create: {
-					id: 'admin-account-id',
 					providerId: 'email',
 					accountId: 'juanjocerero@gmail.com',
 					password: adminPassword,
@@ -52,14 +50,12 @@ async function createUsers() {
 
 	await prisma.user.create({
 		data: {
-			id: 'user-id',
 			email: 'ana.14mp@hotmail.com',
 			name: 'Ana User',
 			role: 'USER',
 			emailVerified: true,
 			accounts: {
 				create: {
-					id: 'user-account-id',
 					providerId: 'email',
 					accountId: 'ana.14mp@hotmail.com',
 					password: userPassword,
