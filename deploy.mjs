@@ -86,17 +86,17 @@ async function deploy() {
     console.log('🚀 Iniciando proceso de despliegue...\n');
     
     // Paso 1: Compilar localmente
-    console.log('📦 Paso 1/8: Compilando aplicación localmente...');
+    console.log('📦 Paso 1/9: Compilando aplicación localmente...');
     await runCommand('npm', ['run', 'build']);
     console.log('✅ Compilación local completada\n');
     
     // Paso 2: Generar fichero de configuración de PM2
-    console.log('📦 Paso 2/8: Generando fichero de configuración de PM2...');
+    console.log('📦 Paso 2/9: Generando fichero de configuración de PM2...');
     await generateEcosystemFile();
     console.log('✅ Configuración de PM2 generada\n');
 
     // Paso 3: Subir el repositorio completo
-    console.log('📦 Paso 3/8: Subiendo repositorio al servidor...');
+    console.log('📦 Paso 3/9: Subiendo repositorio al servidor...');
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
     await runCommand('rsync', [
       '-avz', '--progress', '--delete',
@@ -107,7 +107,7 @@ async function deploy() {
     console.log('✅ Repositorio sincronizado\n');
     
     // Paso 4: Subir la carpeta build
-    console.log('📦 Paso 4/8: Subiendo archivos compilados...');
+    console.log('📦 Paso 4/9: Subiendo archivos compilados...');
     await runCommand('rsync', [
       '-avz', '--progress', '--delete',
       `${buildPath}/`,
@@ -116,22 +116,30 @@ async function deploy() {
     console.log('✅ Archivos compilados subidos\n');
     
     // Paso 5: Instalar dependencias en el servidor
-    console.log('📦 Paso 5/8: Instalando dependencias en el servidor...');
+    console.log('📦 Paso 5/9: Instalando dependencias en el servidor...');
     await runRemoteCommand(`cd ${remotePath} && npm ci`);
     console.log('✅ Dependencias instaladas\n');
     
     // Paso 6: Generar cliente Prisma
-    console.log('🗄️  Paso 6/8: Generando cliente Prisma...');
+    console.log('🗄️  Paso 6/9: Generando cliente Prisma...');
     await runRemoteCommand(`cd ${remotePath} && npx prisma generate`);
     console.log('✅ Cliente Prisma generado\n');
     
     // Paso 7: Aplicar migraciones de Prisma
-    console.log('🔄 Paso 7/8: Aplicando migraciones...');
+    console.log('🔄 Paso 7/9: Aplicando migraciones...');
     await runRemoteCommand(`cd ${remotePath} && npx prisma migrate deploy`);
     console.log('✅ Migraciones aplicadas\n');
+
+    // Paso 8: Crear usuario administrador (si no existe)
+    console.log('👤 Paso 8/9: Creando usuario administrador...');
+    // Leemos la contraseña del admin desde el .env del servidor y la pasamos al script
+    await runRemoteCommand(
+      `cd ${remotePath} && export $(grep -v '^#' .env | xargs) && npx tsx scripts/create-admin.ts`
+    );
+    console.log('✅ Proceso de creación de administrador finalizado\n');
     
-    // Paso 8: Reiniciar aplicación con PM2
-    console.log('🔄 Paso 8/8: Reiniciando aplicación...');
+    // Paso 9: Reiniciar aplicación con PM2
+    console.log('🔄 Paso 9/9: Reiniciando aplicación...');
     await runRemoteCommand(`cd ${remotePath} && pm2 startOrReload ecosystem.config.cjs`);
     console.log('✅ Aplicación reiniciada\n');
     

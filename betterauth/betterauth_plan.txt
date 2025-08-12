@@ -1,3 +1,4 @@
+
 # Plan de Implementación: Migración a Better Auth
 
 Este plan detalla el proceso paso a paso para migrar el sistema de autenticación de la aplicación a Better Auth, reemplazando la implementación existente. El plan está optimizado para ser ejecutado por un agente de IA, con hitos claros y pasos atómicos.
@@ -20,25 +21,22 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
 
 ---
 
-### Hito 2: Configuración de Better Auth y Esquema de Base de Datos
+### Hito 2: Configuración del Esquema de Base de Datos
 
-**Objetivo:** Configurar Better Auth y adaptar el esquema de la base de datos a sus requerimientos usando su CLI.
+**Objetivo:** Adaptar el esquema de la base de datos a los requerimientos de Better Auth y añadir el sistema de roles.
 
-*   **Paso 2.1: Crear el fichero de configuración de Better Auth.**
-    *   **Acción:** Crear un nuevo fichero en `src/lib/server/auth.ts`. En este fichero, se configurará la instancia de Better Auth usando el adaptador de Prisma (`prismaAdapter`) y se habilitará el proveedor de `emailAndPassword`.
-    *   **Justificación:** Centraliza toda la configuración de autenticación del lado del servidor. Este fichero es requerido por el CLI de Better Auth para generar el esquema de base de datos correcto.
-    *   **Verificación:** Detenerse y revisar que el fichero `src/lib/server/auth.ts` se ha creado y exporta correctamente la instancia `auth`.
+*   **Paso 2.1: Modificar el esquema de Prisma.**
+    *   **Acción:** Editar el fichero `prisma/schema.prisma`.
+        1.  Añadir un `enum Role` para definir los roles de usuario.
+        2.  Eliminar los modelos `Key` y `Session` existentes (probablemente de Lucia).
+        3.  Modificar el modelo `User` para que se ajuste a Better Auth, eliminando campos y añadiendo el campo `role`.
+        4.  Añadir los nuevos modelos `Session` y `VerificationToken` que requiere Better Auth.
+    *   **Justificación:** Se actualiza la estructura de la base de datos para que sea compatible con Better Auth. El `enum Role` formaliza el sistema de permisos requerido.
+    *   **Verificación:** Detenerse y revisar el fichero `prisma/schema.prisma` para asegurar que los cambios son sintácticamente correctos y reflejan los modelos de Better Auth.
 
-*   **Paso 2.2: Modificar y generar el esquema de Prisma.**
-    *   **Acción:**
-        1.  Editar `prisma/schema.prisma` para añadir un `enum Role` (ADMIN, USER) y añadir el campo `role Role @default(USER)` al modelo `User`. Eliminar los modelos `Key` y `Session` de la implementación anterior si existen.
-        2.  Ejecutar el comando `npx @better-auth/cli generate`.
-    *   **Justificación:** Se utiliza la herramienta oficial de Better Auth para que lea la configuración de `auth.ts` y añada automáticamente a `prisma/schema.prisma` los modelos y campos que necesita (`Session`, `VerificationToken`, etc.), evitando errores manuales y asegurando la compatibilidad.
-    *   **Verificación:** Detenerse y revisar el fichero `prisma/schema.prisma` para confirmar que los nuevos modelos y campos han sido añadidos por el CLI.
-
-*   **Paso 2.3: Aplicar la migración de la base de datos.**
+*   **Paso 2.2: Generar y aplicar la migración de la base de datos.**
     *   **Acción:** Ejecutar `npx prisma migrate dev --name better-auth-migration`.
-    *   **Justificación:** Este comando genera un nuevo fichero de migración SQL basado en el `schema.prisma` (ahora actualizado por el CLI) y lo aplica a la base de datos de desarrollo.
+    *   **Justificación:** Este comando genera un nuevo fichero de migración SQL basado en los cambios del `schema.prisma` y lo aplica a la base de datos de desarrollo, actualizando su estructura.
     *   **Verificación:** Detenerse y confirmar que el comando se ha ejecutado sin errores y que se ha creado una nueva carpeta de migración en `prisma/migrations`.
 
 ---
@@ -60,21 +58,26 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
 
 ---
 
-### Hito 4: Implementación del Backend y Cliente
+### Hito 4: Implementación del Backend de Autenticación
 
-**Objetivo:** Configurar los puntos de entrada de la API de Better Auth y el cliente del frontend.
+**Objetivo:** Configurar y poner en marcha la lógica de servidor de Better Auth.
 
 *   **Paso 4.1: Configurar variables de entorno.**
     *   **Acción:** Editar el fichero `.env.example` y añadir las siguientes variables: `BETTER_AUTH_SECRET=""` y `BETTER_AUTH_URL="http://localhost:5173"`. Instar al usuario a modificar el fichero `.env` a partir del ejemplo y generar un secreto para `BETTER_AUTH_SECRET`.
     *   **Justificación:** Better Auth requiere un secreto para firmar tokens y una URL base para construir las URLs de callback.
     *   **Verificación:** Detenerse y asegurarse de que las variables están presentes en `.env.example` y configuradas en el fichero `.env` local.
 
-*   **Paso 4.2: Actualizar los hooks del servidor de SvelteKit.**
+*   **Paso 4.2: Crear el fichero de configuración de Better Auth.**
+    *   **Acción:** Crear un nuevo fichero en `src/lib/server/auth.ts` o modificar el ya existente. En este fichero, se configurará la instancia de Better Auth usando el adaptador de Prisma (`prismaAdapter`) y se habilitará el proveedor de `emailAndPassword`.
+    *   **Justificación:** Centraliza toda la configuración de autenticación del lado del servidor en un único módulo, siguiendo las mejores prácticas.
+    *   **Verificación:** Detenerse y revisar que el fichero `src/lib/server/auth.ts` se ha creado y exporta correctamente la instancia `auth`.
+
+*   **Paso 4.3: Actualizar los hooks del servidor de SvelteKit.**
     *   **Acción:** Editar el fichero `src/hooks.server.ts`. Reemplazar el manejador de autenticación existente por el `svelteKitHandler` de Better Auth.
     *   **Justificación:** Este es el punto de entrada principal para que Better Auth intercepte, gestione y procese todas las peticiones relacionadas con la autenticación (`/api/auth/*`).
     *   **Verificación:** Detenerse y revisar que el `handle` en `src/hooks.server.ts` utiliza `svelteKitHandler` y que la aplicación sigue compilando y ejecutándose.
 
-*   **Paso 4.3: Crear el cliente de autenticación.**
+*   **Paso 4.4: Crear el cliente de autenticación.**
     *   **Acción:** Crear un nuevo fichero en `src/lib/auth-client.ts`. En él, se importará `createAuthClient` desde `better-auth/svelte` y se exportará una instancia del cliente.
     *   **Justificación:** Proporciona un cliente de autenticación tipado y fácil de usar en el frontend para realizar acciones como `signIn`, `signUp` y `signOut`.
     *   **Verificación:** Detenerse y comprobar que el fichero `src/lib/auth-client.ts` existe y exporta la instancia del cliente.
@@ -83,17 +86,17 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
 
 ### Hito 5: Implementación y Refactorización del Frontend
 
-**Objetivo:** Adaptar las páginas de login, registro y el layout principal para que usen Better Auth con una buena experiencia de usuario.
+**Objetivo:** Adaptar las páginas de login, registro y el layout principal para que usen Better Auth.
 
 *   **Paso 5.1: Refactorizar la página de login.**
-    *   **Acción:** Editar el fichero `src/routes/login/+page.svelte`. Modificar el formulario para que, en lugar de enviar a una `form action`, llame al método `authClient.signIn.email(...)`. Implementar los callbacks `onRequest`, `onSuccess` y `onError` para gestionar el estado de la UI (ej. mostrar un spinner durante la petición, deshabilitar el botón) y mostrar mensajes de error específicos al usuario. Eliminar el `+page.server.ts` si ya no es necesario.
-    *   **Justificación:** Se desacopla la lógica de la UI y se utiliza el flujo de cliente de Better Auth, mejorando la retroalimentación al usuario.
-    *   **Verificación:** Detenerse, iniciar la aplicación y probar a iniciar sesión. Comprobar que la UI responde correctamente durante la carga y en caso de error.
+    *   **Acción:** Editar el fichero `src/routes/login/+page.svelte`. Modificar el formulario para que, en lugar de enviar a una `form action`, llame al método `authClient.signIn.email(...)` importado desde `src/lib/auth-client.ts`. Eliminar el `+page.server.ts` si ya no es necesario.
+    *   **Justificación:** Se desacopla la lógica de la UI de las `form actions` del servidor y se utiliza el flujo de cliente que proporciona Better Auth, que se comunica con los endpoints `/api/auth/*`.
+    *   **Verificación:** Detenerse, iniciar la aplicación y probar a iniciar sesión con el usuario de prueba. Comprobar las peticiones de red en el navegador para ver la llamada a `/api/auth/email/signin`.
 
 *   **Paso 5.2: Crear la página de registro.**
-    *   **Acción:** Crear el fichero `src/routes/signup/+page.svelte`. El componente reutilizará los elementos de UI y estilos de la página de login para mantener la consistencia visual. Contendrá un formulario con campos para nombre, email y contraseña que llamará a `authClient.signUp.email(...)`. Se implementarán los callbacks (`onRequest`, `onSuccess`, `onError`) para una correcta retroalimentación al usuario.
-    *   **Justificación:** Se crea proactivamente una página de registro funcional y coherente con el diseño existente, evitando interrupciones en el flujo de trabajo y garantizando una buena UX.
-    *   **Verificación:** Detenerse y probar el flujo de registro creando un nuevo usuario. Verificar que la UI responde adecuadamente.
+    *   **Acción:** Crear los ficheros `src/routes/signup/+page.svelte` y, si es necesario, `+page.server.ts`. El Svelte component contendrá un formulario similar al de login, pero llamará a `authClient.signUp.email(...)`. Pedir al usuario un ejemplo de código de una página o componente similar para usar el diseño como guía de implementación. Por defecto, simular la vista de login.
+    *   **Justificación:** Se proporciona a los nuevos usuarios una forma de registrarse en la aplicación.
+    *   **Verificación:** Detenerse y probar el flujo de registro creando un nuevo usuario.
 
 *   **Paso 5.3: Actualizar el layout principal.**
     *   **Acción:**
@@ -124,3 +127,7 @@ Este plan detalla el proceso paso a paso para migrar el sistema de autenticació
         7.  Intentar acceder a rutas protegidas sin estar autenticado.
     *   **Justificación:** Se valida de forma exhaustiva que todos los flujos de autenticación y los casos de uso principales funcionan como se espera.
     *   **Verificación:** El plan se considerará completado con éxito cuando todas estas pruebas pasen sin errores.
+
+*   **Paso 6.3: Unir la rama al main principal de GitHub.**
+     **Acción:**
+     1. Unir la rama 'feat/better-auth-migration' y convertirla en la principal (main) tras asegurarse de que todo funciona correctamente y sin errores.
