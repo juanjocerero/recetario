@@ -2,10 +2,10 @@
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-	// Pasamos directamente el objeto de sesión y el usuario a la data del layout.
-	// Si locals.session es null, tanto session como user serán undefined.
+	// locals.session contiene tanto la información de la sesión como el objeto del usuario.
+	// Los devolvemos como propiedades separadas para que estén disponibles en `data.user` y `data.session`.
 	return {
-		session: locals.session?.session,
-		user: locals.session?.user
+		user: locals.session?.user,
+		session: locals.session?.session
 	};
 };

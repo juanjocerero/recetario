@@ -23,5 +23,15 @@ export const auth = betterAuth({
 				return await verify(hash, password);
 			}
 		}
+	},
+	user: {
+		additionalFields: {
+			role: {
+				type: "string",
+				required: false,
+				defaultValue: "user",
+				input: false, // don't allow user to set role
+			},
+		}
 	}
 });

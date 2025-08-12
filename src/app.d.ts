@@ -4,7 +4,7 @@ import type { Session as BetterAuthSession, User as BetterAuthUser } from 'bette
 
 type AuthSession = {
 	session: BetterAuthSession;
-	user: BetterAuthUser;
+	user: App.User;
 } | null;
 
 declare global {
@@ -15,10 +15,14 @@ declare global {
 		}
 		interface PageData {
 			session?: BetterAuthSession;
-			user?: BetterAuthUser;
+			user?: User;
 		}
 		// interface PageState {}
 		// interface Platform {}
+
+		interface User extends BetterAuthUser {
+			role: string;
+		}
 	}
 }
 

@@ -42,7 +42,7 @@ async function createUsers() {
 	if ('user' in adminResult && adminResult.user) {
 		await prisma.user.update({
 			where: { id: adminResult.user.id },
-			data: { role: 'ADMIN' }
+			data: { role: 'admin' }
 		});
 		console.log('-> Administrador creado: juanjocerero@gmail.com (Contraseña: admin1234)');
 	} else if ('error' in adminResult) {
@@ -62,6 +62,10 @@ async function createUsers() {
 	});
 
 	if ('user' in userResult && userResult.user) {
+		await prisma.user.update({
+			where: { id: userResult.user.id },
+			data: { role: 'user' }
+		});
 		console.log('-> Usuario creado: ana.14mp@hotmail.com (Contraseña: user1234)');
 	} else if ('error' in userResult) {
 		const errorMessage = isErrorWithMessage(userResult.error)
