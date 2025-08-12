@@ -6,9 +6,27 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Actualizado: Variable de entorno para PostgreSQL
-  // Ejemplo: postgresql://username:password@localhost:5432/database_name
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id            String    @id
+  name          String?
+  email         String?   @unique
+  image         String?
+  role          Role      @default(USER)
+  emailVerified Boolean
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
 }
 
 model Product {
@@ -17,10 +35,10 @@ model Product {
   name              String
   normalizedName    String // Para búsqueda case/accent-insensitive
   imageUrl          String?
-  calories          Float              // Valor por 100g
-  fat               Float              // Valor por 100g
-  protein           Float              // Valor por 100g
-  carbs             Float              // Valor por 100g
+  calories          Float // Valor por 100g
+  fat               Float // Valor por 100g
+  protein           Float // Valor por 100g
+  carbs             Float // Valor por 100g
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   recipeIngredients RecipeIngredient[]
@@ -57,19 +75,19 @@ model RecipeUrl {
 }
 
 model RecipeIngredient {
-  id        String   @id @default(cuid())
-  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId  String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
-  quantity  Float    // En gramos
+  quantity  Float // En gramos
 
   @@index([recipeId])
   @@index([productId])
 }
 
 model DiaryEntry {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   date          DateTime
   userId        String?
   type          String // "PRODUCT" or "RECIPE"
@@ -80,13 +98,58 @@ model DiaryEntry {
   fat           Float
   carbs         Float
   ingredients   Json?
-  baseProduct   Product?  @relation(fields: [baseProductId], references: [id], onDelete: SetNull)
+  baseProduct   Product? @relation(fields: [baseProductId], references: [id], onDelete: SetNull)
   baseProductId String?
-  baseRecipe    Recipe?   @relation(fields: [baseRecipeId], references: [id], onDelete: SetNull)
+  baseRecipe    Recipe?  @relation(fields: [baseRecipeId], references: [id], onDelete: SetNull)
   baseRecipeId  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([userId])
   @@index([date])
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
 }
