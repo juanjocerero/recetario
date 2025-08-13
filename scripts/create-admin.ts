@@ -47,7 +47,7 @@ async function createAdmin() {
 		body: {
 			email: ADMIN_EMAIL,
 			password: password,
-			name: 'Administrador'
+			name: 'Juanjo Cerero'
 		}
 	});
 
@@ -56,7 +56,7 @@ async function createAdmin() {
 		console.log(`✅ Usuario creado con ID: ${result.user.id}. Asignando rol de ADMIN...`);
 		await prisma.user.update({
 			where: { id: result.user.id },
-			data: { role: 'ADMIN' }
+			data: { role: 'admin' }
 		});
 		console.log('🎉 ¡Usuario administrador creado con éxito!');
 	} else if ('error' in result) {
