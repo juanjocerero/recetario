@@ -196,7 +196,7 @@
 			</div>
 			
 			<!-- Columna lateral (1/3) -->
-			<div class="lg:w-1/3 order-2 lg:order-2 lg:sticky top-4">
+			<div class="lg:w-1/3 order-2 lg:order-2 lg:sticky top-4 md:mt-8">
 				<NutritionalSummary
 				{isLoading}
 				nutrients={aggregatedNutrients}
