@@ -9,7 +9,6 @@ const cfg = JSON.parse(readFileSync('./deploy.config.json', 'utf8'));
 const { host, remotePath, localPath, buildPath, sshUser, pm2AppName, pm2Script, port, exclude } = cfg;
 
 // ---- FUNCIONES DE UTILIDAD ----
-
 // Función para ejecutar comandos locales
 function runCommand(command, args = []) {
   return new Promise((resolve, reject) => {
@@ -102,7 +101,6 @@ async function ensureSshKeyLoaded() {
 }
 
 // ---- FUNCIÓN PRINCIPAL DE DESPLIEGUE ----
-
 async function deploy() {
   try {
     console.log('🚀 Iniciando proceso de despliegue...\n');
@@ -125,7 +123,7 @@ async function deploy() {
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
     const sshCommand = `ssh -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o StrictHostKeyChecking=no -i ${cfg.sshKey}`;
     await runCommand('rsync', [
-      '-avz', '--progress', '--delete',
+      '-azq', '--no-motd', '--delete',  // CAMBIADO AQUÍ
       '-e', sshCommand,
       ...excludeArgs,
       `${localPath}/`,
@@ -136,7 +134,7 @@ async function deploy() {
     // Paso 4: Subir la carpeta build
     console.log('📦 Paso 4/9: Subiendo archivos compilados...');
     await runCommand('rsync', [
-      '-avz', '--progress', '--delete',
+      '-azq', '--no-motd', '--delete',  // CAMBIADO AQUÍ
       '-e', sshCommand,
       `${buildPath}/`,
       `${sshUser}@${host}:${remotePath}/${buildPath}`

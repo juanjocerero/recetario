@@ -7,16 +7,7 @@ const config = {
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter({
-			// silencia los warnings de dependencias circulares
-			rollup: {
-				onwarn(warning, defaultHandler) {
-					// silencia los warnings de dependencias circulares
-					if (warning.code === 'CIRCULAR_DEPENDENCY') return;
-					defaultHandler(warning);
-				}
-			}
-		}),
+		adapter: adapter(),
 	}
 };
 
