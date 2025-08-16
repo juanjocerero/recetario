@@ -5,35 +5,43 @@
 	import { LoaderCircle } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { useDebounce } from '$lib/runes/useDebounce.svelte';
-	import { scrapeImageFromPage } from '$lib/client/api';
+	import { scrapeImageFromPage, compressImage } from '$lib/client/api';
 
 	let {
 		imageUrl = $bindable<string | null>(),
-			inputName = 'imageUrl'
-		} = $props<{ imageUrl: string | null; inputName?: string }>();
+		inputName = 'imageUrl'
+	} = $props<{ imageUrl: string | null; inputName?: string }>();
 
-		let remoteUrl = $state('');
-		let isLoading = $state(false);
-		const debouncedUrl = useDebounce(() => remoteUrl, 500);
+	let remoteUrl = $state('');
+	let isLoading = $state(false);
+	const debouncedUrl = useDebounce(() => remoteUrl, 500);
 
-		function handleImageUpload(event: Event) {
-			const target = event.target as HTMLInputElement;
-			const file = target.files?.[0];
-			if (file) {
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					const result = e.target?.result;
-					imageUrl = typeof result === 'string' ? result : null;
-				};
-				reader.readAsDataURL(file);
+	async function handleImageUpload(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (file) {
+			isLoading = true;
+			const toastId = toast.loading('Procesando imagen...');
+			try {
+				imageUrl = await compressImage(file);
+				toast.success('Imagen procesada y lista.', { id: toastId, duration: 2000 });
+			} catch (error: any) {
+				toast.error(error.message || 'Error al procesar la imagen.', {
+					id: toastId,
+					duration: 2000
+				});
+				imageUrl = null;
+			} finally {
+				isLoading = false;
 			}
 		}
+	}
 
-		$effect(() => {
-			const urlToFetch = debouncedUrl();
-			if (!urlToFetch || !urlToFetch.startsWith('http')) {
-				return;
-			}
+	$effect(() => {
+		const urlToFetch = debouncedUrl();
+		if (!urlToFetch || !urlToFetch.startsWith('http')) {
+			return;
+		}
 
 			const fetchImage = async () => {
 				isLoading = true;

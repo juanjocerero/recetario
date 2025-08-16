@@ -26,3 +26,26 @@ export async function scrapeImageFromPage(pageUrl: string): Promise<string> {
 
 	return body.imageUrl;
 }
+
+/**
+ * Envía un archivo de imagen al servidor para ser comprimido.
+ * @param imageFile El archivo de imagen a comprimir.
+ * @returns La URL de datos (base64) de la imagen comprimida.
+ */
+export async function compressImage(imageFile: File): Promise<string> {
+	const formData = new FormData();
+	formData.append('image', imageFile);
+
+	const response = await fetch('/api/images/compress', {
+		method: 'POST',
+		body: formData
+	});
+
+	if (!response.ok) {
+		const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+		throw new Error(errorData.message || 'Error en la compresión de la imagen.');
+	}
+
+	const { imageUrl } = await response.json();
+	return imageUrl;
+}
