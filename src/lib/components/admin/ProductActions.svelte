@@ -314,7 +314,7 @@ onOpenChange={(isOpen) => {
 		>
 		<input type="hidden" name="id" value={product.id} />
 		<Dialog.Footer>
-			<Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
+			<Dialog.Close type="button" class={buttonVariants({ variant: 'outline' })}>Cancelar</Dialog.Close>
 			<Button variant="destructive" type="submit">Eliminar</Button>
 		</Dialog.Footer>
 	</form>
