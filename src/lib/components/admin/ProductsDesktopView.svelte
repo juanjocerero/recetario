@@ -38,9 +38,9 @@
 
 <div class="hidden md:block">
 	<Card>
-		<CardHeader class="space-y-4 pt-4">
-			<div class="flex flex-row items-center justify-between gap-4">
-				<div class="relative flex-grow">
+		<CardHeader class="pt-4">
+			<div class="flex flex-row items-center gap-4">
+				<div class="relative w-80">
 					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 					<Input class="pl-8 pr-8" placeholder="Buscar..." bind:value={searchTerm} />
 					{#if searchTerm}
@@ -53,6 +53,11 @@
 						</button>
 					{/if}
 				</div>
+
+				<div class="flex-grow">
+					<ProductSortOptions bind:field={sort} bind:direction={direction} />
+				</div>
+
 				<div class="flex items-center gap-2">
 					<a href="/admin/products/off" class={buttonVariants({ variant: 'outline' })}>
 						<UtensilsCrossed class="h-4 w-4" />
@@ -62,9 +67,6 @@
 					</Button>
 					<AddCustomProductDialog bind:open={isAddDialogOpen} bind:form />
 				</div>
-			</div>
-			<div class="flex items-center gap-4">
-				<ProductSortOptions bind:field={sort} bind:direction={direction} />
 			</div>
 		</CardHeader>
 		<CardContent>
