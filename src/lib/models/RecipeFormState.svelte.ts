@@ -111,6 +111,13 @@ export function createRecipeState(initialData: InitialData | null) {
 		reordered.splice(targetIndex, 0, removed);
 		state.ingredients = reordered;
 	}
+
+	function reorderSteps(sourceIndex: number, targetIndex: number) {
+		const reordered = [...state.steps];
+		const [removed] = reordered.splice(sourceIndex, 1);
+		reordered.splice(targetIndex, 0, removed);
+		state.steps = reordered;
+	}
 	
 	return {
 		get state() {
@@ -120,6 +127,7 @@ export function createRecipeState(initialData: InitialData | null) {
 		addStep,
 		removeStep,
 		updateStepText,
+		reorderSteps,
 		// Acciones de Ingredientes
 		addIngredient,
 		removeIngredient,

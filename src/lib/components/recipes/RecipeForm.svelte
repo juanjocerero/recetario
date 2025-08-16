@@ -183,6 +183,7 @@
 				onAdd={recipe.addStep}
 				onRemove={recipe.removeStep}
 				onUpdateText={recipe.updateStepText}
+				onReorder={recipe.reorderSteps}
 				errors={form?.errors?.steps}
 				/>
 				
