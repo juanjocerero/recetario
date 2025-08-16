@@ -143,7 +143,13 @@ async function deploy() {
     
     // Paso 5: Instalar dependencias en el servidor
     console.log('📦 Paso 5/9: Instalando dependencias en el servidor...');
-    await runRemoteCommand(`cd ${remotePath} && npm ci`);
+    // await runRemoteCommand(`cd ${remotePath} && npm ci`);
+    if (process.env.SKIP_NPM_CI !== 'true') {
+      console.log('📦 Instalando dependencias en el servidor...');
+      await runRemoteCommand(`cd ${remotePath} && npm ci`);
+    } else {
+      console.log('⏭️  Saltando instalación de dependencias (sin cambios)');
+    }
     console.log('✅ Dependencias instaladas\n');
     
     // Paso 6: Generar cliente Prisma
