@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from 'crypto';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
-import { spawn } from 'child_process';
+import { deploy } from './deploy.mjs';
 
 const hashFile = '.npm-hash-cache';
 
@@ -21,16 +21,6 @@ function saveHash() {
   writeFileSync(hashFile, getHash());
 }
 
-async function runOriginalDeploy() {
-  return new Promise((resolve, reject) => {
-    const child = spawn('node', ['deploy.mjs'], { stdio: 'inherit' });
-    child.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`deploy.mjs falló con código ${code}`));
-    });
-  });
-}
-
 (async () => {
   const changed = hasDependenciesChanged();
   if (changed) {
@@ -41,10 +31,14 @@ async function runOriginalDeploy() {
     process.env.SKIP_NPM_CI = 'true';
   }
 
-  await runOriginalDeploy();
-
-  if (changed) {
-    saveHash();
-    console.log('💾 Hash de dependencias actualizado.');
+  try {
+    await deploy();
+    if (changed) {
+      saveHash();
+      console.log('💾 Hash de dependencias actualizado.');
+    }
+  } catch (error) {
+    // El script de deploy ya maneja sus propios errores, pero por si acaso.
+    console.error('Error fatal en el proceso de despliegue inteligente.', error);
   }
 })();

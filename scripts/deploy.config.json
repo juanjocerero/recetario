@@ -12,6 +12,7 @@
     "node_modules",
     ".git",
     ".env",
-    "build"
+    "build",
+    "static/images/recipes"
   ]
 }

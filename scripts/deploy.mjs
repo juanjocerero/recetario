@@ -5,8 +5,9 @@ import { spawn } from 'child_process';
 import { exit } from 'process';
 
 // Leer configuración
-const cfg = JSON.parse(readFileSync('./deploy.config.json', 'utf8'));
-const { host, remotePath, localPath, buildPath, sshUser, pm2AppName, pm2Script, port, exclude } = cfg;
+const cfg = JSON.parse(readFileSync('scripts/deploy.config.json', 'utf8'));
+const { host, remotePath, localPath, buildPath, sshUser, pm2AppName, port, exclude } = cfg;
+const pm2Script = 'server.js'; // Forzar el uso de nuestro servidor personalizado
 
 // ---- FUNCIONES DE UTILIDAD ----
 // Función para ejecutar comandos locales
@@ -101,7 +102,7 @@ async function ensureSshKeyLoaded() {
 }
 
 // ---- FUNCIÓN PRINCIPAL DE DESPLIEGUE ----
-async function deploy() {
+export async function deploy() {
   try {
     console.log('🚀 Iniciando proceso de despliegue...\n');
     
@@ -123,7 +124,7 @@ async function deploy() {
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
     const sshCommand = `ssh -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o StrictHostKeyChecking=no -i ${cfg.sshKey}`;
     await runCommand('rsync', [
-      '-azq', '--no-motd', '--delete',  // CAMBIADO AQUÍ
+      '-azq', '--no-motd', '--delete',
       '-e', sshCommand,
       ...excludeArgs,
       `${localPath}/`,
@@ -134,7 +135,7 @@ async function deploy() {
     // Paso 4: Subir la carpeta build
     console.log('📦 Paso 4/10: Subiendo archivos compilados...');
     await runCommand('rsync', [
-      '-azq', '--no-motd', '--delete',  // CAMBIADO AQUÍ
+      '-azq', '--no-motd', '--delete',
       '-e', sshCommand,
       `${buildPath}/`,
       `${sshUser}@${host}:${remotePath}/${buildPath}`
@@ -168,7 +169,6 @@ async function deploy() {
     
     // Paso 9: Crear usuario administrador (si no existe)
     console.log('👤 Paso 9/10: Creando usuario administrador...');
-    // Leemos la contraseña del admin desde el .env del servidor y la pasamos al script
     await runRemoteCommand(
       `cd ${remotePath} && export $(grep -v '^#' .env | xargs) && npx tsx scripts/create-admin.ts`
     );
@@ -187,5 +187,7 @@ async function deploy() {
   }
 }
 
-// Ejecutar despliegue
-deploy();
+// Solo ejecutar si el script es el punto de entrada principal
+if (import.meta.url.startsWith('file://') && process.argv[1] === new URL(import.meta.url).pathname) {
+	deploy();
+}
