@@ -45,6 +45,15 @@ export const diaryService = {
 			}
 		});
 	},
+
+	/**
+	 * Obtiene una entrada del diario por su ID.
+	 */
+	async getDiaryEntryById(entryId: string): Promise<DiaryEntry | null> {
+		return prisma.diaryEntry.findUnique({
+			where: { id: entryId }
+		});
+	},
 	
 	/**
 	* Añade una nueva entrada al diario.

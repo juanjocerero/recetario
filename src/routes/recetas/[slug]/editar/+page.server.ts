@@ -78,7 +78,7 @@ export const actions: Actions = {
 			return fail(500, response);
 		}
 		
-		// Si todo ha ido bien, lanzamos la redirección fuera del try...catch
+		// Si ha ido bien, lanzamos la redirección fuera del try...catch
 		throw redirect(303, `/recetas/${updatedRecipe.slug}`);
 	}
 };

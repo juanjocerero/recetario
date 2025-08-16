@@ -5,22 +5,20 @@ import { ZodError } from 'zod';
 import { createFailResponse } from '$lib/server/zodErrors';
 import { DiaryEntrySchema } from '$lib/schemas/diarySchema';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		const session = locals.session;
+		if (!session?.user) {
+			return json(createFailResponse('No autorizado'), { status: 401 });
+		}
+
 		const body = await request.json();
 		const validatedData = DiaryEntrySchema.parse(body);
-		
-		// TODO: GESTIÓN DE USUARIOS (FUTURO)
-		// La siguiente sección deberá ser refactorizada cuando se implemente un sistema
-		// de autenticación completo.
-		// Comprobar si hay un usuario autenticado. Si no, devolver un error 401.
-		// 3. Reemplazar el userId hardcodeado con el del usuario de la sesión.
-		//    Ejemplo:
-		//    const userId = locals.user.id;
-		const userId = 'juanjocerero'; // Valor temporal para el usuario administrador.
-		
+
+		const userId = session.user.id;
+
 		const dataWithUser = { ...validatedData, userId };
-		
+
 		const newEntry = await diaryService.addDiaryEntry(dataWithUser);
 		return json(newEntry, { status: 201 });
 	} catch (error) {

@@ -20,6 +20,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  diaryEntries  DiaryEntry[]
 
   @@map("user")
 }
@@ -84,7 +85,8 @@ model RecipeIngredient {
 model DiaryEntry {
   id            String   @id @default(cuid())
   date          DateTime
-  userId        String?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
   type          String // "PRODUCT" or "RECIPE"
   name          String
   quantity      Float
