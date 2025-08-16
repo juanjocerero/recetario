@@ -1,6 +1,7 @@
 {
   "host": "vps",
   "remotePath": "/home/juanjocerero/apps/recetario",
+  "sshKey": "/Users/juanjocerero/.ssh/vps-deploy-key",
   "localPath": ".",
   "buildPath": "build",
   "sshUser": "juanjocerero",

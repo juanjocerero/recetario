@@ -34,9 +34,14 @@ function runRemoteCommand(command) {
     const sshArgs = [
       '-o', 'UserKnownHostsFile=/dev/null',
       '-o', 'StrictHostKeyChecking=no',
-      `${sshUser}@${host}`,
-      commandWithNvm
     ];
+    
+    // Añadir la clave SSH si está especificada
+    if (cfg.sshKey) {
+      sshArgs.push('-i', cfg.sshKey);
+    }
+    
+    sshArgs.push(`${sshUser}@${host}`, commandWithNvm);
     
     const ssh = spawn('ssh', sshArgs, { stdio: 'inherit' });
     
@@ -94,12 +99,15 @@ async function deploy() {
     console.log('📦 Paso 2/9: Generando fichero de configuración de PM2...');
     await generateEcosystemFile();
     console.log('✅ Configuración de PM2 generada\n');
-
+    
     // Paso 3: Subir el repositorio completo
     console.log('📦 Paso 3/9: Subiendo repositorio al servidor...');
+    // Por esto:
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
+    const sshCommand = `ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${cfg.sshKey}`;
     await runCommand('rsync', [
       '-avz', '--progress', '--delete',
+      '-e', sshCommand,
       ...excludeArgs,
       `${localPath}/`,
       `${sshUser}@${host}:${remotePath}`
@@ -110,6 +118,7 @@ async function deploy() {
     console.log('📦 Paso 4/9: Subiendo archivos compilados...');
     await runCommand('rsync', [
       '-avz', '--progress', '--delete',
+      '-e', sshCommand,
       `${buildPath}/`,
       `${sshUser}@${host}:${remotePath}/${buildPath}`
     ]);
@@ -129,7 +138,7 @@ async function deploy() {
     console.log('🔄 Paso 7/9: Aplicando migraciones...');
     await runRemoteCommand(`cd ${remotePath} && npx prisma migrate deploy`);
     console.log('✅ Migraciones aplicadas\n');
-
+    
     // Paso 8: Crear usuario administrador (si no existe)
     console.log('👤 Paso 8/9: Creando usuario administrador...');
     // Leemos la contraseña del admin desde el .env del servidor y la pasamos al script
