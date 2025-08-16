@@ -9,7 +9,6 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 	import { calculateNutritionalInfo, type CalculableProduct } from '$lib/recipeCalculator';
 	import { ArrowLeft } from 'lucide-svelte';
 	import type { PageData } from './$types';
-	import { fly } from 'svelte/transition';
 
 	let { data }: { data: PageData } = $props();
 	const { recipe } = data;
@@ -38,6 +37,28 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 	// Los pasos ya vienen procesados como HTML desde el servidor.
 	const { steps } = recipe;
 </script>
+
+<svelte:head>
+	<title>{recipe.title}</title>
+	<meta name="description" content="Información nutricional, ingredientes y pasos para preparar {recipe.title}" />
+
+	<!-- Open Graph / Facebook -->
+	<meta property="og:type" content="article" />
+	<meta property="og:title" content={recipe.title} />
+	<meta property="og:description" content="Información nutricional, ingredientes y pasos para preparar {recipe.title}" />
+	{#if recipe.imageUrl}
+		<meta property="og:image" content={recipe.imageUrl} />
+	{/if}
+	<meta property="og:url" content={data.url.href} />
+
+	<!-- Twitter -->
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={recipe.title} />
+	<meta name="twitter:description" content="Información nutricional, ingredientes y pasos para preparar {recipe.title}" />
+	{#if recipe.imageUrl}
+		<meta name="twitter:image" content={recipe.imageUrl} />
+	{/if}
+</svelte:head>
 
 <div class="container mx-auto p-4 md:px-24 mt-16 md:mt-0">
 	<h1 class="font-heading font-light text-3xl md:text-4xl mb-8">{recipe.title}</h1>

@@ -10,7 +10,7 @@ import { marked } from 'marked';
 // lo que resuelve el error "require is not defined" en producción.
 import sanitizeHtml from 'sanitize-html';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, url }) => {
 	const recipe = await recipeService.getBySlug(params.slug);
 
 	if (!recipe) {
@@ -33,7 +33,8 @@ export const load: PageServerLoad = async ({ params }) => {
 		recipe: {
 			...recipe,
 			steps: processedSteps
-		}
+		},
+		url
 	};
 };
 
