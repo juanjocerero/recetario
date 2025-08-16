@@ -4,6 +4,38 @@ import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import fs from 'fs';
+import path from 'path';
+
+const IMAGE_DIR = path.join(process.cwd(), 'static', 'images', 'recipes');
+
+/**
+ * Este manejador sirve imágenes estáticas generadas dinámicamente.
+ * Intercepta las peticiones a /images/recipes/* y sirve el fichero correspondiente
+ * desde el directorio `static/images/recipes`.
+ */
+const staticImageHandle: Handle = async ({ event, resolve }) => {
+	const { pathname } = event.url;
+
+	if (pathname.startsWith('/images/recipes/')) {
+		const imageName = path.basename(pathname);
+		const filePath = path.join(IMAGE_DIR, imageName);
+
+		if (fs.existsSync(filePath)) {
+			const fileBuffer = fs.readFileSync(filePath);
+			return new Response(fileBuffer, {
+				status: 200,
+				headers: {
+					'Content-Type': 'image/webp', // Asumimos que todas son webp
+					'Cache-Control': 'public, max-age=31536000, immutable' // Cachear por 1 año
+				}
+			});
+		}
+	}
+
+	// Si no es una imagen de receta, continuar con el siguiente manejador.
+	return resolve(event);
+};
 
 // El manejador de Better Auth se encarga de las rutas /api/auth/*
 // y necesita el flag `building` para funcionar correctamente.
@@ -60,6 +92,5 @@ const authorizationHandle: Handle = async ({ event, resolve }) => {
 };
 
 // Usamos `sequence` para encadenar los manejadores.
-// Better Auth se ejecuta primero para gestionar sus rutas y sesiones,
-// y luego se ejecuta nuestra lógica de autorización personalizada.
-export const handle = sequence(betterAuthHandle, authorizationHandle);
+// El manejador de imágenes se ejecuta primero.
+export const handle = sequence(staticImageHandle, betterAuthHandle, authorizationHandle);

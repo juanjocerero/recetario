@@ -109,17 +109,17 @@ async function deploy() {
     await ensureSshKeyLoaded();
     
     // Paso 1: Compilar localmente
-    console.log('📦 Paso 1/11: Compilando aplicación localmente...');
+    console.log('📦 Paso 1/10: Compilando aplicación localmente...');
     await runCommand('npm', ['run', 'build']);
     console.log('✅ Compilación local completada\n');
     
     // Paso 2: Generar fichero de configuración de PM2
-    console.log('📦 Paso 2/11: Generando fichero de configuración de PM2...');
+    console.log('📦 Paso 2/10: Generando fichero de configuración de PM2...');
     await generateEcosystemFile();
     console.log('✅ Configuración de PM2 generada\n');
     
     // Paso 3: Subir el repositorio completo
-    console.log('📦 Paso 3/11: Subiendo repositorio al servidor...');
+    console.log('📦 Paso 3/10: Subiendo repositorio al servidor...');
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
     const sshCommand = `ssh -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o StrictHostKeyChecking=no -i ${cfg.sshKey}`;
     await runCommand('rsync', [
@@ -132,7 +132,7 @@ async function deploy() {
     console.log('✅ Repositorio sincronizado\n');
     
     // Paso 4: Subir la carpeta build
-    console.log('📦 Paso 4/11: Subiendo archivos compilados...');
+    console.log('📦 Paso 4/10: Subiendo archivos compilados...');
     await runCommand('rsync', [
       '-azq', '--no-motd', '--delete',  // CAMBIADO AQUÍ
       '-e', sshCommand,
@@ -142,7 +142,7 @@ async function deploy() {
     console.log('✅ Archivos compilados subidos\n');
     
     // Paso 5: Instalar dependencias en el servidor
-    console.log('📦 Paso 5/11: Instalando dependencias en el servidor...');
+    console.log('📦 Paso 5/10: Instalando dependencias en el servidor...');
     if (process.env.SKIP_NPM_CI !== 'true') {
       console.log('📦 Instalando dependencias en el servidor...');
       await runRemoteCommand(`cd ${remotePath} && npm ci`);
@@ -152,37 +152,30 @@ async function deploy() {
     console.log('✅ Dependencias instaladas\n');
     
     // Paso 6: Generar cliente Prisma
-    console.log('🗄️  Paso 6/11: Generando cliente Prisma...');
+    console.log('🗄️  Paso 6/10: Generando cliente Prisma...');
     await runRemoteCommand(`cd ${remotePath} && npx prisma generate`);
     console.log('✅ Cliente Prisma generado\n');
     
     // Paso 7: Aplicar migraciones de Prisma
-    console.log('🔄 Paso 7/11: Aplicando migraciones...');
+    console.log('🔄 Paso 7/10: Aplicando migraciones...');
     await runRemoteCommand(`cd ${remotePath} && npx prisma migrate deploy`);
     console.log('✅ Migraciones aplicadas\n');
 
     // Paso 8: Migrar imágenes de base64 a ficheros
-    console.log('🖼️  Paso 8/11: Migrando imágenes a ficheros...');
+    console.log('🖼️  Paso 8/10: Migrando imágenes a ficheros...');
     await runRemoteCommand(`cd ${remotePath} && npx tsx scripts/migrate-images.ts`);
     console.log('✅ Imágenes migradas\n');
-
-    // Paso 9: Sincronizar imágenes con la build de producción
-    console.log('🔄 Paso 9/11: Sincronizando imágenes con la build...');
-    const staticImagesPath = `${remotePath}/static/images/recipes`;
-    const buildImagesPath = `${remotePath}/${buildPath}/client/images/recipes`;
-    await runRemoteCommand(`mkdir -p ${buildImagesPath} && rsync -a ${staticImagesPath}/ ${buildImagesPath}/`);
-    console.log('✅ Imágenes sincronizadas\n');
     
-    // Paso 10: Crear usuario administrador (si no existe)
-    console.log('👤 Paso 10/11: Creando usuario administrador...');
+    // Paso 9: Crear usuario administrador (si no existe)
+    console.log('👤 Paso 9/10: Creando usuario administrador...');
     // Leemos la contraseña del admin desde el .env del servidor y la pasamos al script
     await runRemoteCommand(
       `cd ${remotePath} && export $(grep -v '^#' .env | xargs) && npx tsx scripts/create-admin.ts`
     );
     console.log('✅ Proceso de creación de administrador finalizado\n');
     
-    // Paso 11: Reiniciar aplicación con PM2
-    console.log('🔄 Paso 11/11: Reiniciando aplicación...');
+    // Paso 10: Reiniciar aplicación con PM2
+    console.log('🔄 Paso 10/10: Reiniciando aplicación...');
     await runRemoteCommand(`cd ${remotePath} && pm2 startOrReload ecosystem.config.cjs`);
     console.log('✅ Aplicación reiniciada\n');
     
