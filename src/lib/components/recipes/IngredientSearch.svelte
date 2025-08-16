@@ -140,7 +140,7 @@
 						});
 					} catch (error) {
 						console.error('Error adding ingredient:', error);
-						toast.error('No se pudieron obtener los detalles del ingrediente.');
+						toast.error('No se pudieron obtener los detalles del ingrediente.', { duration: 2000 });
 					} finally {
 						open = false;
 						searchResults = [];

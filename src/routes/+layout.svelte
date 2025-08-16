@@ -42,18 +42,18 @@ Fichero: src/routes/+layout.svelte
 	});
 	
 	async function handleLogout() {
-		const toastId = toast.loading('Cerrando sesión...');
+		const toastId = toast.loading('Cerrando sesión...', { duration: 2000 });
 		try {
 			await authClient.signOut();
 			await invalidateAll();
-			toast.success('Sesión cerrada correctamente.', { id: toastId });
+			toast.success('Sesión cerrada correctamente.', { id: toastId, duration: 2000 });
 			isMenuOpen = false;
 		} catch (error) {
 			let description = 'Ocurrió un error inesperado.';
 			if (error instanceof Error) {
 				description = error.message;
 			}
-			toast.error('Error al cerrar sesión', { id: toastId, description });
+			toast.error('Error al cerrar sesión', { id: toastId, description, duration: 5000 });
 		}
 	}
 </script>

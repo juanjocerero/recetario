@@ -36,7 +36,7 @@
 			
 			const fetchImage = async () => {
 				isLoading = true;
-				const toastId = toast.loading('Buscando imagen en la URL...');
+				const toastId = toast.loading('Buscando imagen en la URL...', { duration: 2000 });
 				
 				try {
 					const response = await fetch('/api/scrape-image', {
@@ -52,9 +52,9 @@
 					
 					const data = await response.json();
 					imageUrl = data.imageUrl;
-					toast.success('Imagen encontrada y asignada.', { id: toastId });
+					toast.success('Imagen encontrada y asignada.', { id: toastId, duration: 2000 });
 				} catch (error: any) {
-					toast.error(error.message || 'No se pudo obtener la imagen.', { id: toastId });
+					toast.error(error.message || 'No se pudo obtener la imagen.', { id: toastId, duration: 2000 });
 					imageUrl = null; // Limpiar si falla
 				} finally {
 					isLoading = false;

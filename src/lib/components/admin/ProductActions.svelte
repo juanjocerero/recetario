@@ -201,15 +201,15 @@ onOpenChange={(isOpen) => {
 	method="POST"
 	action="?/update"
 	use:enhance={() => {
-		const toastId = toast.loading('Actualizando producto...');
+		const toastId = toast.loading('Actualizando producto...', { duration: 2000 });
 		return async ({ result }) => {
 			await applyAction(result);
 			if (result.type === 'success') {
-				toast.success('Producto actualizado.', { id: toastId });
+				toast.success('Producto actualizado.', { id: toastId, duration: 2000 });
 				closeEditDialog();
 				await invalidateAll();
 			} else if (result.type === 'failure') {
-				toast.error('Error al actualizar.', { id: toastId });
+				toast.error('Error al actualizar.', { id: toastId, duration: 2000 });
 			} else {
 				toast.dismiss(toastId);
 			}
@@ -293,11 +293,11 @@ onOpenChange={(isOpen) => {
 		method="POST"
 		action="?/delete"
 		use:enhance={() => {
-			const toastId = toast.loading('Eliminando producto...');
+			const toastId = toast.loading('Eliminando producto...', { duration: 2000 });
 			return async ({ result }) => {
 				await applyAction(result);
 				if (result.type === 'success') {
-					toast.success('Producto eliminado.', { id: toastId });
+					toast.success('Producto eliminado.', { id: toastId, duration: 2000 });
 					isDeleteDialogOpen = false;
 					await invalidateAll();
 				} else if (result.type === 'failure') {
@@ -305,7 +305,7 @@ onOpenChange={(isOpen) => {
 					if (result.data && typeof (result.data as any).message === 'string') {
 						message = (result.data as any).message;
 					}
-					toast.error(message, { id: toastId });
+					toast.error(message, { id: toastId, duration: 2000 });
 				} else {
 					toast.dismiss(toastId);
 				}
@@ -334,11 +334,11 @@ onOpenChange={(isOpen) => {
 		method="POST"
 		action="?/updateImage"
 		use:enhance={() => {
-			const toastId = toast.loading('Actualizando imagen...');
+			const toastId = toast.loading('Actualizando imagen...', { duration: 2000 });
 			return async ({ result }) => {
 				await applyAction(result);
 				if (result.type === 'success') {
-					toast.success('Imagen actualizada.', { id: toastId });
+					toast.success('Imagen actualizada.', { id: toastId, duration: 2000 });
 					isImageDialogOpen = false;
 					await invalidateAll();
 				} else if (result.type === 'failure') {
@@ -346,7 +346,7 @@ onOpenChange={(isOpen) => {
 					if (result.data && typeof (result.data as any).message === 'string') {
 						message = (result.data as any).message;
 					}
-					toast.error(message, { id: toastId });
+					toast.error(message, { id: toastId, duration: 2000 });
 				} else {
 					toast.dismiss(toastId);
 				}

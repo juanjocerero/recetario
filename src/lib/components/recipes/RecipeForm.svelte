@@ -124,19 +124,19 @@
 			method="POST"
 			use:enhance={() => {
 				isSubmitting = true;
-				const toastId = toast.loading('Guardando receta...');
+				const toastId = toast.loading('Guardando receta...', { duration: 2000 });
 				
 				return async ({ result }) => {
 					await applyAction(result);
 					isSubmitting = false;
 					
 					if (result.type === 'success') {
-						toast.success('Receta guardada con éxito.', { id: toastId });
+						toast.success('Receta guardada con éxito.', { id: toastId, duration: 2000 });
 						autosave.clear(autosaveKey);
 						await onSuccess();
 					} else if (result.type === 'failure') {
 						const message = form?.message || 'Error al guardar la receta. Revisa los campos.';
-						toast.error(message, { id: toastId });
+						toast.error(message, { id: toastId, duration: 2000 });
 					} else {
 						toast.dismiss(toastId);
 					}

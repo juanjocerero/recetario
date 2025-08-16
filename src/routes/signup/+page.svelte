@@ -27,14 +27,16 @@
 		{
 			onSuccess: () => {
 				toast.success('¡Cuenta creada con éxito!', {
-					description: 'Te hemos redirigido a la página principal.'
+					description: 'Te hemos redirigido a la página principal.',
+					duration: 5000,
 				});
 				goto('/', { invalidateAll: true });
 			},
 			onError: (ctx) => {
 				errorMessage = ctx.error.message;
 				toast.error('Error en el registro', {
-					description: ctx.error.message
+					description: ctx.error.message,
+					duration: 5000,
 				});
 			},
 			onSettled: () => {

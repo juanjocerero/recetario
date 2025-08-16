@@ -66,11 +66,11 @@
 		method="POST"
 		action="?/add"
 		use:enhance={() => {
-			const toastId = toast.loading('Añadiendo producto...');
+			const toastId = toast.loading('Añadiendo producto...', { duration: 2000 });
 			return async ({ result }) => {
 				await applyAction(result);
 				if (result.type === 'success') {
-					toast.success('Producto añadido correctamente.', { id: toastId });
+					toast.success('Producto añadido correctamente.', { id: toastId, duration: 2000 });
 					open = false;
 					onProductAdded(product.id);
 					await invalidateAll();
@@ -79,7 +79,7 @@
 					if (result.data && typeof (result.data as any).error === 'string') {
 						message = (result.data as any).error;
 					}
-					toast.error(message, { id: toastId });
+					toast.error(message, { id: toastId, duration: 2000 });
 				} else {
 					toast.dismiss(toastId);
 				}

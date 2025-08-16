@@ -25,7 +25,7 @@
 		},
 		{
 			onSuccess: () => {
-				toast.success('¡Bienvenido de nuevo!');
+				toast.success('¡Bienvenido de nuevo!', { duration: 2000 });
 				// Leemos el parámetro 'redirectTo' de la URL.
 				const redirectTo = $page.url.searchParams.get('redirectTo');
 				// Redirigimos al usuario a la ruta deseada o a la raíz.
@@ -34,7 +34,8 @@
 			onError: (ctx) => {
 				errorMessage = ctx.error.message;
 				toast.error('Error al iniciar sesión', {
-					description: ctx.error.message
+					description: ctx.error.message,
+					duration: 5000,
 				});
 			},
 			onSettled: () => {

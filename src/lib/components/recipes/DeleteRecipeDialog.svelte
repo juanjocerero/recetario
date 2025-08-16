@@ -48,14 +48,14 @@ omponente para un diálogo de confirmación de borrado seguro.
 		bind:this={formElement}
 		use:enhance={() => {
 			onOpenChange(false);
-			const toastId = toast.loading('Eliminando receta...');
+			const toastId = toast.loading('Eliminando receta...', { duration: 2000 });
 			
 			return async ({ result }) => {
 				await applyAction(result);
 				if (result.type === 'success') {
-					toast.success('Receta eliminada correctamente.', { id: toastId });
+					toast.success('Receta eliminada correctamente.', { id: toastId, duration: 2000 });
 				} else if (result.type === 'failure') {
-					toast.error('No se pudo eliminar la receta.', { id: toastId });
+					toast.error('No se pudo eliminar la receta.', { id: toastId, duration: 2000 });
 				} else {
 					toast.dismiss(toastId);
 				}
