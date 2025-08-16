@@ -151,9 +151,7 @@
 	});
 </script>
 
-<div class="container mx-auto p-4 md:py-8 md:px-24">
-	<h1 class="text-3xl font-bold mb-6">Diario</h1>
-	
+<div class="container mx-auto md:py-4 md:px-24">	
 	<div class="flex flex-col lg:flex-row gap-8">
 		<!-- Columna principal (2/3) -->
 		<div class="lg:w-2/3 order-1 lg:order-1">

@@ -49,7 +49,7 @@
 	let editingProductId = $state<string | null>(null);
 </script>
 
-<div class="container mx-auto p-4 md:py-8 md:px-24">
+<div class="container mx-auto md:py-4 md:px-24">
 	<ProductsDesktopView
 		{data}
 		{form}
