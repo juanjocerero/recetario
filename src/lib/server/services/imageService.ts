@@ -5,8 +5,24 @@
 
 import sharp from 'sharp';
 import * as cheerio from 'cheerio';
+import fs from 'fs/promises';
+import path from 'path';
 
 const MAX_IMAGE_WIDTH = 768; // Ancho máximo para las imágenes de receta
+const IMAGE_DIR = path.join(process.cwd(), 'static', 'images', 'recipes');
+const PUBLIC_IMAGE_PATH = '/images/recipes';
+
+/**
+ * Se asegura de que el directorio donde se guardan las imágenes exista.
+ */
+async function ensureImageDirExists() {
+	try {
+		await fs.mkdir(IMAGE_DIR, { recursive: true });
+	} catch (error) {
+		console.error('Error al crear el directorio de imágenes:', error);
+		throw new Error('No se pudo crear el directorio para las imágenes.');
+	}
+}
 
 /**
 * Extrae la URL de la imagen principal (thumbnail) de una página web.
@@ -90,6 +106,66 @@ async function fetchImageAsBuffer(imageUrl: string): Promise<Buffer | null> {
 	}
 }
 
+/**
+ * Guarda una imagen en formato base64 como un archivo físico .webp.
+ * @param base64Data La cadena de la imagen en base64.
+ * @param slug El slug de la receta, usado como nombre de archivo.
+ * @returns La ruta pública del archivo guardado o null si falla.
+ */
+async function saveBase64ImageAsFile(
+	base64Data: string,
+	slug: string
+): Promise<string | null> {
+	if (!base64Data.startsWith('data:image/')) {
+		// No es una imagen base64, probablemente ya sea una URL.
+		return base64Data;
+	}
+
+	try {
+		await ensureImageDirExists();
+		const imageBuffer = Buffer.from(base64Data.split(',')[1], 'base64');
+		const fileName = `${slug}.webp`;
+		const filePath = path.join(IMAGE_DIR, fileName);
+
+		await sharp(imageBuffer)
+			.resize(MAX_IMAGE_WIDTH, null, { withoutEnlargement: true })
+			.webp({ quality: 80 }) // Calidad ligeramente superior para archivos
+			.toFile(filePath);
+
+		return `${PUBLIC_IMAGE_PATH}/${fileName}`;
+	} catch (error) {
+		console.error(`Error al guardar la imagen para el slug ${slug}:`, error);
+		return null;
+	}
+}
+
+/**
+ * Elimina un archivo de imagen del sistema de archivos.
+ * @param imageUrl La ruta pública de la imagen a eliminar.
+ */
+async function deleteImageFile(imageUrl: string | null): Promise<void> {
+	if (!imageUrl || !imageUrl.startsWith(PUBLIC_IMAGE_PATH)) {
+		return; // No es un archivo local gestionado por nosotros
+	}
+	try {
+		const fileName = path.basename(imageUrl);
+		const filePath = path.join(IMAGE_DIR, fileName);
+		await fs.unlink(filePath);
+	} catch (error: unknown) {
+		// Si el archivo no existe (ENOENT), no es un error crítico.
+		// Para cualquier otro error, lo mostramos en consola.
+		const isIgnorableError =
+			typeof error === 'object' &&
+			error !== null &&
+			'code' in error &&
+			(error as { code: unknown }).code === 'ENOENT';
+
+		if (!isIgnorableError) {
+			console.error(`Error al eliminar el archivo de imagen ${imageUrl}:`, error);
+		}
+	}
+}
+
 export const imageService = {
 	/**
 	* Orquesta el proceso completo: obtiene la URL de la imagen de una página
@@ -114,5 +190,15 @@ export const imageService = {
 	* @param source La URL de la imagen, el buffer o la cadena Base64.
 	* @returns La imagen optimizada en formato Base64 WebP, o null si falla.
 	*/
-	process: processImage
+	process: processImage,
+
+	/**
+	 * Guarda una imagen base64 como archivo y devuelve la ruta pública.
+	 */
+	saveBase64ImageAsFile,
+
+	/**
+	 * Elimina un archivo de imagen.
+	 */
+	deleteImageFile
 };

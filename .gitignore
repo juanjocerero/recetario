@@ -9,6 +9,9 @@ node_modules
 /.svelte-kit
 /build
 
+# Imágenes
+/static/images/recipes/*
+
 # OS
 .DS_Store
 Thumbs.db

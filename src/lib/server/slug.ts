@@ -1,6 +1,15 @@
 // Ruta: src/lib/server/slug.ts
-import slugify from 'slugify';
+import slugifyLib from 'slugify';
 import prisma from '$lib/server/prisma';
+
+/**
+ * Convierte una cadena de texto en un slug.
+ * @param text El texto a convertir.
+ * @returns El slug generado.
+ */
+export function slugify(text: string): string {
+	return slugifyLib(text, { lower: true, strict: true });
+}
 
 /**
 * Genera un slug único para una receta a partir de su título.
@@ -9,7 +18,7 @@ import prisma from '$lib/server/prisma';
 * @returns {Promise<string>} Un slug único garantizado.
 */
 export async function generateUniqueSlug(title: string): Promise<string> {
-	const baseSlug = slugify(title, { lower: true, strict: true });
+	const baseSlug = slugify(title);
 	let uniqueSlug = baseSlug;
 	let counter = 2;
 	
