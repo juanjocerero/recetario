@@ -73,6 +73,10 @@
 					{loading ? 'Entrando...' : 'Entrar'}
 				</Button>
 			</form>
+			<div class="mt-4 text-center text-sm">
+				¿Todavía no tienes cuenta?
+				<a href="/signup" class="underline"> Crear una </a>
+			</div>
 		</Card.Content>
 	</Card.Root>
 </div>

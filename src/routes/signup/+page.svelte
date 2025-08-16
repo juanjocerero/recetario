@@ -50,7 +50,7 @@
 <div class="flex min-h-screen items-center justify-center bg-muted/40">
 	<Card.Root class="w-full max-w-sm">
 		<Card.Header class="space-y-1 text-center">
-			<Card.Title class="text-2xl font-bold mt-4">Crear Cuenta</Card.Title>
+			<Card.Title class="text-2xl font-bold mt-4">Crear cuenta</Card.Title>
 			<Card.Description>Introduce tus datos para registrarte</Card.Description>
 		</Card.Header>
 		<Card.Content>
