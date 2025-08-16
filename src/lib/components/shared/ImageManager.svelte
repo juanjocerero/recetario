@@ -5,16 +5,17 @@
 	import { LoaderCircle } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { useDebounce } from '$lib/runes/useDebounce.svelte';
-	
+	import { scrapeImageFromPage } from '$lib/client/api';
+
 	let {
 		imageUrl = $bindable<string | null>(),
 			inputName = 'imageUrl'
 		} = $props<{ imageUrl: string | null; inputName?: string }>();
-		
+
 		let remoteUrl = $state('');
 		let isLoading = $state(false);
 		const debouncedUrl = useDebounce(() => remoteUrl, 500);
-		
+
 		function handleImageUpload(event: Event) {
 			const target = event.target as HTMLInputElement;
 			const file = target.files?.[0];
@@ -27,31 +28,18 @@
 				reader.readAsDataURL(file);
 			}
 		}
-		
+
 		$effect(() => {
 			const urlToFetch = debouncedUrl();
 			if (!urlToFetch || !urlToFetch.startsWith('http')) {
 				return;
 			}
-			
+
 			const fetchImage = async () => {
 				isLoading = true;
-				const toastId = toast.loading('Buscando imagen en la URL...', { duration: 2000 });
-				
+				const toastId = toast.loading('Buscando imagen en la URL...');
 				try {
-					const response = await fetch('/api/scrape-image', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ url: urlToFetch })
-					});
-					
-					if (!response.ok) {
-						const errorData = await response.json();
-						throw new Error(errorData.message || `Error ${response.status}`);
-					}
-					
-					const data = await response.json();
-					imageUrl = data.imageUrl;
+					imageUrl = await scrapeImageFromPage(urlToFetch);
 					toast.success('Imagen encontrada y asignada.', { id: toastId, duration: 2000 });
 				} catch (error: any) {
 					toast.error(error.message || 'No se pudo obtener la imagen.', { id: toastId, duration: 2000 });
@@ -60,14 +48,14 @@
 					isLoading = false;
 				}
 			};
-			
+
 			fetchImage();
 		});
 	</script>
-	
+
 	<div class="space-y-4 rounded-lg border p-4">
 		<input type="hidden" name={inputName} value={imageUrl ?? ''} />
-		
+
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 			<div class="md:col-span-1">
 				<Label>Previsualización</Label>
@@ -85,13 +73,13 @@
 				{/if}
 			</div>
 		</div>
-		
+
 		<div class="space-y-4 md:col-span-2">
 			<div>
 				<Label for="image-upload">Subir un archivo</Label>
 				<Input id="image-upload" type="file" onchange={handleImageUpload} accept="image/*" />
 			</div>
-			
+
 			<div class="relative">
 				<Label for="image-url">O pegar URL de una imagen</Label>
 				<div class="relative flex items-center">

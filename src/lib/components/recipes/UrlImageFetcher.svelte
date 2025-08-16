@@ -3,19 +3,21 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Trash2, Loader, BadgeCheck, TriangleAlert } from 'lucide-svelte';
-	
+
+	import { scrapeImageFromPage } from '$lib/client/api';
+
 	type UrlState = {
 		status: 'idle' | 'loading' | 'success' | 'error';
 		message: string;
 	};
-	
+
 	let { urls = $bindable(), imageUrl = $bindable() } = $props<{
 		urls?: string[];
 		imageUrl?: string | null;
 	}>();
-	
+
 	let urlStates: UrlState[] = $state([]);
-	
+
 	$effect(() => {
 		// Sincroniza el estado interno cuando las URLs externas cambian
 		const newStates = (urls ?? []).map((_: string, i: number) => {
@@ -25,7 +27,7 @@
 			urlStates = newStates;
 		}
 	});
-	
+
 	function addUrlField() {
 		if (urls) {
 			urls.push('');
@@ -33,7 +35,7 @@
 			urlStates.push({ status: 'idle', message: '' });
 		}
 	}
-	
+
 	function removeUrlField(index: number) {
 		if (urls) {
 			urls.splice(index, 1);
@@ -41,41 +43,25 @@
 			urlStates.splice(index, 1);
 		}
 	}
-	
+
 	async function handleUrlBlur(index: number) {
 		const url = urls?.[index];
 		if (!url || !url.startsWith('http')) {
 			urlStates[index] = { status: 'idle', message: '' };
 			return;
 		}
-		
+
 		if (imageUrl) return;
-		
+
 		urlStates[index] = { status: 'loading', message: '' };
-		
+
 		try {
-			const response = await fetch('/api/scrape-image', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ url })
-			});
-			
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Error desconocido');
-			}
-			
-			const data = await response.json();
-			if (data.imageUrl) {
-				imageUrl = data.imageUrl;
-				urlStates[index] = { status: 'success', message: 'Imagen encontrada' };
-			} else {
-				throw new Error('No se encontró una imagen en la URL.');
-			}
-		} catch (error) {
+			imageUrl = await scrapeImageFromPage(url);
+			urlStates[index] = { status: 'success', message: 'Imagen encontrada' };
+		} catch (err) {
 			urlStates[index] = {
 				status: 'error',
-				message: error instanceof Error ? error.message : 'No se pudo obtener la imagen'
+				message: err instanceof Error ? err.message : 'No se pudo obtener la imagen'
 			};
 		}
 	}
