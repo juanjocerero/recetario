@@ -67,7 +67,7 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 		<!-- Contenedor para reordenamiento en móvil -->
 		<div class="contents lg:grid lg:col-span-5 lg:grid-cols-5 lg:gap-x-12">
 			<!-- Columna Principal: Preparación -->
-			<main class="lg:col-span-3 order-3 lg:order-1">
+			<main class="lg:col-span-3 order-1 lg:order-1">
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="font-heading text-xl mt-4">Preparación</Card.Title>
@@ -96,7 +96,7 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 			</main>
 
 			<!-- Barra Lateral (Contenedor de varios elementos en móvil) -->
-			<aside class="lg:col-span-2 lg:col-start-4 order-1 lg:order-2">
+			<aside class="lg:col-span-2 lg:col-start-4 order-2 lg:order-2">
 				<div class="sticky top-8 flex flex-col gap-8">
 					<!-- Imagen -->
 					{#if recipe.imageUrl}
