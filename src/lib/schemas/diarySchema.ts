@@ -16,8 +16,14 @@ export const DiaryEntrySchema = z.object({
 	carbs: z.number().min(0, 'Los carbohidratos no pueden ser negativos.'),
 	
 	// El campo de ingredientes es opcional y puede tener cualquier estructura JSON.
-	ingredients: z.any().optional(), 
+	ingredients: z.any().optional(),
 	
 	baseProductId: z.string().optional(),
 	baseRecipeId: z.string().optional()
 });
+
+/**
+ * Esquema para validar la actualización de una entrada en el diario.
+ * Todos los campos son opcionales.
+ */
+export const UpdateDiaryEntrySchema = DiaryEntrySchema.partial();

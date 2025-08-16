@@ -4,8 +4,7 @@ import { diaryService } from '$lib/server/services/diaryService';
 import { ZodError } from 'zod';
 import { createFailResponse } from '$lib/server/zodErrors';
 
-// TODO: Crear un esquema de Zod para la validación de la actualización
-// import { UpdateDiaryEntrySchema } from '$lib/schemas/diarySchema';
+import { UpdateDiaryEntrySchema } from '$lib/schemas/diarySchema';
 
 export const PUT: RequestHandler = async ({ request, params, locals }) => {
 	try {
@@ -31,9 +30,9 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 		}
 
 		const body = await request.json();
-		// const validatedData = UpdateDiaryEntrySchema.parse(body); // TODO: Habilitar validación
+		const validatedData = UpdateDiaryEntrySchema.parse(body);
 
-		const updatedEntry = await diaryService.updateDiaryEntry(entryId, body);
+		const updatedEntry = await diaryService.updateDiaryEntry(entryId, validatedData);
 
 		return json(updatedEntry, { status: 200 });
 	} catch (error) {
