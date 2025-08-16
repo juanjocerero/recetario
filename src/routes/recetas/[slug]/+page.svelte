@@ -3,6 +3,7 @@ Ruta: src/routes/recetas/[slug]/+page.svelte
 Implementación del nuevo diseño de la página de detalles de la receta (v2).
 -->
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
@@ -36,6 +37,11 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 
 	// Los pasos ya vienen procesados como HTML desde el servidor.
 	const { steps } = recipe;
+
+	// Para las metaetiquetas, necesitamos una URL absoluta.
+	const absoluteImageUrl = $derived(
+		recipe.imageUrl ? new URL(recipe.imageUrl, data.urlHref).href : null
+	);
 </script>
 
 <svelte:head>
@@ -46,8 +52,8 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 	<meta property="og:type" content="article" />
 	<meta property="og:title" content={recipe.title} />
 	<meta property="og:description" content="Información nutricional, ingredientes y pasos para preparar {recipe.title}" />
-	{#if recipe.imageUrl}
-		<meta property="og:image" content={recipe.imageUrl} />
+	{#if absoluteImageUrl}
+		<meta property="og:image" content={absoluteImageUrl} />
 	{/if}
 	<meta property="og:url" content={data.urlHref} />
 
@@ -55,8 +61,8 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={recipe.title} />
 	<meta name="twitter:description" content="Información nutricional, ingredientes y pasos para preparar {recipe.title}" />
-	{#if recipe.imageUrl}
-		<meta name="twitter:image" content={recipe.imageUrl} />
+	{#if absoluteImageUrl}
+		<meta name="twitter:image" content={absoluteImageUrl} />
 	{/if}
 </svelte:head>
 
@@ -102,7 +108,7 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 					{#if recipe.imageUrl}
 						<div class="order-4 lg:order-1">
 							<img
-								src={recipe.imageUrl}
+								src="{`${base}${recipe.imageUrl}`}"
 								alt="Imagen de {recipe.title}"
 								class="w-full rounded-lg object-cover shadow-lg"
 							/>

@@ -1,7 +1,7 @@
 // scripts/migrate-images.ts
 import { PrismaClient } from '@prisma/client';
-import { imageService } from '../src/lib/server/services/imageService';
-import { slugify } from '../src/lib/server/slug';
+import { imageService } from '../src/lib/server/services/imageService.ts';
+import { slugify } from '../src/lib/server/slug.ts';
 
 const prisma = new PrismaClient();
 

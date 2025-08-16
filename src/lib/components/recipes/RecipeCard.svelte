@@ -3,6 +3,7 @@ Fichero: src/lib/components/recipes/RecipeCard.svelte
 Este componente representa una única tarjeta de receta en la vista principal.
 -->
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { calculateNutritionalInfo } from '$lib/recipeCalculator';
 	import type { CalculableProduct } from '$lib/recipeCalculator';
 	
@@ -83,7 +84,7 @@ Este componente representa una única tarjeta de receta en la vista principal.
 		<div class="relative">
 			{#if recipe.imageUrl}
 			<img
-			src={recipe.imageUrl}
+			src="{`${base}${recipe.imageUrl}`}"
 			alt="Imagen de {recipe.title}"
 			class="aspect-video w-full rounded-t-lg object-cover"
 			/>
