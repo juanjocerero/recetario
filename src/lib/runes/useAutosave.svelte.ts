@@ -59,20 +59,36 @@ export function createAutosave(
 	const { enabled, isDirty, debounceMs = 1500 } = options;
 	let status = $state<AutosaveStatus>('idle');
 	let debounceTimer: number | ReturnType<typeof setTimeout> | undefined;
-	
+	let hasInitialized = false;
+
 	$effect(() => {
 		// Dependencia reactiva: se ejecuta cada vez que `data()` cambia
 		const currentData = data();
-		
-		if (!enabled() || !isDirty()) {
+
+		// Si no está habilitado, no hacemos nada.
+		if (!enabled()) {
+			// Reseteamos el flag de inicialización si se deshabilita.
+			hasInitialized = false;
 			return;
 		}
-		
+
+		// La primera vez que se habilita, lo marcamos como inicializado
+		// y evitamos guardar, ya que puede ser un falso positivo.
+		if (!hasInitialized) {
+			hasInitialized = true;
+			return;
+		}
+
+		// Si no hay cambios, no hacemos nada.
+		if (!isDirty()) {
+			return;
+		}
+
 		// Limpiamos el timer anterior para debouncing
 		clearTimeout(debounceTimer);
-		
+
 		status = 'saving';
-		
+
 		debounceTimer = setTimeout(() => {
 			const { success } = save(key, currentData);
 			if (success) {
@@ -83,7 +99,7 @@ export function createAutosave(
 				status = 'error';
 			}
 		}, debounceMs);
-		
+
 		return () => clearTimeout(debounceTimer);
 	});
 	
