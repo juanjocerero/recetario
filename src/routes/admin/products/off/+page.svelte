@@ -160,15 +160,11 @@
 	}
 </script>
 
-<div class="container mt-4 md:px-24">
-		<div class="flex items-center gap-4">
+<div class="container mx-auto px-4 md:px-24 mt-16">
+		<div class="flex items-center gap-2 my-4">
 			<a href="/admin/products" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
 				<ArrowLeft class="h-4 w-4" />
 			</a>
-			<h1 class="text-xl font-bold">Añadir productos desde OpenFoodFacts</h1>
-		</div>
-
-		<div class="flex items-center gap-2 my-4">
 			<div class="relative flex-grow">
 				<Input
 					bind:value={searchTerm}

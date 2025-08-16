@@ -322,26 +322,26 @@
 	}
 </script>
 
-<div class="container mx-auto p-4 md:py-8 md:px-24">
-	<header class="mb-8 flex items-center justify-between" bind:this={pageHeader}>
+<div class="container mx-auto p-4 py-16 md:py-8 md:px-24">
+	<!-- <header class="mb-8 flex items-center justify-between" bind:this={pageHeader}>
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Búsqueda Avanzada</h1>
 			<p class="text-muted-foreground">
 				Filtra por productos, macronutrientes y más.
 			</p>
 		</div>
-	</header>
+	</header> -->
 
 	<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
 		<aside class="lg:col-span-1 space-y-6 sticky top-4">
-			<Collapsible.Root open={isDesktop} class="border rounded-lg p-4">
+			<Collapsible.Root open={isDesktop} class="border rounded-lg p-4 bg-card">
 				<div class="flex items-center justify-between">
 					<h3 class="text-xl font-semibold">Filtros</h3>
 					<Collapsible.Trigger
 						class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'w-9 p-0')}
 					>
 						<ChevronsUpDown class="h-4 w-4" />
-						<span class="sr-only">Toggle Filtros</span>
+						<span class="sr-only">Desplegar Filtros</span>
 					</Collapsible.Trigger>
 				</div>
 				<Collapsible.Content class="mt-4">
@@ -379,7 +379,7 @@
 				</Collapsible.Content>
 			</Collapsible.Root>
 
-			<Collapsible.Root open={isDesktop} class="border rounded-lg p-4">
+			<Collapsible.Root open={isDesktop} class="border rounded-lg p-4 bg-card">
 				<div class="flex items-center justify-between">
 					<h3 class="text-xl font-semibold">Ordenar por</h3>
 					<Collapsible.Trigger
@@ -403,7 +403,7 @@
 		<main class="lg:col-span-2">
 			<div class="space-y-4">
 				{#if recipes.length > 0}
-					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						{#each recipes as recipe, i (recipe.id)}
 							<div>
 								<RecipeCard {recipe} isAdmin={false} onEditQuantities={() => {}} onDelete={() => {}} />

@@ -40,7 +40,7 @@
 	<Card>
 		<CardHeader class="pt-4">
 			<div class="flex flex-row items-center gap-4">
-				<div class="relative w-80">
+				<div class="relative flex-grow">
 					<Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 					<Input class="pl-8 pr-8" placeholder="Buscar..." bind:value={searchTerm} />
 					{#if searchTerm}
@@ -54,7 +54,7 @@
 					{/if}
 				</div>
 
-				<div class="flex-grow">
+				<div class="w-80">
 					<ProductSortOptions bind:field={sort} bind:direction={direction} />
 				</div>
 

@@ -74,8 +74,12 @@ Este componente representa una única tarjeta de receta en la vista principal.
 	}
 </script>
 
-<Card.Root class="flex flex-col break-inside-avoid">
-	<a href="/recetas/{recipe.slug}" class="flex flex-col h-full" aria-label="Ver receta: {recipe.title}">
+<Card.Root class="flex flex-col break-inside-avoid rounded-lg border bg-card">
+	<a
+		href="/recetas/{recipe.slug}"
+		class="relative z-0 flex h-full flex-col"
+		aria-label="Ver receta: {recipe.title}"
+	>
 		<div class="relative">
 			{#if recipe.imageUrl}
 			<img

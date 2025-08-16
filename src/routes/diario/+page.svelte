@@ -151,7 +151,7 @@
 	});
 </script>
 
-<div class="container mx-auto md:py-4 md:px-24">	
+<div class="container mx-auto py-16 p-4 md:py-4 md:px-24">	
 	<div class="flex flex-col lg:flex-row gap-8">
 		<!-- Columna principal (2/3) -->
 		<div class="lg:w-2/3 order-1 lg:order-1">

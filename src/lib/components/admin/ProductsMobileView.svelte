@@ -63,7 +63,7 @@
 
 	<div class="space-y-4">
 		{#each data.products as product, i (i)}
-			<div class="flex flex-col space-y-3 rounded-lg border p-4">
+			<div class="flex flex-col space-y-3 rounded-lg border bg-card p-4">
 				<div class="flex items-baseline justify-between">
 					<span class="break-words pr-2 font-medium">{product.name}</span>
 					<span class="whitespace-nowrap text-sm text-muted-foreground">
