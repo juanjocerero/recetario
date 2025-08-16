@@ -23,10 +23,10 @@ function saveHash() {
 
 async function runOriginalDeploy() {
   return new Promise((resolve, reject) => {
-    const child = spawn('node', ['deploy.js'], { stdio: 'inherit' });
+    const child = spawn('node', ['deploy.mjs'], { stdio: 'inherit' });
     child.on('close', (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`deploy.js falló con código ${code}`));
+      else reject(new Error(`deploy.mjs falló con código ${code}`));
     });
   });
 }
