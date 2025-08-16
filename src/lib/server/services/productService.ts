@@ -40,7 +40,7 @@ export const productService = {
 	/**
 	* Obtiene todos los productos, con opción de búsqueda y ordenación.
 	*/
-	async getAll(search?: string, sort: string = 'name', order: string = 'asc') {
+	async getAll(search?: string, sort: string = 'normalizedName', order: string = 'asc') {
 		const whereClause = search
 		? {
 			normalizedName: {

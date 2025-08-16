@@ -8,7 +8,7 @@ import { imageService } from '$lib/server/services/imageService';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
-	const sort = url.searchParams.get('sort') ?? 'name';
+	const sort = url.searchParams.get('sort') ?? 'normalizedName';
 	const order = url.searchParams.get('order') ?? 'asc';
 	
 	try {

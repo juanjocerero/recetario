@@ -61,7 +61,7 @@
 		<Table.Root class="w-full table-fixed">
 			<Table.Header>
 				<Table.Row>
-					<SortableHeader column="name" label="Nombre" class="w-[30%]" />
+					<SortableHeader column="normalizedName" label="Nombre" class="w-[30%]" />
 					<SortableHeader column="calories" label="kcal" class="w-[12%] justify-end" />
 					<Table.Head class="w-[46%]"></Table.Head>
 					<Table.Head class="w-[12%] text-right"></Table.Head>
