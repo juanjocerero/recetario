@@ -2,10 +2,10 @@
 <script lang="ts">
 	import { calculateNutritionalInfo, type CalculableProduct } from '$lib/recipeCalculator';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	
+	import IngredientListEditor from '../shared/IngredientListEditor.svelte';
+	import NutritionalComparison from '../shared/NutritionalComparison.svelte';
+
 	type Recipe = {
 		id: string;
 		title: string;
@@ -21,29 +21,29 @@
 			};
 		}[];
 	};
-	
+
 	let { recipe, open = $bindable(), onOpenChange }: {
 		recipe: Recipe | null;
 		open?: boolean;
 		onOpenChange: (isOpen: boolean) => void;
 	} = $props();
-	
+
 	let editableIngredients = $state<
-	{
-		id: string;
-		name: string;
-		quantity: number;
-		baseValues: Omit<CalculableProduct, 'quantity'>;
-	}[]
+		{
+			id: string;
+			name: string;
+			quantity: number;
+			baseValues: Omit<CalculableProduct, 'quantity'>;
+		}[]
 	>([]);
-	
+
 	$effect(() => {
 		if (open && recipe) {
 			editableIngredients = recipe.ingredients.map((ing) => {
 				const source = ing.product;
 				const id = source.id;
 				const name = source.name;
-				
+
 				return {
 					id,
 					name,
@@ -60,35 +60,35 @@
 			editableIngredients = [];
 		}
 	});
-	
+
 	const originalTotals = $derived(
-	recipe
-	? calculateNutritionalInfo(
-	recipe.ingredients.map((ing) => {
-		const source = ing.product;
-		return {
-			quantity: ing.quantity,
-			calories: source.calories,
-			protein: source.protein,
-			fat: source.fat,
-			carbs: source.carbs
-		};
-	})
-	)
-	: null
+		recipe
+			? calculateNutritionalInfo(
+					recipe.ingredients.map((ing) => {
+						const source = ing.product;
+						return {
+							quantity: ing.quantity,
+							calories: source.calories,
+							protein: source.protein,
+							fat: source.fat,
+							carbs: source.carbs
+						};
+					})
+				)
+			: null
 	);
-	
+
 	const newTotals = $derived(
-	calculateNutritionalInfo(
-	editableIngredients.map((ing) => ({
-		...ing.baseValues,
-		quantity: Number(ing.quantity) || 0
-	}))
-	)
+		calculateNutritionalInfo(
+			editableIngredients.map((ing) => ({
+				...ing.baseValues,
+				quantity: Number(ing.quantity) || 0
+			}))
+		)
 	);
 </script>
 
-<Dialog.Root bind:open onOpenChange={onOpenChange}>
+<Dialog.Root bind:open {onOpenChange}>
 	<Dialog.Content class="sm:max-w-[600px]">
 		<Dialog.Header>
 			<Dialog.Title>Editar cantidades: {recipe?.title}</Dialog.Title>
@@ -97,44 +97,13 @@
 				la receta original.
 			</Dialog.Description>
 		</Dialog.Header>
-		
-		<div class="grid gap-4 py-4">
-			{#each editableIngredients as ingredient (ingredient.id)}
-			<div class="grid grid-cols-4 items-center gap-4">
-				<Label for={ingredient.id} class="text-right col-span-2">{ingredient.name}</Label>
-				<Input
-				id={ingredient.id}
-				type="number"
-				bind:value={ingredient.quantity}
-				class="col-span-2"
-				/>
-			</div>
-			{/each}
-		</div>
-		
+
+		<IngredientListEditor ingredients={editableIngredients} />
+
 		<hr />
-		
-		<!-- Justificación: Se añade un data-testid al contenedor para poder seleccionarlo
-		de forma inequívoca en los tests. -->
-		<div data-testid="comparison-section" class="grid grid-cols-2 gap-x-8 gap-y-2 mt-4 text-sm">
-			<h3 class="font-semibold col-span-2">Comparativa</h3>
-			
-			<div class="font-medium text-muted-foreground">Original</div>
-			<div class="font-medium text-muted-foreground">Nuevo</div>
-			
-			<div>Calorías: {originalTotals?.totalCalories.toFixed(0) ?? 0} kcal</div>
-			<div class="font-semibold">Calorías: {newTotals.totalCalories.toFixed(0)} kcal</div>
-			
-			<div>Proteínas: {originalTotals?.totalProtein.toFixed(1) ?? 0} g</div>
-			<div class="font-semibold">Proteínas: {newTotals.totalProtein.toFixed(1)} g</div>
-			
-			<div>Grasas: {originalTotals?.totalFat.toFixed(1) ?? 0} g</div>
-			<div class="font-semibold">Grasas: {newTotals.totalFat.toFixed(1)} g</div>
-			
-			<div>Carbs: {originalTotals?.totalCarbs.toFixed(1) ?? 0} g</div>
-			<div class="font-semibold">Carbos: {newTotals.totalCarbs.toFixed(1)} g</div>
-		</div>
-		
+
+		<NutritionalComparison original={originalTotals} current={newTotals} />
+
 		<Dialog.Footer>
 			<!-- Justificación: Se añade un data-testid al botón para seleccionarlo sin ambigüedad. -->
 			<Button data-testid="dialog-close-button" onclick={() => onOpenChange(false)}>Cerrar</Button>
