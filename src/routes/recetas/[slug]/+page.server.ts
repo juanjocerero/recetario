@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 			...recipe,
 			steps: processedSteps
 		},
-		url
+		urlHref: url.href
 	};
 };
 

@@ -49,7 +49,7 @@ Implementación del nuevo diseño de la página de detalles de la receta (v2).
 	{#if recipe.imageUrl}
 		<meta property="og:image" content={recipe.imageUrl} />
 	{/if}
-	<meta property="og:url" content={data.url.href} />
+	<meta property="og:url" content={data.urlHref} />
 
 	<!-- Twitter -->
 	<meta name="twitter:card" content="summary_large_image" />
