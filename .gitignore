@@ -19,10 +19,15 @@ Thumbs.db
 !.env.test
 !.env.example
 
+# Ficheros de texto para el desarrollo
+betterauth
+bundle.txt
+
 # Vite
 vite.config.js.timestamp-*
 
 # Resultados de tests
 playwright-report
 
+# Fichero de configuración de producción
 ecosystem.config.cjs
