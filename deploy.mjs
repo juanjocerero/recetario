@@ -30,10 +30,11 @@ function runCommand(command, args = []) {
 function runRemoteCommand(command) {
   return new Promise((resolve, reject) => {
     console.log(`🖥️  Ejecutando en servidor: ${command}`);
-    const commandWithNvm = `source ~/.nvm/nvm.sh && ${command}`;
+    const commandWithNvm = `bash -c 'export SHELL=/bin/bash && source ~/.nvm/nvm.sh --no-use && ${command}'`;
     const sshArgs = [
       '-o', 'UserKnownHostsFile=/dev/null',
       '-o', 'StrictHostKeyChecking=no',
+      '-o', 'LogLevel=ERROR',
     ];
     
     // Añadir la clave SSH si está especificada
@@ -83,12 +84,31 @@ module.exports = {
   console.log('✅ Fichero ecosystem.config.cjs generado.');
 }
 
+// Al inicio de tu script, antes de deploy()
+async function ensureSshKeyLoaded() {
+  try {
+    await runCommand('ssh-add', ['-l']);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    console.log('🔑 Clave SSH no encontrada en el agente. Intentando añadir...');
+    try {
+      await runCommand('ssh-add', [cfg.sshKey]);
+    } catch (error) {
+      console.error('❌ No se pudo añadir la clave SSH al agente. Añádela manualmente:');
+      console.error(`ssh-add ${cfg.sshKey}`);
+      throw error;
+    }
+  }
+}
 
 // ---- FUNCIÓN PRINCIPAL DE DESPLIEGUE ----
 
 async function deploy() {
   try {
     console.log('🚀 Iniciando proceso de despliegue...\n');
+    
+    // Verificar clave SSH
+    await ensureSshKeyLoaded();
     
     // Paso 1: Compilar localmente
     console.log('📦 Paso 1/9: Compilando aplicación localmente...');
@@ -102,9 +122,8 @@ async function deploy() {
     
     // Paso 3: Subir el repositorio completo
     console.log('📦 Paso 3/9: Subiendo repositorio al servidor...');
-    // Por esto:
     const excludeArgs = exclude.map(item => `--exclude=${item}`);
-    const sshCommand = `ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${cfg.sshKey}`;
+    const sshCommand = `ssh -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o StrictHostKeyChecking=no -i ${cfg.sshKey}`;
     await runCommand('rsync', [
       '-avz', '--progress', '--delete',
       '-e', sshCommand,
