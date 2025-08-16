@@ -3,9 +3,12 @@ import { error, fail } from '@sveltejs/kit';
 import { recipeService } from '$lib/server/services/recipeService';
 import type { PageServerLoad, Actions } from './$types';
 import { RecipeSchema } from '$lib/schemas/recipeSchema';
-// Justificación: Se importa la nueva utilidad unificada para crear respuestas de error.
 import { createFailResponse } from '$lib/server/zodErrors';
 import { marked } from 'marked';
+// Justificación: Se importa `sanitize-html` para limpiar el HTML generado por `marked`
+// de forma segura en el servidor, sin necesidad de emular un DOM con `jsdom`,
+// lo que resuelve el error "require is not defined" en producción.
+import sanitizeHtml from 'sanitize-html';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const recipe = await recipeService.getBySlug(params.slug);
@@ -14,21 +17,14 @@ export const load: PageServerLoad = async ({ params }) => {
 		throw error(404, 'Receta no encontrada');
 	}
 
-	// Justificación: Se realiza una importación dinámica de JSDOM y createDOMPurify
-	// solo en el entorno del servidor y cuando es estrictamente necesario.
-	// Esto evita que el empaquetador Vite intente resolver dependencias de Node.js
-	// (como 'jsdom') en el cliente, solucionando el error "require is not defined".
-	const { JSDOM } = await import('jsdom');
-	const createDOMPurify = (await import('dompurify')).default;
-	const window = new JSDOM('').window;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const sanitizer = createDOMPurify(window as any);
-
+	// Justificación: Se reemplaza la combinación de `jsdom` y `dompurify` por `sanitize-html`.
+	// Esta librería está diseñada para ejecutarse en Node.js sin dependencias del DOM,
+	// lo que la hace más ligera, rápida y compatible con el entorno de servidor de SvelteKit.
 	const processedSteps = await Promise.all(
 		Array.isArray(recipe.steps)
 			? recipe.steps.map(async (step) => {
 					const rawHtml = await marked.parse(String(step ?? ''));
-					return sanitizer.sanitize(rawHtml);
+					return sanitizeHtml(rawHtml);
 				})
 			: []
 	);
