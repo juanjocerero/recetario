@@ -178,15 +178,6 @@
 					<ImageManager bind:imageUrl={formData.imageUrl} />
 				</div>
 				
-				<RecipeStepsManager
-				steps={formData.steps}
-				onAdd={recipe.addStep}
-				onRemove={recipe.removeStep}
-				onUpdateText={recipe.updateStepText}
-				onReorder={recipe.reorderSteps}
-				errors={form?.errors?.steps}
-				/>
-				
 				<div class="space-y-4">
 					<div class="space-y-2">
 						<Label>Añadir Ingrediente</Label>
@@ -199,6 +190,15 @@
 					errors={form?.errors?.ingredients}
 					/>
 				</div>
+				
+				<RecipeStepsManager
+				steps={formData.steps}
+				onAdd={recipe.addStep}
+				onRemove={recipe.removeStep}
+				onUpdateText={recipe.updateStepText}
+				onReorder={recipe.reorderSteps}
+				errors={form?.errors?.steps}
+				/>
 				
 				<NutritionalInfoPanel info={nutritionalInfo} />
 				
