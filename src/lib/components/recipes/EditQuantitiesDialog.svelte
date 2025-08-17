@@ -98,7 +98,9 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<IngredientListEditor ingredients={editableIngredients} />
+		<div class="max-h-[40vh] overflow-y-auto pr-2">
+			<IngredientListEditor ingredients={editableIngredients} />
+		</div>
 
 		<hr />
 
