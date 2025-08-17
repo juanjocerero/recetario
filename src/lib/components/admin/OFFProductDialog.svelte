@@ -112,20 +112,6 @@
 				/>
 			</div>
 			<div class="grid grid-cols-4 items-center gap-4">
-				<Label for="protein-add-{product.id}" class="text-right">Proteínas</Label>
-				<Input
-				id="protein-add-{product.id}"
-				type="number"
-				step="0.01"
-				value={displayProtein}
-				oninput={(e) => {
-					displayProtein = e.currentTarget.value;
-					protein = e.currentTarget.valueAsNumber;
-				}}
-				class="col-span-3 hide-arrows"
-				/>
-			</div>
-			<div class="grid grid-cols-4 items-center gap-4">
 				<Label for="fat-add-{product.id}" class="text-right">Grasas</Label>
 				<Input
 				id="fat-add-{product.id}"
@@ -149,6 +135,20 @@
 				oninput={(e) => {
 					displayCarbs = e.currentTarget.value;
 					carbs = e.currentTarget.valueAsNumber;
+				}}
+				class="col-span-3 hide-arrows"
+				/>
+			</div>
+			<div class="grid grid-cols-4 items-center gap-4">
+				<Label for="protein-add-{product.id}" class="text-right">Proteínas</Label>
+				<Input
+				id="protein-add-{product.id}"
+				type="number"
+				step="0.01"
+				value={displayProtein}
+				oninput={(e) => {
+					displayProtein = e.currentTarget.value;
+					protein = e.currentTarget.valueAsNumber;
 				}}
 				class="col-span-3 hide-arrows"
 				/>
