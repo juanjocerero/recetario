@@ -18,7 +18,11 @@ export default defineConfig({
 		// Justificación: Se restaura 'jsdom' como entorno global, ya que la condición
 		// de resolución es la solución real al problema.
 		environment: 'jsdom',
-		include: ['src/**/*.{test,spec}.{js,ts}'],
-		exclude: ['e2e/**']
+		include: ['src/**/*.{test,spec}.{js,ts}', 'tests/**/*.spec.ts'],
+		exclude: ['e2e/**'],
+		alias: {
+			$lib: path.resolve(__dirname, './src/lib'),
+			'$app/environment': path.resolve(__dirname, './tests/mocks/app-environment.ts')
+		}
 	}
 });
