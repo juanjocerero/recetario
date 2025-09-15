@@ -6,6 +6,8 @@
 	import MacroBar from '$lib/components/shared/MacroBar.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import AddCustomProductDialog from '$lib/components/shared/AddCustomProductDialog.svelte';
+	import { page } from '$app/stores';
+	import Pagination from '$lib/components/shared/Pagination.svelte';
 	import ProductSortOptions, {
 		type SortDirection,
 		type SortField
@@ -81,5 +83,12 @@
 			<p class="text-center text-muted-foreground">No hay productos.</p>
 		{/each}
 	</div>
+
+	{#if data.totalPages > 1}
+		<div class="mt-4">
+			<Pagination page={data.page} totalPages={data.totalPages} url={$page.url} />
+		</div>
+	{/if}
+
 	<AddCustomProductDialog bind:open={isAddDialogOpen} bind:form />
 </div>

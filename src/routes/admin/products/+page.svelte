@@ -34,6 +34,9 @@
 			url.searchParams.set('sort', currentSort);
 			url.searchParams.set('order', currentDirection);
 
+			// Al buscar u ordenar, volver a la primera página
+			url.searchParams.delete('page');
+
 			if (url.search !== page.url.search) {
 				goto(url, { keepFocus: true, noScroll: true, replaceState: true });
 			}
