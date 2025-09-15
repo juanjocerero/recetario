@@ -53,35 +53,71 @@ export const recipeService = {
 			finalImageUrl = await imageService.saveBase64ImageAsFile(rawImageUrl, slug);
 		}
 
-		const createdRecipe = await prisma.recipe.create({
-			data: {
-				title,
-				slug,
-				normalizedTitle: normalizeText(title),
-				steps,
-				imageUrl: finalImageUrl,
-				urls: {
-					create: urls?.map((url: string) => ({ url }))
-				},
-				ingredients: {
-					create: ingredients.map((ingredient) => ({
+		return await prisma.$transaction(async (tx) => {
+			const ingredientData = await Promise.all(
+				ingredients.map(async (ingredient) => {
+					let productId: string;
+
+					if (ingredient.source === 'local') {
+						// El producto ya existe, usamos su CUID directamente.
+						productId = ingredient.id;
+					} else {
+						// Es un producto de OFF, puede que no exista en nuestra BD.
+						// Lo buscamos por su código de barras.
+						const existingProduct = await tx.product.findUnique({
+							where: { barcode: ingredient.id }
+						});
+
+						if (existingProduct) {
+							// El producto ya estaba en la BD, usamos su ID.
+							productId = existingProduct.id;
+						} else {
+							// El producto no existe, lo creamos.
+							const newProduct = await tx.product.create({
+								data: {
+									barcode: ingredient.id,
+									name: ingredient.name,
+									normalizedName: normalizeText(ingredient.name),
+									calories: ingredient.calories,
+									protein: ingredient.protein,
+									carbs: ingredient.carbs,
+									fat: ingredient.fat,
+									imageUrl: ingredient.imageUrl
+								}
+							});
+							productId = newProduct.id;
+						}
+					}
+
+					return {
 						quantity: ingredient.quantity,
-						productId: ingredient.id // El ID ahora siempre es el del producto
-					}))
-				}
+						productId: productId
+					};
+				})
+			);
+
+			const createdRecipe = await tx.recipe.create({
+				data: {
+					title,
+					slug,
+					normalizedTitle: normalizeText(title),
+					steps,
+					imageUrl: finalImageUrl,
+					urls: {
+						create: urls?.map((url: string) => ({ url }))
+					},
+					ingredients: {
+						create: ingredientData
+					}
+				},
+				include: recipeInclude
+			});
+
+			if (!createdRecipe) {
+				throw new Error('No se pudo encontrar la receta recién creada.');
 			}
+			return createdRecipe;
 		});
-
-		const fullNewRecipe = await prisma.recipe.findUnique({
-			where: { id: createdRecipe.id },
-			include: recipeInclude
-		});
-
-		if (!fullNewRecipe) {
-			throw new Error('No se pudo encontrar la receta recién creada.');
-		}
-
-		return fullNewRecipe;
 	},
 
 	async update(id: string, data: RecipeData) {
@@ -106,6 +142,44 @@ export const recipeService = {
 		}
 
 		return await prisma.$transaction(async (tx) => {
+			// 1. Resolver los IDs de producto para los ingredientes.
+			// Esta lógica es idéntica a la de `create` y asegura que los productos
+			// nuevos de OFF se creen antes de asociarlos a la receta.
+			const ingredientData = await Promise.all(
+				ingredients.map(async (ingredient) => {
+					let productId: string;
+					if (ingredient.source === 'local') {
+						productId = ingredient.id;
+					} else {
+						const existingProduct = await tx.product.findUnique({
+							where: { barcode: ingredient.id }
+						});
+						if (existingProduct) {
+							productId = existingProduct.id;
+						} else {
+							const newProduct = await tx.product.create({
+								data: {
+									barcode: ingredient.id,
+									name: ingredient.name,
+									normalizedName: normalizeText(ingredient.name),
+									calories: ingredient.calories,
+									protein: ingredient.protein,
+									carbs: ingredient.carbs,
+									fat: ingredient.fat,
+									imageUrl: ingredient.imageUrl
+								}
+							});
+							productId = newProduct.id;
+						}
+					}
+					return {
+						quantity: ingredient.quantity,
+						productId: productId
+					};
+				})
+			);
+
+			// 2. Actualizar los datos básicos de la receta.
 			await tx.recipe.update({
 				where: { id },
 				data: {
@@ -117,15 +191,16 @@ export const recipeService = {
 				}
 			});
 
+			// 3. Sincronizar los ingredientes: borrar los antiguos y crear los nuevos.
 			await tx.recipeIngredient.deleteMany({ where: { recipeId: id } });
 			await tx.recipeIngredient.createMany({
-				data: ingredients.map((ingredient) => ({
+				data: ingredientData.map((ing) => ({
 					recipeId: id,
-					quantity: ingredient.quantity,
-					productId: ingredient.id
+					...ing
 				}))
 			});
 
+			// 4. Sincronizar las URLs: borrar las antiguas y crear las nuevas.
 			await tx.recipeUrl.deleteMany({ where: { recipeId: id } });
 			if (urls && urls.length > 0) {
 				await tx.recipeUrl.createMany({
