@@ -10,15 +10,20 @@ export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
 	const sort = url.searchParams.get('sort') ?? 'normalizedName';
 	const order = url.searchParams.get('order') ?? 'asc';
-	
+	const page = parseInt(url.searchParams.get('page') ?? '1');
+	const pageSize = 50;
+
 	try {
-		// Ahora solo hay un tipo de producto: Product. El servicio se ha simplificado.
-		const products = await productService.getAll(search, sort, order);
+		const { products, total } = await productService.getAll(search, sort, order, page, pageSize);
+		const totalPages = Math.ceil(total / pageSize);
+
 		return {
 			products,
 			search,
 			sort,
-			order
+			order,
+			page,
+			totalPages
 		};
 	} catch (error) {
 		console.error('Error al cargar los productos:', error);
@@ -27,6 +32,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			search,
 			sort,
 			order,
+			page,
+			totalPages: 0,
 			error: 'No se pudieron cargar los productos'
 		};
 	}

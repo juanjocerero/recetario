@@ -4,10 +4,12 @@
 	import * as Separator from '$lib/components/ui/separator';
 	import * as Table from '$lib/components/ui/table';
 	import type { PageData } from '../../../routes/admin/products/$types';
-	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
+	import { page } from '$app/stores';
+	import { Card, CardContent, CardFooter, CardHeader } from '$lib/components/ui/card';
 	import { Plus, Search, X, UtensilsCrossed } from 'lucide-svelte';
 	import ProductActions from '$lib/components/admin/ProductActions.svelte';
 	import MacroBar from '$lib/components/shared/MacroBar.svelte';
+	import Pagination from '$lib/components/shared/Pagination.svelte';
 	import AddCustomProductDialog from '$lib/components/shared/AddCustomProductDialog.svelte';
 	import ProductSortOptions, {
 		type SortDirection,
@@ -110,6 +112,11 @@
 				</Table.Body>
 			</Table.Root>
 		</CardContent>
+		{#if data.totalPages > 1}
+			<CardFooter>
+				<Pagination page={data.page} totalPages={data.totalPages} url={$page.url} />
+			</CardFooter>
+		{/if}
 	</Card>
 </div>
 

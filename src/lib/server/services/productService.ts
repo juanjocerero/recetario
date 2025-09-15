@@ -38,23 +38,37 @@ export const productService = {
 	},
 	
 	/**
-	* Obtiene todos los productos, con opción de búsqueda y ordenación.
-	*/
-	async getAll(search?: string, sort: string = 'normalizedName', order: string = 'asc') {
+	 * Obtiene todos los productos, con opción de búsqueda, ordenación y paginación.
+	 */
+	async getAll(
+		search?: string,
+		sort: string = 'normalizedName',
+		order: string = 'asc',
+		page: number = 1,
+		pageSize: number = 50
+	) {
 		const whereClause = search
-		? {
-			normalizedName: {
-				contains: normalizeText(search)
-			}
-		}
-		: {};
-		
+			? {
+					normalizedName: {
+						contains: normalizeText(search)
+					}
+				}
+			: {};
+
 		const orderByClause = { [sort]: order };
-		
-		return prisma.product.findMany({
-			where: whereClause,
-			orderBy: orderByClause
-		});
+		const skip = (page - 1) * pageSize;
+
+		const [products, total] = await prisma.$transaction([
+			prisma.product.findMany({
+				where: whereClause,
+				orderBy: orderByClause,
+				take: pageSize,
+				skip: skip
+			}),
+			prisma.product.count({ where: whereClause })
+		]);
+
+		return { products, total };
 	},
 	
 	/**
