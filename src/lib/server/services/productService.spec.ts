@@ -248,7 +248,13 @@ describe('productService', () => {
 
 		it('should return null if the API call fails', async () => {
 			mockedPrisma.product.findUnique.mockResolvedValue(null);
-			const kyGetSpy = vi.spyOn(ky, 'get').mockRejectedValue(new Error('API Error'));
+			const kyGetSpy = vi.spyOn(ky, 'get').mockImplementation(() => {
+				// Simulate the behavior of ky where the .json() call can fail.
+				// This more accurately represents a network or parsing error.
+				return {
+					json: () => Promise.reject(new Error('API Call Failed'))
+				};
+			});
 
 			const result = await productService.findByBarcode(barcode);
 
