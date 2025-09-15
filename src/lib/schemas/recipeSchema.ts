@@ -1,13 +1,37 @@
 // Ruta: src/lib/schemas/recipeSchema.ts
 import { z } from 'zod';
 
-// Justificación: Este es el esquema para un único ingrediente DENTRO de una receta.
-// Es el Data Transfer Object (DTO) que esperamos del frontend.
-const RecipeIngredientSchema = z.object({
-	id: z.string(),
-	quantity: z.coerce.number().positive({ message: 'La cantidad debe ser mayor que cero.' }),
-	source: z.enum(['local', 'off'])
+// Justificación: Para manejar ingredientes de distintas fuentes, se utiliza un
+// discriminated union. Esto permite que el esquema varíe según el valor
+// del campo 'source', asegurando que los datos para cada tipo de ingrediente
+// sean correctos.
+
+// Esquema para ingredientes que ya existen en la base de datos local.
+const LocalIngredientSchema = z.object({
+	source: z.literal('local'),
+	id: z.string().cuid(), // El CUID del producto en nuestra BD
+	quantity: z.coerce.number().positive()
 });
+
+// Esquema para ingredientes nuevos obtenidos de Open Food Facts (OFF).
+// Incluye todos los campos necesarios para crear un nuevo producto.
+const OffIngredientSchema = z.object({
+	source: z.literal('off'),
+	id: z.string(), // El código de barras del producto en OFF
+	name: z.string(),
+	quantity: z.coerce.number().positive(),
+	calories: z.coerce.number().min(0),
+	protein: z.coerce.number().min(0),
+	carbs: z.coerce.number().min(0),
+	fat: z.coerce.number().min(0),
+	imageUrl: z.string().url().optional().nullable()
+});
+
+// El esquema de ingrediente final es la unión de los dos tipos.
+const RecipeIngredientSchema = z.discriminatedUnion('source', [
+	LocalIngredientSchema,
+	OffIngredientSchema
+]);
 
 // Justificación: Esquema principal para la creación y actualización de recetas.
 // Valida la estructura completa del objeto que se enviará a la API.
