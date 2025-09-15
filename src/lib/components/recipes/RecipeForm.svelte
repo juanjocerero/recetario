@@ -145,13 +145,20 @@
 			class="space-y-6"
 			>
 			<!-- Campos ocultos -->
-			<input
-			type="hidden"
-			name="ingredients"
-			value={JSON.stringify(
-				formData.ingredients.map(({ id, quantity, source }) => ({ id, quantity, source }))
-				)}
-				/>
+			<!--
+				Justificación del cambio:
+				El formulario antes solo enviaba `id`, `quantity` y `source` para todos los
+				ingredientes. Esto causaba un error de validación en el backend cuando un
+				ingrediente provenía de Open Food Facts (source: 'off'), porque el nuevo
+				esquema del servidor requiere todos los datos del producto (nombre, calorías, etc.)
+				para poder crearlo en la base de datos.
+
+				La solución es enviar el objeto completo del ingrediente. El backend, con su
+				esquema de "discriminated union", sabrá qué campos utilizar dependiendo
+				del valor de `source`. Para 'local', usará solo los campos que necesita;
+				para 'off', usará todos los datos para crear el nuevo producto.
+			-->
+			<input type="hidden" name="ingredients" value={JSON.stringify(formData.ingredients)} />
 				<input
 				type="hidden"
 				name="urls"
